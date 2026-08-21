@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react'
+import { Plus, Search, ChevronLeft, ChevronRight, MoreVertical, Bell, Settings } from 'lucide-react'
 import nataleLogo from './assets/companies/natale.png'
 import { rosterMembers, filterTabs, getInitials } from './dummy/roster-mock'
 import { slugify } from './dummy/profile-mock'
@@ -59,7 +59,9 @@ export default function StaffRosterPage() {
               <Link to="/analytics">Analytics</Link>
             </div>
           </div>
-          <div className="roster-nav-right">
+          <div className="roster-nav-right" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#52424e', display: 'flex', alignItems: 'center', padding: 6 }} title="Notifications"><Bell size={20} /></button>
+            <Link to="/settings/organization" style={{ color: '#52424e', display: 'flex', alignItems: 'center', padding: 6 }} title="Settings"><Settings size={20} /></Link>
             <div className="roster-nav-avatar">AK</div>
           </div>
         </div>

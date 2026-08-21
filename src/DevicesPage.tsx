@@ -31,8 +31,8 @@ export default function DevicesPage() {
             </div>
           </div>
           <div className="dev-nav-right">
-            <Bell size={20} color="#52424e" />
-            <Settings size={20} color="#52424e" />
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', color: '#52424e' }} title="Notifications"><Bell size={20} /></button>
+            <Link to="/settings/organization" style={{ color: '#52424e', display: 'flex', padding: 4 }} title="Settings"><Settings size={20} /></Link>
             <div className="roster-nav-avatar" style={{ width: 32, height: 32, borderRadius: '50%', background: '#edeeef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#52424e', border: '1px solid #e5e7eb' }}>AK</div>
           </div>
         </div>

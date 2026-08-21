@@ -1,14 +1,16 @@
+@import "tailwindcss";
+
 :root {
-  --text: #52424e;
-  --text-h: #191c1d;
-  --bg: #f8f9fa;
-  --border: #e1e3e4;
-  --code-bg: #f4f3ec;
-  --accent: #7c007e;
-  --accent-bg: rgba(124, 0, 126, 0.08);
-  --accent-border: rgba(124, 0, 126, 0.4);
-  --social-bg: rgba(237, 238, 239, 0.5);
-  --shadow: rgba(124, 0, 126, 0.06) 0 8px 32px;
+  --text: #374151;
+  --text-h: #111827;
+  --bg: #f9fafb;
+  --border: #e5e7eb;
+  --code-bg: #f3f4f6;
+  --accent: #111827;
+  --accent-bg: rgba(17, 24, 39, 0.06);
+  --accent-border: rgba(17, 24, 39, 0.3);
+  --social-bg: rgba(243, 244, 246, 0.6);
+  --shadow: rgba(0, 0, 0, 0.05) 0 8px 32px;
 
   --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;

@@ -8,6 +8,7 @@ import StaffRosterPage from './StaffRosterPage'
 import StaffProfilePage from './StaffProfilePage'
 import DevicesPage from './DevicesPage'
 import AnalyticsPage from './AnalyticsPage'
+import OrgSettingsPage from './OrgSettingsPage'
 
 function App() {
   return (
@@ -21,6 +22,10 @@ function App() {
       <Route path="/staff/:staffId" element={<StaffProfilePage />} />
       <Route path="/devices" element={<DevicesPage />} />
       <Route path="/analytics" element={<AnalyticsPage />} />
+      <Route path="/settings/organization" element={<OrgSettingsPage />} />
+      <Route path="/settings/organisation" element={<OrgSettingsPage />} />
+      <Route path="/setting/organisation" element={<OrgSettingsPage />} />
+      <Route path="/settings" element={<OrgSettingsPage />} />
     </Routes>
   )
 }

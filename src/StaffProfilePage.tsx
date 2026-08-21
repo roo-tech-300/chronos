@@ -47,8 +47,8 @@ export default function StaffProfilePage() {
             </div>
           </div>
           <div className="profile-nav-right">
-            <Bell size={20} />
-            <Settings size={20} />
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', color: '#52424e' }} title="Notifications"><Bell size={20} /></button>
+            <Link to="/settings/organization" style={{ color: '#52424e', display: 'flex', padding: 4 }} title="Settings"><Settings size={20} /></Link>
             <div className="profile-nav-avatar">AK</div>
           </div>
         </div>

@@ -25,8 +25,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="dash-nav-right">
-            <button className="dash-nav-btn"><Bell size={20} /></button>
-            <button className="dash-nav-btn"><Settings size={20} /></button>
+            <button className="dash-nav-btn" title="Notifications"><Bell size={20} /></button>
+            <Link to="/settings/organization" className="dash-nav-btn" title="Settings"><Settings size={20} /></Link>
             <div className="dash-avatar">AK</div>
           </div>
         </div>
