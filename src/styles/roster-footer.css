@@ -1,0 +1,55 @@
+.roster-footer {
+  background: var(--roster-surface);
+  border-top: 1px solid var(--roster-outline);
+  margin-top: 48px;
+}
+
+.roster-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.roster-footer-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(82, 66, 78, 0.7);
+}
+
+.roster-footer-copy {
+  font-size: 14px;
+  color: var(--roster-on-surface-variant);
+  margin: 0;
+}
+
+.roster-footer-links {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.roster-footer-links a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--roster-on-surface-variant);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.roster-footer-links a:hover {
+  color: var(--roster-primary);
+}
+
+@media (max-width: 768px) {
+  .roster-footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}

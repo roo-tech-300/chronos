@@ -1,0 +1,144 @@
+/* ---- Profile Photo Card ---- */
+.prof-card {
+  background: var(--prof-surface-container-lowest);
+  border: 1px solid var(--prof-outline);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+}
+
+.prof-card-bg-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 16px;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.prof-card-body {
+  padding: 24px 24px 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.prof-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  border: 4px solid var(--prof-surface);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}
+
+.prof-avatar-inner {
+  width: 100%;
+  height: 100%;
+  background: var(--prof-surface-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--prof-primary);
+}
+
+.prof-info {
+  margin-bottom: 12px;
+}
+
+.prof-info h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--prof-on-surface);
+  line-height: 1.2;
+}
+
+.prof-id {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--prof-on-surface-variant);
+  margin: 4px 0 0;
+}
+
+.prof-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: var(--prof-primary-fixed);
+  color: var(--prof-primary);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--prof-outline);
+}
+
+.prof-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--prof-outline);
+  margin: 24px 0;
+}
+
+.prof-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 24px 24px;
+  text-align: left;
+}
+
+.prof-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prof-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--prof-on-surface-variant);
+}
+
+.prof-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--prof-on-surface);
+}
+
+.dot-green {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--prof-success);
+  flex-shrink: 0;
+}
+
+
+@media (max-width: 640px) {
+  .prof-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prof-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .prof-avatar-inner {
+    font-size: 24px;
+  }
+}

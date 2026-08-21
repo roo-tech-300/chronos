@@ -1,0 +1,217 @@
+.login-brand-panel {
+  width: 45%;
+  background: radial-gradient(circle at 50% 50%, #7c007e 0%, #09090b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.identity-card {
+  position: relative;
+  width: 340px;
+  padding: 32px;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: #fff;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.identity-card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.identity-fingerprint {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.scan-line {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  top: 0;
+  animation: scan 2.5s ease-in-out infinite;
+  border-radius: 2px;
+  filter: blur(1px);
+}
+
+@keyframes scan {
+  0%, 100% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  50% { top: 100%; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.identity-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 130px;
+}
+
+.identity-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.identity-field .field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+}
+
+.identity-field .field-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.identity-field .field-value.name {
+  font-size: 20px;
+}
+
+.identity-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+}
+
+.cookie-banner {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  max-width: 480px;
+  font-size: 13px;
+  color: var(--lp-text);
+}
+
+.cookie-banner p {
+  margin: 0;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.cookie-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.cookie-btn.accept {
+  background: var(--lp-primary);
+  color: #fff;
+}
+
+.cookie-btn.accept:hover {
+  background: var(--lp-primary-container);
+}
+
+.cookie-btn.reject {
+  background: transparent;
+  color: var(--lp-text);
+  border: 1px solid #e1e3e4;
+}
+
+.cookie-btn.reject:hover {
+  background: #f3f4f6;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .login-form-panel,
+  .login-brand-panel {
+    width: 100%;
+  }
+
+  .login-form-panel {
+    padding: 40px 24px;
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .login-brand-panel {
+    min-height: 400px;
+    padding: 40px 24px;
+  }
+
+  .identity-card {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .cookie-banner {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,98 @@
+.brand-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.badge-os {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+
+.strength-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.strength-bar-fill {
+  height: 4px;
+  border-radius: 4px;
+  transition: all 0.4s ease;
+  flex: 1;
+}
+
+.strength-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lp-on-surface-variant);
+  white-space: nowrap;
+}
+
+.social-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.social-btn-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1.5px solid #e1e3e4;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #191c1d;
+  transition: all 0.2s;
+}
+
+.social-btn-grid:hover {
+  background: #f3f4f6;
+}
+
+.enterprise-text {
+  text-align: center;
+  color: #fff;
+  max-width: 400px;
+}
+
+.enterprise-heading {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.enterprise-desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .social-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-content {
+    max-width: 380px;
+  }
+}

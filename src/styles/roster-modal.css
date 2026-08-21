@@ -1,0 +1,140 @@
+.roster-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.roster-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: rosterModalIn 0.2s ease-out;
+}
+
+@keyframes rosterModalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.roster-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 0;
+}
+
+.roster-modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--roster-on-surface);
+  margin: 0;
+}
+
+.roster-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  color: #a1a1aa;
+  transition: all 0.2s;
+}
+
+.roster-modal-close:hover {
+  background: var(--roster-surface-container);
+  color: var(--roster-on-surface);
+}
+
+.roster-modal-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.roster-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.roster-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--roster-on-surface);
+}
+
+.roster-field input,
+.roster-field select {
+  padding: 10px 12px;
+  border: 1px solid var(--roster-outline);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--roster-on-surface);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.roster-field input:focus,
+.roster-field select:focus {
+  border-color: var(--roster-primary);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.roster-field select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.roster-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.roster-modal-actions button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.roster-modal-cancel {
+  background: var(--roster-surface-container);
+  color: var(--roster-on-surface-variant);
+  border: 1px solid var(--roster-outline);
+}
+
+.roster-modal-cancel:hover {
+  background: var(--roster-surface-container-high);
+}
+
+.roster-modal-save {
+  background: var(--roster-primary);
+  color: var(--roster-on-primary);
+  border: none;
+}
+
+.roster-modal-save:hover {
+  background: var(--roster-primary-container);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

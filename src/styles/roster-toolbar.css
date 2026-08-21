@@ -1,0 +1,99 @@
+.roster-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.roster-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.roster-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--roster-primary);
+  color: var(--roster-on-primary);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.roster-add-btn:hover {
+  background: var(--roster-primary-container);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.roster-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--roster-outline);
+  border-radius: 8px;
+  min-width: 240px;
+}
+
+.roster-search input {
+  border: none;
+  background: none;
+  padding: 10px 0;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--roster-on-surface);
+  outline: none;
+  width: 100%;
+}
+
+.roster-search input::placeholder {
+  color: #a1a1aa;
+}
+
+.roster-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.roster-filter-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--roster-outline);
+  border-radius: 9999px;
+  background: #fff;
+  color: var(--roster-on-surface-variant);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.roster-filter-btn:hover {
+  border-color: var(--roster-primary);
+  color: var(--roster-primary);
+}
+
+.roster-filter-btn.active {
+  background: var(--roster-primary);
+  color: var(--roster-on-primary);
+  border-color: var(--roster-primary);
+}
+
+@media (max-width: 768px) {
+  .roster-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

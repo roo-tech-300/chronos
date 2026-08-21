@@ -1,0 +1,129 @@
+.prof-section {
+  margin-bottom: 8px;
+}
+
+.prof-activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.prof-activity-header .prof-section-title {
+  margin-bottom: 0;
+}
+
+.prof-dl-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--prof-primary);
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.prof-dl-btn:hover {
+  opacity: 0.7;
+}
+
+.prof-activity-list {
+  border-top: 1px solid var(--prof-outline);
+  border-bottom: 1px solid var(--prof-outline);
+}
+
+.prof-activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--prof-outline);
+  transition: all 0.2s;
+}
+
+.prof-activity-row:last-child {
+  border-bottom: none;
+}
+
+.prof-activity-row:hover {
+  padding-left: 4px;
+}
+
+.prof-activity-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prof-activity-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--prof-surface-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--prof-on-surface-variant);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.prof-activity-row:hover .prof-activity-circle {
+  background: var(--prof-primary-fixed);
+  color: var(--prof-primary);
+}
+
+.prof-activity-terminal {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--prof-on-surface);
+  margin: 0;
+}
+
+.prof-activity-action {
+  font-size: 12px;
+  color: var(--prof-on-surface-variant);
+  margin: 2px 0 0;
+}
+
+.prof-activity-time {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--prof-on-surface-variant);
+  white-space: nowrap;
+}
+
+/* ---- Info Bar ---- */
+.prof-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--prof-surface-container-low);
+  border-top: 1px solid var(--prof-outline);
+  border-radius: 0 0 12px 12px;
+}
+
+.prof-info-bar svg {
+  flex-shrink: 0;
+  color: var(--prof-on-surface-variant);
+}
+
+.prof-info-bar p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--prof-on-surface-variant);
+}
+
+@media (max-width: 640px) {
+  .prof-activity-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

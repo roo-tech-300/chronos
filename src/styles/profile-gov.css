@@ -1,0 +1,174 @@
+/* ---- Right Column: Governance Card ---- */
+.prof-gov-card {
+  background: var(--prof-surface-container-lowest);
+  border: 1px solid var(--prof-outline);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.prof-gov-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--prof-outline);
+}
+
+.prof-gov-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--prof-on-surface);
+}
+
+.prof-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.prof-enroll-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--prof-primary);
+  color: var(--prof-on-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prof-enroll-btn:hover {
+  background: var(--prof-primary-container);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.prof-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--prof-primary);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--prof-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prof-edit-btn:hover {
+  background: var(--prof-primary-fixed);
+}
+
+.prof-gov-body {
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.prof-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--prof-on-surface-variant);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.prof-perms-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .prof-perms-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.prof-perm-card {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--prof-surface-container-low);
+  border: 1px solid var(--prof-outline);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.prof-perm-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prof-perm-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--prof-on-surface-variant);
+}
+
+.prof-perm-level {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--prof-primary);
+  line-height: 1;
+}
+
+.prof-perm-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--prof-primary);
+  flex-shrink: 0;
+}
+
+.prof-protos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.prof-proto-badge {
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid var(--prof-outline);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--prof-primary);
+}
+
+@media (max-width: 640px) {
+  .prof-gov-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .prof-header-actions {
+    flex-wrap: wrap;
+  }
+}
