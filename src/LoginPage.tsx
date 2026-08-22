@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Eye, EyeOff, KeyRound, ArrowRight } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { KeyRound, ArrowRight } from 'lucide-react'
+import { Input, Button } from './components/ui'
 import './styles/login-base.css'
 import './styles/login-aside.css'
 import logoImg from './assets/logo.png'
@@ -19,8 +21,8 @@ const staffProfiles: StaffProfile[] = [
 ]
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [profileIndex, setProfileIndex] = useState(0)
-  const [showPassword, setShowPassword] = useState(false)
   const [cookieVisible, setCookieVisible] = useState(true)
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -80,40 +82,50 @@ export default function LoginPage() {
 
             <div className="divider">OR CONTINUE WITH</div>
 
-            <div className="input-group">
-              <label htmlFor="email">Email Address</label>
-              <input id="email" type="email" placeholder="name@company.com" />
-            </div>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={(e) => {
+                e.preventDefault()
+                navigate('/workspaces')
+              }}
+            >
+              <Input
+                label="Email Address"
+                id="email"
+                type="email"
+                placeholder="name@company.com"
+                required
+              />
 
-            <div className="input-group">
-              <div className="password-header">
-                <label htmlFor="password">Password</label>
-                <a href="#" className="forgot-link">Forgot Password?</a>
-              </div>
-              <div className="password-toggle">
-                <input
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span />
+                  <a href="#" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
+                    Forgot Password?
+                  </a>
+                </div>
+                <Input
+                  label="Password"
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="Enter your password"
+                  required
                 />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
               </div>
-            </div>
 
-            <button className="signin-btn">
-              Sign In
-              <ArrowRight size={18} />
-            </button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                rightIcon={<ArrowRight size={18} />}
+              >
+                Sign In
+              </Button>
+            </form>
 
-            <span className="request-link">
-              Don't have an account? <a href="/signup">Create Account</a>
+            <span className="request-link mt-4">
+              Don't have an account? <Link to="/signup">Create Account</Link>
             </span>
           </div>
 
@@ -206,3 +218,4 @@ function GoogleLogo() {
     </svg>
   )
 }
+

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   Fingerprint, Key, Shield, History,
-  ArrowLeft, Pencil,     Bell, Settings,
+  ArrowLeft, Pencil,
   Server, Building2, Building, LogOut, DoorOpen,
 } from 'lucide-react'
-import nataleLogo from './assets/companies/natale.png'
 import { getProfile, type ScanActivity } from './dummy/profile-mock'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
+import AppNavbar from './components/layout/AppNavbar'
+import { Button, Badge } from './components/ui'
 import './styles/profile-page.css'
 import './styles/profile-card.css'
 import './styles/profile-gov.css'
@@ -32,27 +33,7 @@ export default function StaffProfilePage() {
 
   return (
     <div className="profile-page">
-      <nav className="profile-nav">
-        <div className="profile-nav-inner">
-          <div className="profile-nav-left">
-            <Link to="/" className="profile-nav-brand">
-              <img src={nataleLogo} alt="Natale" className="profile-nav-logo" />
-              Natale
-            </Link>
-            <div className="profile-nav-links">
-              <Link to="/dashboard">Dashboard</Link>
-              <Link to="/staff" className="active">Staff</Link>
-              <Link to="/devices">Devices</Link>
-              <Link to="/analytics">Analytics</Link>
-            </div>
-          </div>
-          <div className="profile-nav-right">
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', color: '#52424e' }} title="Notifications"><Bell size={20} /></button>
-            <Link to="/settings/organization" style={{ color: '#52424e', display: 'flex', padding: 4 }} title="Settings"><Settings size={20} /></Link>
-            <div className="profile-nav-avatar">AK</div>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="profile-main">
         <Link to="/staff" className="profile-back">
@@ -76,15 +57,14 @@ export default function StaffProfilePage() {
                   <h1>{profile.name}</h1>
                   <p className="prof-id">Staff ID: {profile.staffId}</p>
                 </div>
-                <div className="prof-role-badge">{profile.role}</div>
+                <Badge variant="purple" size="md">{profile.role}</Badge>
               </div>
               <div className="prof-divider" />
               <div className="prof-stats-grid">
                 <div className="prof-stat-item">
                   <span className="prof-stat-label">Status</span>
-                  <div className="prof-stat-row">
-                    <span className="dot-green" />
-                    <span>{profile.status}</span>
+                  <div className="mt-1">
+                    <Badge variant="success" showDot>{profile.status}</Badge>
                   </div>
                 </div>
                 <div className="prof-stat-item">
@@ -99,15 +79,22 @@ export default function StaffProfilePage() {
             <div className="prof-gov-card">
               <div className="prof-gov-header">
                 <h2>Staff Governance Profile</h2>
-                <div className="prof-header-actions">
-                  <button className="prof-enroll-btn" onClick={() => setEnrollOpen(true)}>
-                    <Fingerprint size={16} />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Fingerprint size={16} />}
+                    onClick={() => setEnrollOpen(true)}
+                  >
                     Enroll Fingerprint
-                  </button>
-                  <button className="prof-edit-btn">
-                    <Pencil size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Pencil size={16} />}
+                  >
                     Edit Details
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -129,9 +116,9 @@ export default function StaffProfilePage() {
                     </div>
                     <div className="prof-perm-card">
                       <span className="prof-perm-label">Auth Protocols</span>
-                      <div className="prof-protos">
+                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
                         {profile.authProtocols.map((p) => (
-                          <span key={p} className="prof-proto-badge">{p}</span>
+                          <Badge key={p} variant="neutral" size="sm">{p}</Badge>
                         ))}
                       </div>
                     </div>
@@ -144,7 +131,7 @@ export default function StaffProfilePage() {
                       <History size={16} />
                       Recent Scan Activity
                     </h3>
-                    <button className="prof-dl-btn">Download Log</button>
+                    <Button variant="outline" size="sm">Download Log</Button>
                   </div>
                   <div className="prof-activity-list">
                     {profile.activities.map((act) => (
@@ -187,3 +174,4 @@ export default function StaffProfilePage() {
     </div>
   )
 }
+

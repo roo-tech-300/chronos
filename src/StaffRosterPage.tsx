@@ -1,17 +1,18 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, ChevronLeft, ChevronRight, MoreVertical, Bell, Settings } from 'lucide-react'
-import nataleLogo from './assets/companies/natale.png'
+import { MoreVertical } from 'lucide-react'
 import { rosterMembers, filterTabs, getInitials } from './dummy/roster-mock'
 import { slugify } from './dummy/profile-mock'
-import StaffRosterModal from './StaffRosterModal'
+import AppNavbar from './components/layout/AppNavbar'
+import { useDevPersona } from './context/DevPersonaContext'
+import { Badge, Pagination, Toolbar } from './components/ui'
 import './styles/roster-page.css'
 import './styles/roster-toolbar.css'
 import './styles/roster-footer.css'
 import './styles/roster-table.css'
 
 export default function StaffRosterPage() {
-  const [modalOpen, setModalOpen] = useState(false)
+  const { role, currentDepartment } = useDevPersona()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('All Roles')
   const [currentPage, setCurrentPage] = useState(1)
@@ -19,7 +20,21 @@ export default function StaffRosterPage() {
   const totalPages = 14
   const totalMembers = 128
 
-  const filtered = rosterMembers.filter((m) => {
+  // In HOD mode, scope staff members to department & sub-units
+  const scopedMembers = useMemo(() => {
+    if (role === 'admin') return rosterMembers
+    // Filter to department staff for HOD
+    return rosterMembers.filter(
+      (m) =>
+        m.role === 'Staff' ||
+        m.name.includes('Marcus') ||
+        m.name.includes('Elena') ||
+        m.name.includes('Devon') ||
+        m.name.includes('Sarah')
+    )
+  }, [role])
+
+  const filtered = scopedMembers.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -31,75 +46,43 @@ export default function StaffRosterPage() {
     return matchesSearch && matchesTab
   })
 
-  function getPageNumbers(): (number | string)[] {
-    const pages: (number | string)[] = []
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-        pages.push(i)
-      } else if (pages[pages.length - 1] !== '...') {
-        pages.push('...')
-      }
-    }
-    return pages
-  }
-
   return (
     <div className="roster-page">
-      <nav className="roster-nav">
-        <div className="roster-nav-inner">
-          <div className="roster-nav-left">
-            <Link to="/" className="roster-nav-brand">
-              <img src={nataleLogo} alt="Natale" className="roster-nav-logo" />
-              Natale
-            </Link>
-            <div className="roster-nav-links">
-              <Link to="/dashboard">Dashboard</Link>
-              <Link to="/staff" className="active">Staff</Link>
-              <Link to="/devices">Devices</Link>
-              <Link to="/analytics">Analytics</Link>
-            </div>
-          </div>
-          <div className="roster-nav-right" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#52424e', display: 'flex', alignItems: 'center', padding: 6 }} title="Notifications"><Bell size={20} /></button>
-            <Link to="/settings/organization" style={{ color: '#52424e', display: 'flex', alignItems: 'center', padding: 6 }} title="Settings"><Settings size={20} /></Link>
-            <div className="roster-nav-avatar">AK</div>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="roster-main">
         <div className="roster-header">
-          <h1>Staff Roster</h1>
-          <p>Manage identity access and hardware assignments across your infrastructure.</p>
+          <div className="flex items-center gap-3">
+            <h1>Staff Roster</h1>
+            {role === 'hod' && (
+              <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-200/80 font-bold text-zinc-800">
+                {currentDepartment.name}
+              </span>
+            )}
+          </div>
+          <p>
+            {role === 'admin'
+              ? 'Manage identity access and hardware assignments across your infrastructure.'
+              : `Viewing personnel roster scoped to ${currentDepartment.name} and sub-departments.`}
+          </p>
         </div>
 
-        <div className="roster-toolbar">
-          <div className="roster-toolbar-left">
-            <button className="roster-add-btn" onClick={() => setModalOpen(true)}>
-              <Plus size={18} />
-              Add New Staff
-            </button>
-            <div className="roster-search">
-              <Search size={16} color="#a1a1aa" />
-              <input
-                placeholder="Search by name or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="roster-filters">
-            {filterTabs.map((tab) => (
-              <button
-                key={tab}
-                className={`roster-filter-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Toolbar
+          className="mb-6"
+          search={{
+            placeholder: 'Search by name or ID...',
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value),
+            onClear: () => setSearchQuery(''),
+            width: 'w-full sm:w-72',
+          }}
+          tabs={{
+            tabs: filterTabs,
+            activeTab: activeTab,
+            onChange: setActiveTab,
+            variant: 'pill',
+          }}
+        />
 
         <div className="roster-table-wrap">
           <table className="roster-table">
@@ -127,13 +110,15 @@ export default function StaffRosterPage() {
                   </td>
                   <td><span className="roster-role">{m.role}</span></td>
                   <td>
-                    <span className={`roster-status ${m.status === 'On-Site' ? 'on-site' : 'off-site'}`}>
-                      <span className="roster-status-dot" />
+                    <Badge
+                      variant={m.status === 'On-Site' ? 'success' : 'neutral'}
+                      showDot
+                    >
                       {m.status}
-                    </span>
+                    </Badge>
                   </td>
                   <td>
-                    <button className="roster-actions-btn">
+                    <button className="roster-actions-btn" aria-label="More actions">
                       <MoreVertical size={16} />
                     </button>
                   </td>
@@ -142,44 +127,17 @@ export default function StaffRosterPage() {
             </tbody>
           </table>
 
-          <div className="roster-pagination">
-            <span className="roster-pagination-info">
-              Showing {filtered.length} of {totalMembers} members
-            </span>
-            <div className="roster-pagination-controls">
-              <button
-                className="roster-page-btn icon"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              {getPageNumbers().map((p, i) =>
-                typeof p === 'number' ? (
-                  <button
-                    key={i}
-                    className={`roster-page-btn ${currentPage === p ? 'active' : ''}`}
-                    onClick={() => setCurrentPage(p)}
-                  >
-                    {p}
-                  </button>
-                ) : (
-                  <span key={i} style={{ padding: '0 4px', color: '#a1a1aa' }}>...</span>
-                )
-              )}
-              <button
-                className="roster-page-btn icon"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+          <div className="px-6 py-2 border-t border-zinc-100">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={role === 'admin' ? totalPages : 1}
+              totalItems={role === 'admin' ? totalMembers : filtered.length}
+              itemsPerPage={9}
+              onPageChange={setCurrentPage}
+            />
           </div>
         </div>
       </main>
-
-      <StaffRosterModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <footer className="roster-footer">
         <div className="roster-footer-inner">
@@ -198,3 +156,5 @@ export default function StaffRosterPage() {
     </div>
   )
 }
+
+

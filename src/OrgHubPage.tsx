@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PlusCircle, Search, SlidersHorizontal, Plus, Bell, ChevronDown } from 'lucide-react'
+import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown } from 'lucide-react'
 import { workspaces } from './dummy/org-hub-mock'
+import { Button, Badge, SearchInput } from './components/ui'
 import futminnaLogo from './assets/logo.jpg'
 import kangarooLogo from './assets/companies/KangarooTech.png'
 import nataleLogo from './assets/companies/natale.png'
@@ -16,6 +18,14 @@ const logoMap: Record<string, string> = {
 }
 
 export default function OrgHubPage() {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredWorkspaces = workspaces.filter(
+    (ws) =>
+      ws.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ws.category.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   return (
     <div className="org-page">
       <header className="org-navbar">
@@ -33,10 +43,9 @@ export default function OrgHubPage() {
             </nav>
           </div>
           <div className="org-nav-right">
-            <button className="org-btn-new">
-              <Plus size={20} />
-              <span>New Workspace</span>
-            </button>
+            <Button variant="primary" size="sm" leftIcon={<Plus size={16} />}>
+              New Workspace
+            </Button>
             <div className="org-nav-divider" />
             <button className="org-nav-icon-btn">
               <Bell size={20} />
@@ -57,28 +66,32 @@ export default function OrgHubPage() {
               <p>Choose an organization to continue or create a new one to start managing physical identities and security infrastructure.</p>
             </div>
             <div className="org-hero-actions">
-              <div className="org-search-wrap">
-                <span className="org-search-icon"><Search size={16} /></span>
-                <input type="text" placeholder="Search workspaces..." />
+              <div className="w-64">
+                <SearchInput
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onClear={() => setSearchTerm('')}
+                  placeholder="Search workspaces..."
+                />
               </div>
-              <button className="org-filter-btn">
+              <Button variant="secondary" size="md">
                 <SlidersHorizontal size={18} />
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         <div className="org-grid">
-          {workspaces.map((ws) => (
+          {filteredWorkspaces.map((ws) => (
             <div key={ws.id} className="org-card">
               <div>
                 <div className="org-card-header">
                   <div className={'org-card-icon ' + (ws.role === 'Member' ? 'gray' : 'purple')}>
                     <img src={logoMap[ws.logoId]} alt={ws.name} className="org-card-logo" />
                   </div>
-                  <span className={'org-badge ' + (ws.role === 'Member' ? 'gray' : 'purple')}>
+                  <Badge variant={ws.role === 'Member' ? 'neutral' : 'purple'} size="sm">
                     {ws.role}
-                  </span>
+                  </Badge>
                 </div>
                 <h3>{ws.name}</h3>
                 <div className="org-card-meta">
@@ -89,12 +102,16 @@ export default function OrgHubPage() {
               </div>
               <div className="org-card-footer">
                 <span className="last-active">{ws.lastActive}</span>
-                <Link to="/dashboard" className="org-btn-select">Select</Link>
+                <Link to="/dashboard">
+                  <Button variant="primary" size="sm">
+                    Select
+                  </Button>
+                </Link>
               </div>
             </div>
           ))}
 
-          <div className="org-card-create">
+          <div className="org-card-create cursor-pointer">
             <div className="org-card-create-icon">
               <PlusCircle size={32} />
             </div>
@@ -132,3 +149,4 @@ export default function OrgHubPage() {
     </div>
   )
 }
+

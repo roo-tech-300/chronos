@@ -39,7 +39,7 @@ export default function HierarchyVisualChart({
         }}
         onClick={() => onEditNode(node)}
       >
-        <div style={{ fontSize: 9.5, fontWeight: 700, color: '#7c007e', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
           {levelLabel}
         </div>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', lineHeight: 1.3, marginBottom: 3 }}>

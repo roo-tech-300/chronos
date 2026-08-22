@@ -4,10 +4,10 @@ import {
   ArrowRight,
   Edit3,
   Trash2,
-  Search,
   Plus,
 } from 'lucide-react'
 import type { OrgRole } from '../../types/organization'
+import { Button, Toolbar } from '../ui'
 
 interface RoleListProps {
   roles: OrgRole[]
@@ -44,30 +44,25 @@ export default function RoleList({
   return (
     <div className="w-full space-y-8">
       {/* Header Toolbar */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search
-            size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
-          />
-          <input
-            type="text"
-            placeholder="Search roles..."
-            className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm text-[#191c1d] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 focus:border-[#111827] transition-all"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={onAddRole}
-          className="bg-[#111827] hover:bg-black text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 duration-150"
-        >
-          <Plus size={18} />
-          Create New Role
-        </button>
-      </div>
+      <Toolbar
+        search={{
+          placeholder: 'Search roles...',
+          value: searchQuery,
+          onChange: (e) => setSearchQuery(e.target.value),
+          onClear: () => setSearchQuery(''),
+          width: 'w-full sm:w-80',
+        }}
+        primaryAction={
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus size={18} />}
+            onClick={onAddRole}
+          >
+            Create New Role
+          </Button>
+        }
+      />
 
       {/* Role Grid (3-Columns) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

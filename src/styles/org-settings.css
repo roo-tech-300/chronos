@@ -7,9 +7,9 @@
   --bg-page: #f9fafb;
   --bg-card: #ffffff;
   --bg-subtle: #f3f4f6;
-  --accent-purple: #7c007e;
-  --accent-purple-light: rgba(124, 0, 126, 0.06);
-  --accent-purple-border: rgba(124, 0, 126, 0.25);
+  --accent-purple: #111827;
+  --accent-purple-light: rgba(17, 24, 39, 0.06);
+  --accent-purple-border: rgba(17, 24, 39, 0.25);
   
   background-color: var(--bg-page);
   min-height: 100vh;

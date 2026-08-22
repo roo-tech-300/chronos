@@ -1,46 +1,66 @@
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, Settings, TrendingUp } from 'lucide-react'
-import nataleLogo from './assets/companies/natale.png'
+import { TrendingUp } from 'lucide-react'
 import { metrics, chartHeights, chartLabels, headcountMembers } from './dummy/staff-mock'
+import AppNavbar from './components/layout/AppNavbar'
+import { useDevPersona } from './context/DevPersonaContext'
+import { Button, Badge, Tabs } from './components/ui'
 import './styles/dashboard-layout.css'
 import './styles/dashboard-widgets.css'
 
 const tooltipValues = ['1,284', '2,441', '1,204', '5,087', '4,211', '2,108', '3,845', '2,923', '6,018', '1,798', '1,044', '3,442']
 
 export default function DashboardPage() {
+  const { role, currentDepartment } = useDevPersona()
+  const [chartPeriod, setChartPeriod] = useState('Week')
+
+  const displayMetrics = useMemo(() => {
+    if (role === 'admin') return metrics
+    return [
+      {
+        label: 'DEPT HEADCOUNT',
+        value: '48',
+        description: `Active personnel in ${currentDepartment.name}`,
+        badge: '+2 this month',
+        badgeVariant: 'green',
+      },
+      {
+        label: 'DEPARTMENT ON-SITE',
+        value: '36',
+        description: '75.0% live departmental occupancy',
+        badge: '75%',
+        badgeVariant: 'neutral',
+      },
+      {
+        label: 'SUB-UNITS READY',
+        value: `${currentDepartment.subDepartments.length} / ${currentDepartment.subDepartments.length}`,
+        description: currentDepartment.subDepartments.join(', '),
+        badge: '100% Operational',
+        badgeVariant: 'green',
+      },
+    ]
+  }, [role, currentDepartment])
+
+  const displayHeadcount = useMemo(() => {
+    if (role === 'admin') return headcountMembers
+    return headcountMembers.slice(0, 3)
+  }, [role])
+
   return (
     <div className="dash-page">
-      <nav className="dash-nav">
-        <div className="dash-nav-inner">
-          <div className="dash-nav-left">
-            <Link to="/" className="dash-nav-brand">
-              <img src={nataleLogo} alt="Natale" className="dash-nav-logo" />
-              Natale
-            </Link>
-            <div className="dash-nav-links">
-              <a href="#" className="active">Dashboard</a>
-              <Link to="/staff">Staff</Link>
-              <Link to="/devices">Devices</Link>
-              <Link to="/analytics">Analytics</Link>
-            </div>
-          </div>
-          <div className="dash-nav-right">
-            <button className="dash-nav-btn" title="Notifications"><Bell size={20} /></button>
-            <Link to="/settings/organization" className="dash-nav-btn" title="Settings"><Settings size={20} /></Link>
-            <div className="dash-avatar">AK</div>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="dash-main">
         <div className="dash-grid">
           <div className="dash-main-col">
             <div className="dash-metrics">
-              {metrics.map((m) => (
+              {displayMetrics.map((m) => (
                 <div key={m.label} className="dash-card dash-metric">
                   <div className="dash-metric-top">
                     <span className="dash-metric-label">{m.label}</span>
-                    <span className={`dash-metric-badge ${m.badgeVariant}`}>{m.badge}</span>
+                    <Badge variant={m.badgeVariant === 'green' ? 'success' : 'neutral'} size="sm">
+                      {m.badge}
+                    </Badge>
                   </div>
                   <div className="dash-metric-value">{m.value}</div>
                   <div className="dash-metric-desc">{m.description}</div>
@@ -51,14 +71,19 @@ export default function DashboardPage() {
             <div className="dash-card dash-chart-card">
               <div className="dash-section-header">
                 <div>
-                  <h2>Daily Attendance Volume</h2>
-                  <p>Last 14 days aggregated by day</p>
+                  <h2>
+                    {role === 'admin'
+                      ? 'Daily Attendance Volume'
+                      : `${currentDepartment.name} Attendance Volume`}
+                  </h2>
+                  <p>Last 14 days aggregated by day {role === 'hod' ? '• Department Scope' : ''}</p>
                 </div>
-                <div className="dash-chart-tabs">
-                  <button className="dash-chart-tab">Day</button>
-                  <button className="dash-chart-tab active">Week</button>
-                  <button className="dash-chart-tab">Month</button>
-                </div>
+                <Tabs
+                  tabs={['Day', 'Week', 'Month']}
+                  activeTab={chartPeriod}
+                  onChange={setChartPeriod}
+                  variant="segmented"
+                />
               </div>
               <div className="dash-chart-body">
                 <div className="dash-chart-bars">
@@ -89,9 +114,11 @@ export default function DashboardPage() {
                     Nodes Ready
                   </div>
                 </div>
-                <button className="dash-kiosk-btn">
-                  Open Kiosk Screen
-                </button>
+                <Link to="/scan">
+                  <Button variant="primary">
+                    Open Kiosk Screen
+                  </Button>
+                </Link>
               </div>
               <TrendingUp size={256} className="dash-kiosk-icon" />
             </div>
@@ -101,14 +128,15 @@ export default function DashboardPage() {
             <div className="dash-headcard">
               <div className="dash-headcard-header">
                 <h3>Live Headcount</h3>
-                <span className="dash-headcard-live">
-                  <span className="dot" />
+                <Badge variant="danger" showDot pulseDot size="sm">
                   LIVE
-                </span>
+                </Badge>
               </div>
-              <p className="dash-headcard-count">{headcountMembers.length} Staff Members On-Site</p>
+              <p className="dash-headcard-count">
+                {role === 'admin' ? `${headcountMembers.length} Staff Members On-Site` : '36 Department Members On-Site'}
+              </p>
               <div className="dash-headcard-list">
-                {headcountMembers.map((s) => (
+                {displayHeadcount.map((s) => (
                   <div key={s.name} className="dash-headcard-row">
                     <div className="dash-headcard-avatar">{s.initials}</div>
                     <div className="dash-headcard-info">
@@ -123,14 +151,14 @@ export default function DashboardPage() {
               </div>
               <div className="dash-headcard-footer">
                 <div className="dash-headcard-total">
-                  <span>Total in building</span>
-                  <span>1,842</span>
+                  <span>{role === 'admin' ? 'Total in building' : 'Dept on-site'}</span>
+                  <span>{role === 'admin' ? '1,842' : '36 / 48'}</span>
                 </div>
                 <div className="dash-headcard-bar">
-                  <div className="dash-headcard-bar-fill" style={{ width: '65%' }} />
+                  <div className="dash-headcard-bar-fill" style={{ width: role === 'admin' ? '65%' : '75%' }} />
                 </div>
                 <p className="dash-headcard-occupancy">
-                  Building occupancy is at 65%
+                  {role === 'admin' ? 'Building occupancy is at 65%' : `${currentDepartment.name} occupancy is at 75%`}
                 </p>
               </div>
             </div>
@@ -155,3 +183,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+

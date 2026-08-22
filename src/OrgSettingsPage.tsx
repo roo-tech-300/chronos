@@ -93,7 +93,7 @@ export default function OrgSettingsPage() {
     <div className="settings-page">
       <SettingsNav />
 
-      <main className="settings-main" style={{ maxWidth: 1200, padding: '32px 24px 80px' }}>
+      <main className="settings-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '88px 24px 80px' }}>
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
             Organization Hierarchy & Settings
@@ -118,10 +118,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'overview' ? 700 : 500,
-              color: activeTab === 'overview' ? '#7c007e' : '#4b5563',
+              color: activeTab === 'overview' ? '#111827' : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'overview' ? '2.5px solid #7c007e' : '2.5px solid transparent',
+              borderBottom: activeTab === 'overview' ? '2.5px solid #111827' : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',
@@ -136,10 +136,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'hierarchy' ? 700 : 500,
-              color: activeTab === 'hierarchy' ? '#7c007e' : '#4b5563',
+              color: activeTab === 'hierarchy' ? '#111827' : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'hierarchy' ? '2.5px solid #7c007e' : '2.5px solid transparent',
+              borderBottom: activeTab === 'hierarchy' ? '2.5px solid #111827' : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',
@@ -154,10 +154,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'roles' ? 700 : 500,
-              color: activeTab === 'roles' ? '#7c007e' : '#4b5563',
+              color: activeTab === 'roles' ? '#111827' : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'roles' ? '2.5px solid #7c007e' : '2.5px solid transparent',
+              borderBottom: activeTab === 'roles' ? '2.5px solid #111827' : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',

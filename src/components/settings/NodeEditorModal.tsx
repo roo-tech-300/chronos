@@ -9,7 +9,7 @@ interface NodeEditorModalProps {
   editingNode?: HierarchyNode | null
   levelNamings: HierarchyLevelNaming[]
   onClose: () => void
-  onSave: (nodeData: Partial<HierarchyNode>) => void
+  onSave: (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => void
 }
 
 function DeptForm({
@@ -23,12 +23,12 @@ function DeptForm({
   editingNode?: HierarchyNode | null
   levelNamings: HierarchyLevelNaming[]
   onClose: () => void
-  onSave: (nodeData: Partial<HierarchyNode>) => void
+  onSave: (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => void
 }) {
   const [name, setName] = useState(editingNode?.name || '')
   const [code, setCode] = useState(editingNode?.code || '')
   const [leadName, setLeadName] = useState(editingNode?.leadName || '')
-  const [leadTitle, setLeadTitle] = useState(editingNode?.leadTitle || '')
+  const [leadRoleTitle, setLeadRoleTitle] = useState(editingNode?.leadRoleTitle || '')
   const [location, setLocation] = useState(editingNode?.location || '')
 
   const currentLevel = editingNode ? editingNode.level : (parentNode ? parentNode.level + 1 : 1)
@@ -39,10 +39,13 @@ function DeptForm({
     if (!name.trim()) return
 
     onSave({
+      ...(editingNode ? { id: editingNode.id } : {}),
       name: name.trim(),
       code: code.trim(),
+      level: currentLevel,
       leadName: leadName.trim(),
-      leadTitle: leadTitle.trim(),
+      leadRoleTitle: leadRoleTitle.trim(),
+      staffCount: editingNode?.staffCount ?? 0,
       location: location.trim(),
     })
     onClose()
@@ -123,8 +126,8 @@ function DeptForm({
               type="text"
               className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
               placeholder="e.g. Head of Department"
-              value={leadTitle}
-              onChange={(e) => setLeadTitle(e.target.value)}
+              value={leadRoleTitle}
+              onChange={(e) => setLeadRoleTitle(e.target.value)}
             />
           </div>
 

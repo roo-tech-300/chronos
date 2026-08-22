@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { Eye, EyeOff, KeyRound, ArrowRight } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { KeyRound, ArrowRight } from 'lucide-react'
+import { Input, Button } from './components/ui'
 import './styles/login-base.css'
 import './styles/login-aside.css'
 import './styles/signup.css'
@@ -29,8 +30,8 @@ function getStrength(pw: string) {
 }
 
 export default function SignUpPage() {
+  const navigate = useNavigate()
   const [profileIndex, setProfileIndex] = useState(0)
-  const [showPassword, setShowPassword] = useState(false)
   const [cookieVisible, setCookieVisible] = useState(true)
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
   const [passwordValue, setPasswordValue] = useState('')
@@ -74,66 +75,76 @@ export default function SignUpPage() {
             <h1 className="login-heading">Create your account</h1>
             <p className="login-subtitle">Start building identity infrastructure for the physical world.</p>
 
-            <div className="input-group">
-              <label htmlFor="name">Full name</label>
-              <input id="name" type="text" placeholder="John Doe" />
-            </div>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={(e) => {
+                e.preventDefault()
+                navigate('/workspaces')
+              }}
+            >
+              <Input
+                label="Full name"
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                required
+              />
 
-            <div className="input-group">
-              <label htmlFor="signup-email">Work email</label>
-              <input id="signup-email" type="email" placeholder="name@company.com" />
-            </div>
+              <Input
+                label="Work email"
+                id="signup-email"
+                type="email"
+                placeholder="name@company.com"
+                required
+              />
 
-            <div className="input-group">
-              <label htmlFor="signup-password">Password</label>
-              <div className="password-toggle">
-                <input
+              <div className="flex flex-col gap-1.5">
+                <Input
+                  label="Password"
                   id="signup-password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="Enter your password"
                   value={passwordValue}
                   onChange={(e) => setPasswordValue(e.target.value)}
+                  required
                 />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                <div className="strength-bar mt-1">
+                  <div
+                    className="strength-bar-fill"
+                    style={{ width: strength.width, background: strength.color }}
+                  />
+                </div>
+                {strength.label && (
+                  <span className="strength-label">{strength.label}</span>
+                )}
               </div>
-              <div className="strength-bar">
-                <div
-                  className="strength-bar-fill"
-                  style={{ width: strength.width, background: strength.color }}
-                />
-              </div>
-              {strength.label && (
-                <span className="strength-label">{strength.label}</span>
-              )}
-            </div>
 
-            <Link to="/workspaces" className="signin-btn">
-              Get Started
-              <ArrowRight size={18} />
-            </Link>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                rightIcon={<ArrowRight size={18} />}
+              >
+                Get Started
+              </Button>
+            </form>
 
             <div className="divider">Or continue with</div>
 
             <div className="social-grid">
-              <button className="social-btn-grid">
+              <button type="button" className="social-btn-grid">
                 <GoogleLogo />
                 Google
               </button>
-              <button className="social-btn-grid">
+              <button type="button" className="social-btn-grid">
                 <KeyRound size={20} />
                 SSO
               </button>
             </div>
 
             <span className="request-link">
-              Already have an account? <a href="/login">Sign in</a>
+              Already have an account? <Link to="/login">Sign in</Link>
             </span>
           </div>
 
@@ -144,6 +155,7 @@ export default function SignUpPage() {
           </div>
         </div>
       </div>
+
 
       <div
         className="login-brand-panel"
