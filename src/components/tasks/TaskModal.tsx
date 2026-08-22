@@ -112,7 +112,7 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
         </div>
 
         {/* Multi-Staff Selection Matrix */}
-        <div className="flex flex-col gap-2 p-3 bg-zinc-50/80 rounded-xl border border-zinc-200">
+        <div className="flex flex-col gap-2 p-3 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wide">
               <Users size={14} className="text-zinc-500" />
