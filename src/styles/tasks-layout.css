@@ -1,0 +1,169 @@
+/* ============================================================
+   Tasks — page shell
+   Shared layout tokens for:
+   - /tasks           (Departmental Tasks review — HOD/admin)
+   - /tasks/my-tasks  (Staff Daily Workspace)
+   Mirrors dashboard-layout.css / roster-page.css visual language.
+   ============================================================ */
+
+.tasks-page {
+  --tasks-primary: #000000;
+  --tasks-primary-container: #1a1a1a;
+  --tasks-on-primary: #ffffff;
+  --tasks-on-surface: #191c1d;
+  --tasks-on-surface-variant: #52424e;
+  --tasks-outline: #e5e7eb;
+  --tasks-surface: #f8f9fa;
+  --tasks-surface-container: #edeeef;
+  --tasks-surface-container-high: #e7e8e9;
+  --tasks-success: #059669;
+  --tasks-warning: #d97706;
+  --tasks-danger: #e11d48;
+  background: #f3f4f6;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--tasks-on-surface);
+}
+
+.tasks-main {
+  padding-top: 96px;
+  padding-bottom: 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* ---------------- Page header ---------------- */
+
+.tasks-header {
+  margin-bottom: 24px;
+}
+
+.tasks-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tasks-header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--tasks-on-surface);
+  margin: 0 0 4px;
+}
+
+.tasks-header p {
+  font-size: 16px;
+  color: var(--tasks-on-surface-variant);
+  margin: 0;
+}
+
+.tasks-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tasks-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-on-surface);
+  white-space: nowrap;
+}
+
+/* ---------------- Footer ---------------- */
+
+.tasks-footer {
+  background: var(--tasks-surface);
+  border-top: 1px solid var(--tasks-outline);
+  margin-top: 48px;
+}
+
+.tasks-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tasks-footer-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(82, 66, 78, 0.7);
+}
+
+.tasks-footer-copy {
+  font-size: 14px;
+  color: var(--tasks-on-surface-variant);
+  margin: 0;
+}
+
+.tasks-footer-links {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.tasks-footer-links a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tasks-on-surface-variant);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.tasks-footer-links a:hover {
+  color: var(--tasks-primary);
+}
+
+/* ---------------- Responsive ---------------- */
+
+@media (max-width: 1024px) {
+  .tasks-metrics,
+  .tasks-metrics--four,
+  .tasks-day-grid,
+  .tasks-group-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .tasks-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .tasks-metrics,
+  .tasks-metrics--four,
+  .tasks-day-grid,
+  .tasks-group-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tasks-clock-status {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tasks-footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}

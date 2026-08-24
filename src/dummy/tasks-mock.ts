@@ -24,6 +24,19 @@ export interface TaskItem {
   completedAt?: string
   proofNote?: string
   difficultyNote?: string
+  estimatedMins?: number
+  actualMins?: number
+  verifiedBy?: string
+  completionLinks?: string[]
+}
+
+// Payload captured by the staff "Task Action Drawer" each time a task is
+// submitted for HOD review: completion note, optional evidence links, and the
+// real time actually spent on the task.
+export interface TaskSubmissionPayload {
+  completionNote: string
+  completionLinks: string[]
+  actualMins: number
 }
 
 export interface StaffTaskGroup {
@@ -50,6 +63,8 @@ export const initialTasks: TaskItem[] = [
     recurrence: 'Every weekday at 08:30 AM',
     dueDate: 'Today, 09:00 AM',
     isToday: true,
+    estimatedMins: 55,
+    actualMins: 38,
     completedAt: 'Today, 08:47 AM',
     proofNote: 'Calibrated optical sensors on Alpha-1 & Alpha-2. Sensitivity benchmark reading is 99.4%. Cleaned glass surfaces with isopropyl alcohol wipes.',
   },
@@ -66,6 +81,7 @@ export const initialTasks: TaskItem[] = [
     subDepartment: 'Neural Hardware',
     dueDate: 'Today, 05:00 PM',
     isToday: true,
+    estimatedMins: 90,
     difficultyNote: 'Access to Lab 3 server rack is temporarily locked for thermal cooling cycle until 03:00 PM.',
   },
   // 2. Elena Rostova
@@ -100,6 +116,7 @@ export const initialTasks: TaskItem[] = [
     recurrence: 'Every weekday at 11:00 AM',
     dueDate: 'Today, 11:30 AM',
     isToday: true,
+    verifiedBy: 'Dr. Robert Chen',
     completedAt: 'Today, 11:15 AM',
     proofNote: 'Heartbeat response steady at 4ms. No replication lag observed.',
   },
@@ -133,6 +150,7 @@ export const initialTasks: TaskItem[] = [
     recurrence: 'Every morning at 08:00 AM',
     dueDate: 'Today, 08:30 AM',
     isToday: true,
+    verifiedBy: 'Dr. Robert Chen',
     completedAt: 'Today, 08:22 AM',
     proofNote: 'Checksum validation matched 100% against root vault.',
   },
@@ -151,6 +169,7 @@ export const initialTasks: TaskItem[] = [
     recurrence: 'Every Friday at 04:00 PM',
     dueDate: 'Today, 04:00 PM',
     isToday: true,
+    verifiedBy: 'Dr. Robert Chen',
     completedAt: 'Today, 01:10 PM',
     proofNote: 'All lab staff accounted for. Zero mismatch anomalies.',
   },
@@ -168,5 +187,40 @@ export const initialTasks: TaskItem[] = [
     dueDate: 'Today, 06:00 PM',
     isToday: true,
     difficultyNote: 'Waiting for North Wing foot traffic to subside after afternoon shift swap.',
+  },
+  {
+    id: 'TSK-109',
+    title: 'Morning Lab Startup Safety Checklist',
+    description: 'Verify sensor pre-heat, optical surface cleanliness, and power rail stability before the lab opens.',
+    type: 'recurring',
+    priority: 'high',
+    status: 'approved',
+    assigneeName: 'Marcus Vance',
+    assigneeRole: 'Senior Hardware Tech',
+    department: 'Deep Tech & AI Labs',
+    subDepartment: 'Neural Hardware',
+    recurrence: 'Every morning at 07:45 AM',
+    dueDate: 'Today, 08:00 AM',
+    isToday: true,
+    estimatedMins: 25,
+    actualMins: 20,
+    verifiedBy: 'Dr. Robert Chen',
+    completedAt: 'Today, 07:58 AM',
+    proofNote: 'Pre-heat verified, optical lenses clean, power LEDs nominal across all four workbenches.',
+  },
+  {
+    id: 'TSK-110',
+    title: 'Optical Reader Firmware Hash Backup',
+    description: 'Snapshot the local firmware vault hashes on Alpha-1 and push a checksum manifest to the edge vault.',
+    type: 'special',
+    priority: 'low',
+    status: 'not_done',
+    assigneeName: 'Marcus Vance',
+    assigneeRole: 'Senior Hardware Tech',
+    department: 'Deep Tech & AI Labs',
+    subDepartment: 'Neural Hardware',
+    dueDate: 'Today, 04:30 PM',
+    isToday: true,
+    estimatedMins: 30,
   },
 ]

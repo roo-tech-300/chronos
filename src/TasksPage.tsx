@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
-import { initialTasks, type TaskItem, type StaffTaskGroup } from './dummy/tasks-mock'
 import { useDevPersona } from './context/DevPersonaContext'
+import { initialTasks, type StaffTaskGroup, type TaskItem } from './dummy/tasks-mock'
 import { Button, Toolbar } from './components/ui'
 import StaffTaskAccordion from './components/tasks/StaffTaskAccordion'
 import TaskModal from './components/tasks/TaskModal'
 import TaskDetailsModal from './components/tasks/TaskDetailsModal'
+import './styles/tasks-layout.css'
+import './styles/tasks-widgets.css'
 
 const taskFilterTabs = [
   "Today's Tasks",
@@ -24,7 +26,7 @@ export default function TasksPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
 
-  // Filter tasks according to activeTab & searchQuery
+  // Filter tasks according to activeTab & searchQuery, then group by staff.
   const staffGroups = useMemo(() => {
     const filtered = tasks.filter((task) => {
       const matchSearch =
@@ -95,39 +97,54 @@ export default function TasksPage() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskToApprove.id
-          ? { ...t, status: 'approved', completedAt: 'Just now by HOD' }
-          : t
-      )
+          ? { ...t, status: 'approved', completedAt: 'Just now by HOD', verifiedBy: currentDepartment.lead }
+          : t,
+      ),
     )
   }
 
-  return (
-    <div className="min-h-screen bg-[#fafafa] flex flex-col font-sans pt-16">
+  const metrics = [
+    { label: 'Approved', value: String(totalApproved), desc: 'Verified by HOD' },
+    { label: 'Submitted', value: String(totalSubmitted), desc: 'Waiting for HOD approval' },
+    { label: 'Not Done', value: String(totalNotDone), desc: 'Still open for today' },
+  ]
+return (
+    <div className="tasks-page">
       <AppNavbar />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
-                Departmental Tasks
-              </h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-200/80 font-semibold text-zinc-800">
-                {currentDepartment.name}
-              </span>
+      <main className="tasks-main">
+        <div className="tasks-header">
+          <div className="tasks-header-row">
+            <div>
+              <h1>Departmental Tasks</h1>
+              <p>
+                Review deliverables across 3 states: Approved ({totalApproved}), Submitted for
+                Approval ({totalSubmitted}), and Not Done ({totalNotDone}).
+              </p>
             </div>
-            <p className="text-xs text-zinc-500">
-              Review deliverables across 3 states: Approved ({totalApproved}), Submitted for Approval ({totalSubmitted}), and Not Done ({totalNotDone}).
-            </p>
+            <div className="tasks-header-actions">
+              <span className="tasks-badge">{currentDepartment.name}</span>
+              <Button
+                variant="primary"
+                leftIcon={<Plus size={16} />}
+                onClick={() => setIsCreateOpen(true)}
+              >
+                Assign New Task
+              </Button>
+            </div>
           </div>
+        </div>
 
-          <Button
-            variant="primary"
-            leftIcon={<Plus size={16} />}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            Assign New Task
-          </Button>
+        <div className="tasks-metrics">
+          {metrics.map((m) => (
+            <div key={m.label} className="tasks-metric">
+              <div className="tasks-metric-top">
+                <span className="tasks-metric-label">{m.label}</span>
+              </div>
+              <span className="tasks-metric-value">{m.value}</span>
+              <span className="tasks-metric-desc">{m.desc}</span>
+            </div>
+          ))}
         </div>
 
         <Toolbar
@@ -153,8 +170,7 @@ export default function TasksPage() {
           }}
         />
 
-        {/* Staff-sorted Accordions */}
-        <div className="space-y-4">
+        <div className="tasks-list">
           {staffGroups.map((group, idx) => (
             <StaffTaskAccordion
               key={group.name}
@@ -169,6 +185,23 @@ export default function TasksPage() {
           ))}
         </div>
       </main>
+
+      <footer className="tasks-footer">
+        <div className="tasks-footer-inner">
+          <div>
+            <div className="tasks-footer-label">Natale Identity</div>
+            <p className="tasks-footer-copy">
+              &copy; 2025 Natale Identity Corp. All rights reserved.
+            </p>
+          </div>
+          <div className="tasks-footer-links">
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">API Documentation</a>
+            <a href="#">Support</a>
+          </div>
+        </div>
+      </footer>
 
       <TaskModal
         open={isCreateOpen}

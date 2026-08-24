@@ -18,103 +18,94 @@ export default function TaskCard({ task, onApprove, onViewDetails }: TaskCardPro
   const isNotDone = task.status === 'not_done'
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm hover:border-zinc-300 transition-all flex flex-col justify-between gap-4">
+    <div className="tasks-task">
       <div>
-        {/* Top Pills strictly matching the department header tab style */}
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          {/* 3 Main Lifecycle Statuses */}
-          {isApproved && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-700">
-              Approved
-            </span>
-          )}
-          {isSubmitted && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-200/80 font-bold text-zinc-900">
-              Submitted (Waiting Approval)
-            </span>
-          )}
-          {isNotDone && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-500">
-              Not Done
-            </span>
-          )}
+        {/* Top Pills matching the departmental status colors */}
+        <div className="tasks-task-top mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {isApproved && (
+              <span className="tasks-pill tasks-status--approved">Approved</span>
+            )}
+            {isSubmitted && (
+              <span className="tasks-pill tasks-status--submitted">
+                Submitted (Waiting Approval)
+              </span>
+            )}
+            {isNotDone && (
+              <span className="tasks-pill tasks-status--notdone">Not Done</span>
+            )}
+          </div>
 
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-200/80 font-semibold text-zinc-800">
-            {task.type === 'recurring' ? 'Recurring Routine' : 'Special Assignment'}
-          </span>
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-200/80 font-semibold text-zinc-800 uppercase">
-            {task.priority}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="tasks-pill tasks-type-pill">
+              {task.type === 'recurring' ? 'Recurring Routine' : 'Special Assignment'}
+            </span>
+            <span className={`tasks-pill tasks-priority--${task.priority}`}>
+              {task.priority}
+            </span>
+          </div>
         </div>
 
-        <h3 className="text-[15px] font-bold text-zinc-900 leading-snug mb-1.5">
-          {task.title}
-        </h3>
-        <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed mb-3">
-          {task.description}
-        </p>
+        <h3 className="tasks-task-title">{task.title}</h3>
+        <p className="tasks-task-desc">{task.description}</p>
 
         {task.recurrence && (
-          <div className="text-[12px] text-zinc-500 font-medium mb-3">
-            {task.recurrence}
-          </div>
+          <div className="tasks-task-recurrence mt-3">{task.recurrence}</div>
         )}
 
-        {/* Staff's completion comment dropdown (for submitted / approved tasks) */}
+        {/* Staff's completion comment dropdown (submitted / approved tasks) */}
         {task.proofNote && (
-          <div className="mt-3 border border-zinc-200 rounded-lg overflow-hidden bg-zinc-50/70">
+          <div className="tasks-note mt-3">
             <button
               type="button"
               onClick={() => setIsCommentOpen(!isCommentOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100/80 transition-colors cursor-pointer"
+              className="tasks-note-toggle"
             >
               <span>Staff's comment</span>
               {isCommentOpen ? (
-                <ChevronUp size={14} className="text-zinc-500" />
+                <ChevronUp size={14} />
               ) : (
-                <ChevronDown size={14} className="text-zinc-500" />
+                <ChevronDown size={14} />
               )}
             </button>
             {isCommentOpen && (
-              <div className="px-3 pb-3 pt-1 text-xs text-zinc-600 border-t border-zinc-200/60 leading-relaxed bg-white">
-                <p className="italic">"{task.proofNote}"</p>
+              <div className="tasks-note-body">
+                <p className="italic">&quot;{task.proofNote}&quot;</p>
                 {task.completedAt && (
-                  <span className="text-[11px] text-zinc-400 block mt-1.5 not-italic">
-                    Submitted: {task.completedAt}
-                  </span>
+                  <span className="tasks-note-time">Submitted: {task.completedAt}</span>
                 )}
               </div>
             )}
           </div>
         )}
 
-        {/* Staff's reason / difficulty note (for not done tasks) */}
+        {/* Staff's reason / difficulty note (not done tasks) */}
         {task.difficultyNote && (
-          <div className="mt-2.5 border border-zinc-200 rounded-lg overflow-hidden bg-zinc-50/70">
+          <div className="tasks-note mt-2.5">
             <button
               type="button"
               onClick={() => setIsDifficultyOpen(!isDifficultyOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100/80 transition-colors cursor-pointer"
+              className="tasks-note-toggle"
             >
               <span>Reason / Difficulty Note</span>
               {isDifficultyOpen ? (
-                <ChevronUp size={14} className="text-zinc-500" />
+                <ChevronUp size={14} />
               ) : (
-                <ChevronDown size={14} className="text-zinc-500" />
+                <ChevronDown size={14} />
               )}
             </button>
             {isDifficultyOpen && (
-              <div className="px-3 pb-3 pt-1 text-xs text-zinc-600 border-t border-zinc-200/60 leading-relaxed bg-white">
-                <p className="italic">"{task.difficultyNote}"</p>
+              <div className="tasks-note-body">
+                <p className="italic">&quot;{task.difficultyNote}&quot;</p>
               </div>
             )}
           </div>
         )}
       </div>
 
-      <div className="pt-3 border-t border-zinc-100 flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-xs text-zinc-500">
-          Due: <span className="font-semibold text-zinc-700">{task.dueDate}</span>
+      <div className="tasks-task-meta">
+        <div className="tasks-task-due">
+          Due: <strong>{task.dueDate}</strong>
         </div>
 
         <div className="flex items-center gap-2">

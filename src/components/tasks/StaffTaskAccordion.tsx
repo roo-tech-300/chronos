@@ -40,71 +40,45 @@ export default function StaffTaskAccordion({
     .toUpperCase()
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden transition-all">
+    <div className="tasks-group">
       {/* Header Row */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-zinc-50/70 transition-colors cursor-pointer"
+        className="tasks-group-header"
+        aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-700 text-xs font-bold shrink-0">
-            {initials}
-          </div>
+        <div className="tasks-group-identity">
+          <div className="tasks-group-avatar">{initials}</div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-zinc-900 truncate">
-                {name}
-              </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-200/80 font-semibold text-zinc-800">
-                {subDepartment}
-              </span>
+              <span className="tasks-group-name">{name}</span>
+              <span className="tasks-sub-pill">{subDepartment}</span>
             </div>
-            <p className="text-xs text-zinc-500 truncate mt-0.5">{role}</p>
+            <p className="tasks-group-role">{role}</p>
           </div>
         </div>
 
-        {/* 3 Categories Badges */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap justify-end">
-          <span className="px-2.5 py-1 rounded-full bg-zinc-100 font-semibold text-zinc-700 text-[11px] sm:text-xs">
-            {approvedCount} Approved
-          </span>
-
-          <span
-            className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold ${
-              submittedCount > 0
-                ? 'bg-zinc-200 font-bold text-zinc-900'
-                : 'bg-zinc-100 text-zinc-500'
-            }`}
-          >
+        {/* 3 Category badges */}
+        <div className="tasks-group-counts">
+          <span className="tasks-count">{approvedCount} Approved</span>
+          <span className={`tasks-count ${submittedCount > 0 ? 'tasks-count--warn' : ''}`}>
             {submittedCount} Submitted
           </span>
-
-          <span
-            className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold ${
-              notDoneCount > 0
-                ? 'bg-zinc-100 border border-zinc-300 text-zinc-800'
-                : 'bg-zinc-100 text-zinc-400'
-            }`}
-          >
-            {notDoneCount} Not Done
-          </span>
-
-          <div className="p-1 rounded-md text-zinc-400">
+          <span className="tasks-count">{notDoneCount} Not Done</span>
+          <span className="tasks-chevron">
             {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-          </div>
+          </span>
         </div>
       </button>
 
       {/* Expanded Task Cards */}
       {isOpen && (
-        <div className="p-4 sm:p-5 pt-0 border-t border-zinc-100 bg-zinc-50/40">
+        <div className="tasks-group-body">
           {tasks.length === 0 ? (
-            <p className="text-xs text-zinc-400 py-4 text-center">
-              No tasks found for this filter view.
-            </p>
+            <p className="tasks-empty">No tasks found for this filter view.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="tasks-group-grid">
               {tasks.map((task) => (
                 <TaskCard
                   key={task.id}

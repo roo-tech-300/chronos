@@ -6,6 +6,8 @@ import { Button, Badge, SearchInput } from './components/ui'
 import futminnaLogo from './assets/logo.jpg'
 import kangarooLogo from './assets/companies/KangarooTech.png'
 import nataleLogo from './assets/companies/natale.png'
+import { useDevPersona } from './context/DevPersonaContext'
+import { homePathForRole } from './utils/homeRoute'
 import logoImg from './assets/logo.png'
 import './styles/org-hub-nav.css'
 import './styles/org-hub-grid.css'
@@ -18,6 +20,7 @@ const logoMap: Record<string, string> = {
 }
 
 export default function OrgHubPage() {
+  const { role } = useDevPersona()
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredWorkspaces = workspaces.filter(
@@ -102,7 +105,7 @@ export default function OrgHubPage() {
               </div>
               <div className="org-card-footer">
                 <span className="last-active">{ws.lastActive}</span>
-                <Link to="/dashboard">
+                <Link to={homePathForRole(role)}>
                   <Button variant="primary" size="sm">
                     Select
                   </Button>

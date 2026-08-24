@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import LandingPage from './LandingPage'
 import LoginPage from './LoginPage'
 import SignUpPage from './SignUpPage'
@@ -10,8 +10,17 @@ import DevicesPage from './DevicesPage'
 import AnalyticsPage from './AnalyticsPage'
 import OrgSettingsPage from './OrgSettingsPage'
 import TasksPage from './TasksPage'
-import { DevPersonaProvider } from './context/DevPersonaContext'
+import MyTasksPage from './MyTasksPage'
+import { DevPersonaProvider, useDevPersona } from './context/DevPersonaContext'
 import DevPersonaSwitcher from './components/common/DevPersonaSwitcher'
+
+// Staff members (non-leadership) are routed straight to their Daily Workspace;
+// department heads & admins keep the Dashboard as their primary landing page.
+function StaffGuardedDashboard() {
+  const { role } = useDevPersona()
+  if (role === 'staff') return <Navigate to="/tasks/my-tasks" replace />
+  return <DashboardPage />
+}
 
 function App() {
   return (
@@ -21,7 +30,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/workspaces" element={<OrgHubPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<StaffGuardedDashboard />} />
         <Route path="/staff" element={<StaffRosterPage />} />
         <Route path="/staff/:staffId" element={<StaffProfilePage />} />
         <Route path="/devices" element={<DevicesPage />} />
@@ -31,6 +40,7 @@ function App() {
         <Route path="/setting/organisation" element={<OrgSettingsPage />} />
         <Route path="/settings" element={<OrgSettingsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/tasks/my-tasks" element={<MyTasksPage />} />
       </Routes>
       <DevPersonaSwitcher />
     </DevPersonaProvider>

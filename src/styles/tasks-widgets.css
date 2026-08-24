@@ -1,0 +1,329 @@
+/* ============================================================
+   Tasks — shared widgets
+   Metric cards, status/priority pills, staff group accordions,
+   and departmental review task cards. Used by /tasks and
+   /tasks/my-tasks. Tokens live in tasks-layout.css (.tasks-page).
+   ============================================================ */
+
+/* ---------------- Metric cards ---------------- */
+
+.tasks-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.tasks-metrics--four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.tasks-metric {
+  background: #fff;
+  border: 1px solid var(--tasks-outline);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.tasks-metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tasks-on-surface-variant);
+}
+
+.tasks-metric-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #f4f4f5;
+  color: var(--tasks-on-surface);
+}
+
+.tasks-metric-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tasks-metric-desc {
+  font-size: 12px;
+  color: #71717a;
+  margin-top: 6px;
+}
+
+/* ---------------- Pills & badges ---------------- */
+
+.tasks-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tasks-priority--high { background: #fef2f2; color: #b91c1c; }
+.tasks-priority--medium { background: #fffbeb; color: #b45309; }
+.tasks-priority--low { background: #f0f9ff; color: #0369a1; }
+
+.tasks-status--approved { background: #f0fdf4; color: var(--tasks-success); }
+.tasks-status--submitted { background: #fef3c7; color: #92400e; }
+.tasks-status--notdone { background: #f4f4f5; color: #71717a; }
+.tasks-type-pill { background: #f4f4f5; color: var(--tasks-on-surface-variant); }
+
+.tasks-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #f4f4f5;
+  color: #71717a;
+  white-space: nowrap;
+}
+
+.tasks-count--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+/* ---------------- Departmental group accordions ---------------- */
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-group {
+  background: #fff;
+  border: 1px solid var(--tasks-outline);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+}
+
+.tasks-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.tasks-group-header:hover {
+  background: #fafafa;
+}
+
+.tasks-group-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.tasks-group-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--tasks-surface-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tasks-on-surface-variant);
+  flex-shrink: 0;
+}
+
+.tasks-group-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tasks-on-surface);
+}
+
+.tasks-group-role {
+  font-size: 13px;
+  color: #71717a;
+  margin-top: 2px;
+}
+
+.tasks-sub-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-on-surface);
+  white-space: nowrap;
+}
+
+.tasks-group-counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tasks-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+}
+
+.tasks-group-body {
+  border-top: 1px solid var(--tasks-outline);
+  padding: 20px;
+  background: #fcfcfd;
+}
+
+.tasks-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.tasks-empty {
+  padding: 32px;
+  text-align: center;
+  font-size: 14px;
+  color: #a1a1aa;
+}
+
+/* ---------------- Task card (departmental review) ---------------- */
+
+.tasks-task {
+  background: #fff;
+  border: 1px solid var(--tasks-outline);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+
+.tasks-task:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.tasks-task-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tasks-task-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tasks-on-surface);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.tasks-task-desc {
+  font-size: 13px;
+  color: #71717a;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tasks-task-recurrence {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.tasks-note {
+  border: 1px solid var(--tasks-outline);
+  border-radius: 10px;
+  background: var(--tasks-surface);
+  overflow: hidden;
+}
+
+.tasks-note-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tasks-on-surface-variant);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.tasks-note-body {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--tasks-on-surface-variant);
+  border-top: 1px solid var(--tasks-outline);
+  background: #fff;
+}
+
+.tasks-note-time {
+  display: block;
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-top: 6px;
+}
+
+.tasks-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--tasks-outline);
+  padding-top: 12px;
+  flex-wrap: wrap;
+}
+
+.tasks-task-due {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.tasks-task-due strong {
+  color: var(--tasks-on-surface);
+}
