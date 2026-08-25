@@ -179,32 +179,23 @@
   background: #f3f4f6;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .login-page {
-    flex-direction: column;
-    height: auto;
+    flex-direction: row;
+    height: 100vh;
     min-height: 100vh;
   }
 
-  .login-form-panel,
   .login-brand-panel {
-    width: 100%;
+    display: none !important;
   }
 
   .login-form-panel {
-    padding: 40px 24px;
-    height: auto;
-    overflow-y: visible;
-  }
-
-  .login-brand-panel {
-    min-height: 400px;
-    padding: 40px 24px;
-  }
-
-  .identity-card {
     width: 100%;
-    max-width: 380px;
+    max-width: 100%;
+    padding: 40px 24px;
+    height: 100vh;
+    overflow-y: auto;
   }
 
   .cookie-banner {

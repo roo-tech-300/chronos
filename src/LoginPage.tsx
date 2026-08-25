@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { KeyRound, ArrowRight } from 'lucide-react'
+import { ArrowRight, AlertCircle } from 'lucide-react'
 import { Input, Button } from './components/ui'
+import { useAuth } from './context/useAuth'
 import './styles/login-base.css'
 import './styles/login-aside.css'
 import logoImg from './assets/logo.png'
@@ -22,10 +23,18 @@ const staffProfiles: StaffProfile[] = [
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { signIn, signInWithGoogle } = useAuth()
+
   const [profileIndex, setProfileIndex] = useState(0)
   const [cookieVisible, setCookieVisible] = useState(true)
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
   const cardRef = useRef<HTMLDivElement>(null)
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -47,6 +56,32 @@ export default function LoginPage() {
     setMousePos({ x: 50, y: 50 })
   }, [])
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMessage(null)
+    setLoading(true)
+
+    const { error } = await signIn(email, password)
+    if (error) {
+      setErrorMessage(error.message)
+      setLoading(false)
+      return
+    }
+
+    setLoading(false)
+    navigate('/workspaces')
+  }
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null)
+    setGoogleLoading(true)
+    const { error } = await signInWithGoogle(`${window.location.origin}/workspaces`)
+    if (error) {
+      setErrorMessage(error.message)
+      setGoogleLoading(false)
+    }
+  }
+
   const profile = staffProfiles[profileIndex]
   const cx = mousePos.x
   const cy = mousePos.y
@@ -64,36 +99,36 @@ export default function LoginPage() {
             <h1 className="login-heading">Welcome back</h1>
             <p className="login-subtitle">Sign in to your existing account</p>
 
-            <button className="social-btn">
+            <button
+              className="social-btn cursor-pointer"
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+            >
               <span className="social-btn-left">
                 <GoogleLogo />
-                Continue with Google
-              </span>
-              <ArrowRight size={16} />
-            </button>
-
-            <button className="social-btn">
-              <span className="social-btn-left">
-                <KeyRound size={20} />
-                Continue with SSO
+                {googleLoading ? 'Redirecting to Google...' : 'Continue with Google'}
               </span>
               <ArrowRight size={16} />
             </button>
 
             <div className="divider">OR CONTINUE WITH</div>
 
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(e) => {
-                e.preventDefault()
-                navigate('/workspaces')
-              }}
-            >
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs mb-3">
+                <AlertCircle size={15} className="shrink-0 text-red-500" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
               <Input
                 label="Email Address"
                 id="email"
                 type="email"
                 placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
 
@@ -109,6 +144,8 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
@@ -118,9 +155,10 @@ export default function LoginPage() {
                 variant="primary"
                 size="lg"
                 fullWidth
+                disabled={loading}
                 rightIcon={<ArrowRight size={18} />}
               >
-                Sign In
+                {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
@@ -218,4 +256,3 @@ function GoogleLogo() {
     </svg>
   )
 }
-

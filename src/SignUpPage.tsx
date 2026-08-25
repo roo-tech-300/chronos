@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { KeyRound, ArrowRight } from 'lucide-react'
+import { ArrowRight, AlertCircle } from 'lucide-react'
 import { Input, Button } from './components/ui'
+import { useAuth } from './context/useAuth'
 import './styles/login-base.css'
 import './styles/login-aside.css'
 import './styles/signup.css'
@@ -31,11 +32,19 @@ function getStrength(pw: string) {
 
 export default function SignUpPage() {
   const navigate = useNavigate()
+  const { signUp, signInWithGoogle } = useAuth()
+
   const [profileIndex, setProfileIndex] = useState(0)
   const [cookieVisible, setCookieVisible] = useState(true)
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
-  const [passwordValue, setPasswordValue] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
+
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [passwordValue, setPasswordValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -57,6 +66,37 @@ export default function SignUpPage() {
     setMousePos({ x: 50, y: 50 })
   }, [])
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMessage(null)
+
+    if (passwordValue.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.')
+      return
+    }
+
+    setLoading(true)
+    const { error } = await signUp(email, passwordValue, fullName, 'admin')
+    if (error) {
+      setErrorMessage(error.message)
+      setLoading(false)
+      return
+    }
+
+    setLoading(false)
+    navigate('/workspaces')
+  }
+
+  const handleGoogleSignUp = async () => {
+    setErrorMessage(null)
+    setGoogleLoading(true)
+    const { error } = await signInWithGoogle(`${window.location.origin}/workspaces`)
+    if (error) {
+      setErrorMessage(error.message)
+      setGoogleLoading(false)
+    }
+  }
+
   const profile = staffProfiles[profileIndex]
   const cx = mousePos.x
   const cy = mousePos.y
@@ -75,18 +115,21 @@ export default function SignUpPage() {
             <h1 className="login-heading">Create your account</h1>
             <p className="login-subtitle">Start building identity infrastructure for the physical world.</p>
 
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(e) => {
-                e.preventDefault()
-                navigate('/workspaces')
-              }}
-            >
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs mb-3">
+                <AlertCircle size={15} className="shrink-0 text-red-500" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
               <Input
                 label="Full name"
                 id="name"
                 type="text"
                 placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 required
               />
 
@@ -95,6 +138,8 @@ export default function SignUpPage() {
                 id="signup-email"
                 type="email"
                 placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
 
@@ -124,24 +169,27 @@ export default function SignUpPage() {
                 variant="primary"
                 size="lg"
                 fullWidth
+                disabled={loading}
                 rightIcon={<ArrowRight size={18} />}
               >
-                Get Started
+                {loading ? 'Creating Account...' : 'Get Started'}
               </Button>
             </form>
 
             <div className="divider">Or continue with</div>
 
-            <div className="social-grid">
-              <button type="button" className="social-btn-grid">
+            <button
+              type="button"
+              className="social-btn cursor-pointer"
+              onClick={handleGoogleSignUp}
+              disabled={googleLoading || loading}
+            >
+              <span className="social-btn-left">
                 <GoogleLogo />
-                Google
-              </button>
-              <button type="button" className="social-btn-grid">
-                <KeyRound size={20} />
-                SSO
-              </button>
-            </div>
+                {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
+              </span>
+              <ArrowRight size={16} />
+            </button>
 
             <span className="request-link">
               Already have an account? <Link to="/login">Sign in</Link>
@@ -155,7 +203,6 @@ export default function SignUpPage() {
           </div>
         </div>
       </div>
-
 
       <div
         className="login-brand-panel"
