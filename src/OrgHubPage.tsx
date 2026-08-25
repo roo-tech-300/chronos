@@ -177,11 +177,11 @@ export default function OrgHubPage() {
             <span className="text-sm">Loading workspaces...</span>
           </div>
         ) : dbWorkspaces.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 bg-white border border-dashed border-zinc-200 rounded-2xl text-center max-w-xl mx-auto my-8">
-            <div className="w-14 h-14 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 mb-4">
-              <Building2 size={28} />
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center max-w-xl mx-auto my-8">
+            <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 mb-4">
+              <Building2 size={38} />
             </div>
-            <h3 className="text-lg font-bold text-zinc-900 mb-1">No workspaces yet</h3>
+            <h2 className="text-xl font-bold text-zinc-900 mb-2">No workspaces yet</h2>
             <p className="text-sm text-zinc-500 max-w-sm mb-6">
               You aren't a member of any workspaces. Create your first organization workspace to get started.
             </p>
