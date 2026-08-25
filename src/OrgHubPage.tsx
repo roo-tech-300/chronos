@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown, RefreshCw, Building2 } from 'lucide-react'
-import { workspaces as mockWorkspaces } from './dummy/org-hub-mock'
+import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown, RefreshCw, Building2, FolderPlus } from 'lucide-react'
 import { Button, Badge, SearchInput } from './components/ui'
 import futminnaLogo from './assets/logo.jpg'
 import kangarooLogo from './assets/companies/KangarooTech.png'
@@ -36,9 +35,9 @@ export default function OrgHubPage() {
       setLoading(true)
       const { data, error: fetchErr } = await getUserWorkspaces(user?.id)
       if (fetchErr) {
-        // Fallback gracefully to mock data if database tables haven't been seeded yet
-        console.warn('Could not fetch from DB, falling back to mock workspaces:', fetchErr.message)
-      } else if (data && data.length > 0) {
+        console.warn('Error fetching workspaces:', fetchErr.message)
+        setDbWorkspaces([])
+      } else if (data) {
         setDbWorkspaces(data)
       }
       setLoading(false)
@@ -66,18 +65,16 @@ export default function OrgHubPage() {
     }
   }
 
-  // Combine or prioritize database workspaces, fallback to mock if DB is empty/unmigrated
-  const displayWorkspaces = dbWorkspaces.length > 0
-    ? dbWorkspaces.map((ws) => ({
-        id: ws.id,
-        name: ws.name,
-        logoId: ws.slug.includes('kangaroo') ? 'kangaroo' : ws.slug.includes('futminna') ? 'futminna' : 'natale',
-        role: ws.role.charAt(0).toUpperCase() + ws.role.slice(1),
-        memberCount: ws.memberCount || 1,
-        category: ws.plan.toUpperCase(),
-        lastActive: 'Active now',
-      }))
-    : mockWorkspaces
+  // Map real database workspaces to display objects
+  const displayWorkspaces = dbWorkspaces.map((ws) => ({
+    id: ws.id,
+    name: ws.name,
+    logoId: ws.slug.includes('kangaroo') ? 'kangaroo' : ws.slug.includes('futminna') ? 'futminna' : 'natale',
+    role: ws.role.charAt(0).toUpperCase() + ws.role.slice(1),
+    memberCount: ws.memberCount || 1,
+    category: (ws.plan || 'STARTER').toUpperCase(),
+    lastActive: 'Active now',
+  }))
 
   const filteredWorkspaces = displayWorkspaces.filter(
     (ws) =>
@@ -133,19 +130,21 @@ export default function OrgHubPage() {
               <h2>Select Workspace</h2>
               <p>Choose an organization to continue or create a new one to start managing physical identities and security infrastructure.</p>
             </div>
-            <div className="org-hero-actions">
-              <div className="w-64">
-                <SearchInput
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onClear={() => setSearchTerm('')}
-                  placeholder="Search workspaces..."
-                />
+            {dbWorkspaces.length > 0 && (
+              <div className="org-hero-actions">
+                <div className="w-64">
+                  <SearchInput
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onClear={() => setSearchTerm('')}
+                    placeholder="Search workspaces..."
+                  />
+                </div>
+                <Button variant="secondary" size="md">
+                  <SlidersHorizontal size={18} />
+                </Button>
               </div>
-              <Button variant="secondary" size="md">
-                <SlidersHorizontal size={18} />
-              </Button>
-            </div>
+            )}
           </div>
         </div>
 
@@ -173,9 +172,27 @@ export default function OrgHubPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-zinc-400 gap-2">
+          <div className="flex items-center justify-center py-20 text-zinc-400 gap-2">
             <RefreshCw size={20} className="animate-spin" />
-            <span className="text-sm">Fetching workspaces from Supabase...</span>
+            <span className="text-sm">Loading workspaces...</span>
+          </div>
+        ) : dbWorkspaces.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4 bg-white border border-dashed border-zinc-200 rounded-2xl text-center max-w-xl mx-auto my-8">
+            <div className="w-14 h-14 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 mb-4">
+              <Building2 size={28} />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-900 mb-1">No workspaces yet</h3>
+            <p className="text-sm text-zinc-500 max-w-sm mb-6">
+              You aren't a member of any workspaces. Create your first organization workspace to get started.
+            </p>
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<FolderPlus size={18} />}
+              onClick={() => setIsCreating(true)}
+            >
+              Create Your First Workspace
+            </Button>
           </div>
         ) : (
           <div className="org-grid">
