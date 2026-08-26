@@ -71,7 +71,7 @@ export default function StaffRosterPage() {
           </div>
           <p>
             {role === 'admin'
-              ? 'Manage identity access and hardware assignments across your infrastructure.'
+              ? 'Manage staffs and track their productivity'
               : `Viewing personnel roster scoped to ${currentDepartment.name} and sub-departments.`}
           </p>
         </div>

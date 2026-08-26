@@ -60,10 +60,6 @@ export default function OrgHubPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10 sm:py-14 flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-zinc-200">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-purple-50 text-[#7c007e] text-xs font-semibold uppercase tracking-wider mb-3">
-              <Building2 size={13} />
-              Chronos Identity
-            </div>
             <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Select Workspace</h1>
             <p className="text-zinc-500 text-sm mt-1 max-w-xl">
               Select an organization to jump back in, or set up a new workspace to start tracking team productivity.

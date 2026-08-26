@@ -47,6 +47,8 @@ export default function StaffProfilePage() {
     avatarUrl: currentUserAvatar,
   })
 
+  console.log('actual user profile', user)
+
   const backLink = workspaceId ? `/workspace/${workspaceId}/staff` : '/staff'
 
   return (
