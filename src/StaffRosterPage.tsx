@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { MoreVertical } from 'lucide-react'
-import { filterTabs, getInitials } from './dummy/roster-mock'
+import { useParams } from 'react-router-dom'
+import { filterTabs } from './dummy/roster-mock'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
 import { useWorkspace } from './context/useWorkspace'
-import { Badge, Pagination, Toolbar } from './components/ui'
+import { Pagination, Toolbar } from './components/ui'
 import { useStaffRoster } from './hooks/useStaffRoster'
-import type { StaffMember } from './types/staff'
+import { StaffRosterTable } from './components/staff/StaffRosterTable'
 import './styles/roster-page.css'
 import './styles/roster-toolbar.css'
 import './styles/roster-footer.css'
@@ -24,7 +23,7 @@ export default function StaffRosterPage() {
   const itemsPerPage = 8
 
   // Server-side paginated query via TanStack Query and Supabase
-  const { data: paginatedResult } = useStaffRoster({
+  const { data: paginatedResult, isLoading } = useStaffRoster({
     workspaceId,
     page: currentPage,
     pageSize: itemsPerPage,
@@ -94,66 +93,12 @@ export default function StaffRosterPage() {
         />
 
         <div className="roster-table-wrap">
-          <table className="roster-table">
-            <thead>
-              <tr>
-                <th>Staff ID</th>
-                <th>Member</th>
-                <th>Assigned Role</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.length > 0 ? (
-                members.map((m: StaffMember) => {
-                  const profileLink = workspaceId
-                    ? `/workspace/${workspaceId}/staff/${m.id}`
-                    : `/staff/${m.id}`
-                  return (
-                    <tr key={m.id}>
-                      <td><span className="roster-id">{m.staffCode || m.id}</span></td>
-                      <td>
-                        <div className="roster-member-cell">
-                          <div className="roster-member-avatar overflow-hidden">
-                            {m.avatarUrl ? (
-                              <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
-                            ) : (
-                              getInitials(m.name)
-                            )}
-                          </div>
-                          <div className="roster-member-info">
-                            <Link to={profileLink} className="roster-member-name">{m.name}</Link>
-                            <span className="roster-member-email">{m.email}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td><span className="roster-role">{m.role}</span></td>
-                      <td>
-                        <Badge
-                          variant={m.status === 'On-Site' ? 'success' : 'neutral'}
-                          showDot
-                        >
-                          {m.status}
-                        </Badge>
-                      </td>
-                      <td>
-                        <button className="roster-actions-btn" aria-label="More actions">
-                          <MoreVertical size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              ) : (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-400 text-sm">
-                    No staff records match the current filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <StaffRosterTable
+            members={members}
+            isLoading={isLoading}
+            workspaceId={workspaceId}
+            accentColor={accentColor}
+          />
 
           <div className="px-6 py-2 border-t border-zinc-100">
             <Pagination
@@ -184,5 +129,3 @@ export default function StaffRosterPage() {
     </div>
   )
 }
-
-

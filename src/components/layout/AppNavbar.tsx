@@ -65,13 +65,20 @@ export default function AppNavbar({
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#f8f9fa]/85 backdrop-blur-md border-b border-zinc-200 shadow-sm">
       <div className="flex items-center justify-between h-16 px-6 max-w-7xl mx-auto w-full">
         {/* Left: Brand & nav links */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 sm:gap-6 md:gap-8 min-w-0">
           <Link
             to={homePath}
-            className="flex items-center gap-2.5 text-xl font-bold text-zinc-900 hover:opacity-90 transition-opacity"
+            title={activeBrandName}
+            className="flex items-center gap-2 sm:gap-2.5 min-w-0 max-w-[150px] sm:max-w-[220px] md:max-w-[280px] lg:max-w-[340px] hover:opacity-90 transition-opacity"
           >
-            <img src={finalBrandLogo} alt={activeBrandName} className="w-7 h-7 object-contain rounded" />
-            <span>{activeBrandName}</span>
+            <img
+              src={finalBrandLogo}
+              alt={activeBrandName}
+              className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded shrink-0"
+            />
+            <span className="text-base sm:text-lg md:text-xl font-bold text-zinc-900 tracking-tight truncate">
+              {activeBrandName}
+            </span>
           </Link>
 
           {role === 'staff' ? (

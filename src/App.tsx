@@ -36,6 +36,8 @@ function App() {
             <Route path="/workspaces" element={<OrgHubPage />} />
 
             {/* Workspace-Scoped Routes */}
+            <Route path="/workspace/staff" element={<StaffRosterPage />} />
+            <Route path="/workspace/staff/:staffId" element={<StaffProfilePage />} />
             <Route path="/workspace/:workspaceId" element={<StaffGuardedDashboard />} />
             <Route path="/workspace/:workspaceId/dashboard" element={<StaffGuardedDashboard />} />
             <Route path="/workspace/:workspaceId/staff" element={<StaffRosterPage />} />

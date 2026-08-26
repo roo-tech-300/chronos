@@ -1,34 +1,16 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  Fingerprint, Key, Shield, History,
-  ArrowLeft, Pencil,
-  Server, Building2, Building, LogOut, DoorOpen,
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { getInitials } from './dummy/roster-mock'
 import { useAuth } from './context/useAuth'
 import { useWorkspace } from './context/useWorkspace'
 import { useStaffProfile } from './hooks/useStaffProfile'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
 import AppNavbar from './components/layout/AppNavbar'
-import { Button, Badge } from './components/ui'
-import type { ScanActivity } from './dummy/profile-mock'
+import StaffOverviewCard from './components/profile/StaffOverviewCard'
+import { Badge } from './components/ui'
 import './styles/profile-page.css'
 import './styles/profile-card.css'
-import './styles/profile-gov.css'
-import './styles/profile-activity.css'
-
-const actIcon: Record<string, React.ReactNode> = {
-  'Terminal 04 - East Wing': <DoorOpen size={20} />,
-  'Server Room B': <Server size={20} />,
-  'Boardroom North': <Building2 size={20} />,
-  'Main Gate - Arrival': <Building size={20} />,
-  'Main Gate - Departure': <LogOut size={20} />,
-}
-
-function acIcon(act: ScanActivity) {
-  return actIcon[act.terminal] ?? <Shield size={20} />
-}
 
 export default function StaffProfilePage() {
   const { workspaceId, staffId } = useParams<{ workspaceId?: string; staffId: string }>()
@@ -84,84 +66,12 @@ export default function StaffProfilePage() {
           </div>
 
           <div className="profile-col-right">
-            <div className="prof-gov-card">
-              <div className="prof-gov-header">
-                <h2>Staff Governance Profile</h2>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    leftIcon={<Fingerprint size={16} />}
-                    onClick={() => setEnrollOpen(true)}
-                  >
-                    Enroll Fingerprint
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<Pencil size={16} />}
-                  >
-                    Edit Details
-                  </Button>
-                </div>
-              </div>
-
-              <div className="prof-gov-body">
-                <div className="prof-section">
-                  <h3 className="prof-section-title">
-                    <Key size={16} />
-                    System Permissions
-                  </h3>
-                  <div className="prof-perms-grid">
-                    <div className="prof-perm-card">
-                      <div className="prof-perm-info">
-                        <span className="prof-perm-label">Access Level</span>
-                        <span className="prof-perm-level">{profile?.accessLevel || '05'}</span>
-                      </div>
-                      <div className="prof-perm-icon-wrap">
-                        <Shield size={24} />
-                      </div>
-                    </div>
-                    <div className="prof-perm-card">
-                      <span className="prof-perm-label">Auth Protocols</span>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                        {(profile?.authProtocols || ['BIOMETRIC_OVERRIDE', 'MFA_ENABLED', 'PHYSICAL_KEY']).map((p) => (
-                          <Badge key={p} variant="neutral" size="sm">{p}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="prof-section">
-                  <div className="prof-activity-header">
-                    <h3 className="prof-section-title">
-                      <History size={16} />
-                      Recent Scan Activity
-                    </h3>
-                    <Button variant="outline" size="sm">Download Log</Button>
-                  </div>
-                  <div className="prof-activity-list">
-                    {(profile?.activities || [
-                      { terminal: 'Main Gate - Arrival', action: 'Biometric Entry', time: '08:12 AM' },
-                      { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
-                    ]).map((act) => (
-                      <div key={act.time} className="prof-activity-row">
-                        <div className="prof-activity-left">
-                          <div className="prof-activity-circle">{acIcon(act)}</div>
-                          <div>
-                            <p className="prof-activity-terminal">{act.terminal}</p>
-                            <p className="prof-activity-action">{act.action}</p>
-                          </div>
-                        </div>
-                        <span className="prof-activity-time">{act.time}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-            </div>
+            <StaffOverviewCard
+              activities={profile?.activities}
+              onEnrollFingerprint={() => setEnrollOpen(true)}
+              onEditDetails={() => {}}
+              onDownloadLog={() => {}}
+            />
           </div>
         </div>
       </main>
