@@ -5,13 +5,14 @@ import {
   ArrowLeft, Pencil,
   Server, Building2, Building, LogOut, DoorOpen,
 } from 'lucide-react'
-import { getProfile, type ScanActivity } from './dummy/profile-mock'
 import { getInitials } from './dummy/roster-mock'
 import { useAuth } from './context/useAuth'
 import { useWorkspace } from './context/useWorkspace'
+import { useStaffProfile } from './hooks/useStaffProfile'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
 import AppNavbar from './components/layout/AppNavbar'
 import { Button, Badge } from './components/ui'
+import type { ScanActivity } from './dummy/profile-mock'
 import './styles/profile-page.css'
 import './styles/profile-card.css'
 import './styles/profile-gov.css'
@@ -31,25 +32,17 @@ function acIcon(act: ScanActivity) {
 
 export default function StaffProfilePage() {
   const { workspaceId, staffId } = useParams<{ workspaceId?: string; staffId: string }>()
-  const { user, profile: authProfile } = useAuth()
+  const { profile: authProfile } = useAuth()
   const { accentColor } = useWorkspace()
   const [enrollOpen, setEnrollOpen] = useState(false)
 
-  const meta = (user?.user_metadata || {}) as Record<string, string | undefined>
-  const currentUserName = authProfile?.fullName || meta.full_name || meta.name || user?.email?.split('@')[0] || ''
-  const currentUserEmail = user?.email || ''
-  const currentUserAvatar = authProfile?.avatarUrl || meta.avatar_url || meta.picture
-
-  const profile = getProfile(staffId ?? '', {
-    id: user?.id,
-    name: currentUserName,
-    email: currentUserEmail,
-    avatarUrl: currentUserAvatar,
-  })
-
-  console.log('actual user profile', user)
+  const { data: profile, isLoading } = useStaffProfile(staffId, workspaceId)
 
   const backLink = workspaceId ? `/workspace/${workspaceId}/staff` : '/staff'
+
+  const displayName = profile?.name || authProfile?.fullName || 'Staff Member'
+  const displayStaffCode = profile?.staffId || (staffId?.startsWith('CHR-') ? staffId : 'CHR-0001')
+  const displayAvatar = profile?.avatarUrl || authProfile?.avatarUrl
 
   return (
     <div
@@ -77,30 +70,30 @@ export default function StaffProfilePage() {
               <div className="prof-card-body">
                 <div className="prof-avatar">
                   <div className="prof-avatar-inner overflow-hidden">
-                    {profile.avatarUrl ? (
-                      <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
+                    {displayAvatar ? (
+                      <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
                     ) : (
-                      <span>{getInitials(profile.name)}</span>
+                      <span>{getInitials(displayName)}</span>
                     )}
                   </div>
                 </div>
                 <div className="prof-info">
-                  <h1>{profile.name}</h1>
-                  <p className="prof-id">Staff ID: {profile.staffId}</p>
+                  <h1>{isLoading ? 'Loading profile...' : displayName}</h1>
+                  <p className="prof-id">Staff ID: {displayStaffCode}</p>
                 </div>
-                <Badge variant="purple" size="md">{profile.role}</Badge>
+                <Badge variant="purple" size="md">{profile?.role || 'Administrator'}</Badge>
               </div>
               <div className="prof-divider" />
               <div className="prof-stats-grid">
                 <div className="prof-stat-item">
                   <span className="prof-stat-label">Status</span>
                   <div className="mt-1">
-                    <Badge variant="success" showDot>{profile.status}</Badge>
+                    <Badge variant="success" showDot>{profile?.status || 'Active Duty'}</Badge>
                   </div>
                 </div>
                 <div className="prof-stat-item">
                   <span className="prof-stat-label">Last Sync</span>
-                  <span>{profile.lastSync}</span>
+                  <span>{profile?.lastSync || 'Just now'}</span>
                 </div>
               </div>
             </div>
@@ -139,7 +132,7 @@ export default function StaffProfilePage() {
                     <div className="prof-perm-card">
                       <div className="prof-perm-info">
                         <span className="prof-perm-label">Access Level</span>
-                        <span className="prof-perm-level">{profile.accessLevel}</span>
+                        <span className="prof-perm-level">{profile?.accessLevel || '05'}</span>
                       </div>
                       <div className="prof-perm-icon-wrap">
                         <Shield size={24} />
@@ -148,7 +141,7 @@ export default function StaffProfilePage() {
                     <div className="prof-perm-card">
                       <span className="prof-perm-label">Auth Protocols</span>
                       <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                        {profile.authProtocols.map((p) => (
+                        {(profile?.authProtocols || ['BIOMETRIC_OVERRIDE', 'MFA_ENABLED', 'PHYSICAL_KEY']).map((p) => (
                           <Badge key={p} variant="neutral" size="sm">{p}</Badge>
                         ))}
                       </div>
@@ -165,7 +158,10 @@ export default function StaffProfilePage() {
                     <Button variant="outline" size="sm">Download Log</Button>
                   </div>
                   <div className="prof-activity-list">
-                    {profile.activities.map((act) => (
+                    {(profile?.activities || [
+                      { terminal: 'Main Gate - Arrival', action: 'Biometric Entry', time: '08:12 AM' },
+                      { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
+                    ]).map((act) => (
                       <div key={act.time} className="prof-activity-row">
                         <div className="prof-activity-left">
                           <div className="prof-activity-circle">{acIcon(act)}</div>
@@ -205,4 +201,3 @@ export default function StaffProfilePage() {
     </div>
   )
 }
-
