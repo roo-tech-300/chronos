@@ -133,11 +133,11 @@ export default function OrgGeneralCard({
               <input
                 type="text"
                 required
-                className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+                className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
                 placeholder="e.g. Federal University of Technology Minna"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+                />
             </div>
 
             {/* Field: Sector / Category */}
@@ -148,11 +148,11 @@ export default function OrgGeneralCard({
               <input
                 type="text"
                 required
-                className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[#111827]"
+                className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
                 placeholder="e.g. Higher Education / University"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
+                />
             </div>
 
             {/* 2-Column: Leader Title & Leader Name */}
@@ -163,13 +163,13 @@ export default function OrgGeneralCard({
                 </label>
                 <input
                   type="text"
-                  className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+                  className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
                   placeholder="e.g. Vice-Chancellor / CEO"
                   value={formData.topLeaderTitle}
                   onChange={(e) =>
                     setFormData({ ...formData, topLeaderTitle: e.target.value })
                   }
-                />
+                  />
               </div>
 
               <div>
@@ -178,13 +178,13 @@ export default function OrgGeneralCard({
                 </label>
                 <input
                   type="text"
-                  className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+                  className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
                   placeholder="e.g. Prof. Faruk Adamu Kuta"
                   value={formData.topLeaderName}
                   onChange={(e) =>
                     setFormData({ ...formData, topLeaderName: e.target.value })
                   }
-                />
+                  />
               </div>
             </div>
 
@@ -195,7 +195,7 @@ export default function OrgGeneralCard({
               </label>
               <input
                 type="text"
-                className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+                className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
                 placeholder="e.g. Main Campus, Gidan Kwanu & Bosso Campuses, Minna"
                 value={formData.deploymentLocation}
                 onChange={(e) =>
