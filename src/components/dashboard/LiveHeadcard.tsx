@@ -3,15 +3,35 @@ import { Badge } from '../ui'
 import { headcountMembers } from '../../dummy/staff-mock'
 import { useDevPersona } from '../../context/DevPersonaContext'
 import { useWorkspace } from '../../context/useWorkspace'
+import { useAuth } from '../../context/useAuth'
 
 export function LiveHeadcard() {
   const { role, currentDepartment } = useDevPersona()
   const { stats, accentColor } = useWorkspace()
+  const { profile } = useAuth()
 
   const displayHeadcount = useMemo(() => {
-    if (role === 'admin') return headcountMembers
-    return headcountMembers.slice(0, 3)
-  }, [role])
+    const list = role === 'admin' ? [...headcountMembers] : headcountMembers.slice(0, 3)
+    if (profile?.fullName) {
+      const userInitials = profile.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase() || 'U'
+
+      return [
+        {
+          name: `${profile.fullName} (You)`,
+          terminal: 'Workspace Synchronized',
+          time: 'Just now',
+          initials: userInitials,
+        },
+        ...list.slice(0, role === 'admin' ? 4 : 2),
+      ]
+    }
+    return list
+  }, [role, profile])
 
   return (
     <div className="dash-headcard">
@@ -23,7 +43,7 @@ export function LiveHeadcard() {
       </div>
       <p className="dash-headcard-count" style={{ color: accentColor }}>
         {role === 'admin'
-          ? `${headcountMembers.length} Staff Members On-Site`
+          ? `${headcountMembers.length + (profile?.fullName ? 1 : 0)} Staff Members On-Site`
           : '36 Department Members On-Site'}
       </p>
       <div className="dash-headcard-list">

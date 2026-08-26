@@ -45,10 +45,13 @@ const profiles: Record<string, StaffProfile> = {
 }
 
 export function slugify(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-')
+  return (name || '').toLowerCase().replace(/\s+/g, '-')
 }
 
 function deriveName(slug: string): string {
+  if (!slug || slug.includes('-') && slug.length > 20) {
+    return 'Team Member'
+  }
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
@@ -66,6 +69,7 @@ export function getProfile(
       (currentUser?.id && cleanId.toLowerCase() === `chr-${currentUser.id.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
       cleanId === 'CHR-0001' ||
       cleanId === 'wm_usr_current' ||
+      cleanId === 'me' ||
       (currentUser?.name && slugify(currentUser.name) === cleanId.toLowerCase()))
 
   if (isCurrentUser && currentUser?.name) {
@@ -101,9 +105,11 @@ export function getProfile(
     (m) => m.id.toLowerCase() === cleanId.toLowerCase() || slugify(m.name) === cleanId.toLowerCase()
   )
 
+  const resolvedName = rosterMember?.name ?? (currentUser?.name || deriveName(cleanId))
+
   return {
-    name: rosterMember?.name ?? deriveName(cleanId),
-    slug: slugify(rosterMember?.name ?? deriveName(cleanId)),
+    name: resolvedName,
+    slug: slugify(resolvedName),
     staffId: rosterMember?.id ?? cleanId,
     role: rosterMember?.role ?? 'Staff',
     status: rosterMember?.status === 'On-Site' ? 'Active Duty' : 'Off-Site',
@@ -116,6 +122,6 @@ export function getProfile(
       { terminal: 'Main Gate - Departure', action: 'Previous Day Sign-out', time: 'Yesterday' },
     ],
     timestamp: '2026.06.22.15.16',
-    email: rosterMember?.email,
+    email: rosterMember?.email || currentUser?.email,
   }
 }

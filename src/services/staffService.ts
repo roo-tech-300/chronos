@@ -1,5 +1,7 @@
 import { getSupabase } from '../lib/supabase'
 import { rosterMembers } from '../dummy/roster-mock'
+import { getProfile, slugify, type StaffProfile } from '../dummy/profile-mock'
+import { resolveCurrentAuthIdentity, fetchMemberProfilesMap } from './identityResolver'
 import type { StaffMember, StaffQueryParams, PaginatedStaffResponse } from '../types/staff'
 
 interface RawMemberRow {
@@ -9,20 +11,9 @@ interface RawMemberRow {
   user_id?: string
   full_name?: string
   email?: string
-  department?: string
   avatar_url?: string
-  profiles?: {
-    id?: string
-    full_name?: string
-    email?: string
-    avatar_url?: string
-  } | null
 }
 
-/**
- * Executes a server-side paginated staff query following Option C (Hybrid Approach):
- * Joins user auth identity (from profiles / auth.users) with workspace-scoped membership data.
- */
 export async function fetchPaginatedStaff(
   params: StaffQueryParams
 ): Promise<PaginatedStaffResponse> {
@@ -31,26 +22,9 @@ export async function fetchPaginatedStaff(
   const to = from + pageSize - 1
   const supabase = getSupabase()
 
-  // 1. Resolve active user session info
-  let currentUserId: string | undefined
-  let currentUserName = 'Admin User'
-  let currentUserEmail = ''
-  let currentUserAvatar: string | undefined
+  const currentAuth = await resolveCurrentAuthIdentity()
+  const { userId: currentUserId, name: currentUserName, email: currentUserEmail, avatarUrl: currentUserAvatar } = currentAuth
 
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      currentUserId = user.id
-      currentUserEmail = user.email || ''
-      const meta = (user.user_metadata || {}) as Record<string, string | undefined>
-      currentUserName = meta.full_name || meta.name || user.email?.split('@')[0] || 'User'
-      currentUserAvatar = meta.avatar_url || meta.picture
-    }
-  } catch {
-    // Ignore auth lookup errors in offline / preview mode
-  }
-
-  // 2. Query workspace_members from Supabase
   try {
     let query = supabase
       .from('workspace_members')
@@ -71,32 +45,38 @@ export async function fetchPaginatedStaff(
 
     if (!error && dbMembers && dbMembers.length > 0) {
       const totalItems = dbCount ?? dbMembers.length
+      const userIds = dbMembers.map((m: { user_id?: string }) => m.user_id).filter(Boolean) as string[]
+      const profilesMap = await fetchMemberProfilesMap(userIds)
+
       const members: StaffMember[] = (dbMembers as RawMemberRow[]).map((m, index) => {
         const isCurrent = Boolean(currentUserId && m.user_id === currentUserId)
+        const userProfile = m.user_id ? profilesMap[m.user_id] : null
         const fallbackSeed = rosterMembers[index % rosterMembers.length]
 
-        const name = isCurrent
-          ? currentUserName
-          : (m.profiles?.full_name || m.full_name || fallbackSeed?.name || `Staff Member ${from + index + 1}`)
+        const memberName =
+          (isCurrent && currentUserName)
+            ? currentUserName
+            : (userProfile?.full_name || m.full_name || fallbackSeed?.name || currentUserName || 'Team Member')
 
-        const email = isCurrent
-          ? currentUserEmail
-          : (m.profiles?.email || m.email || fallbackSeed?.email || `member.${from + index + 1}@chronos.io`)
+        const memberEmail =
+          (isCurrent && currentUserEmail)
+            ? currentUserEmail
+            : (userProfile?.email || m.email || fallbackSeed?.email || currentUserEmail || 'member@chronos.io')
 
         const avatarUrl = isCurrent
-          ? currentUserAvatar
-          : (m.profiles?.avatar_url || m.avatar_url)
+          ? (currentUserAvatar || userProfile?.avatar_url)
+          : (userProfile?.avatar_url || m.avatar_url)
 
         const staffCode = m.user_id
           ? `CHR-${m.user_id.replace(/-/g, '').slice(0, 4).toUpperCase()}`
           : `CHR-${String(from + index + 1000).padStart(4, '0')}`
 
         return {
-          id: m.id, // workspace_members.id primary key in Supabase
+          id: m.id,
           userId: m.user_id,
           staffCode,
-          name,
-          email,
+          name: memberName,
+          email: memberEmail,
           role: m.role === 'admin' ? 'Administrator' : m.role === 'editor' ? 'Editor' : 'Staff',
           status: index % 2 === 0 ? 'On-Site' : 'Off-Site',
           avatarUrl,
@@ -113,11 +93,11 @@ export async function fetchPaginatedStaff(
         pageSize,
       }
     }
-  } catch {
-    // Fall back to simulated hybrid dataset
+  } catch (err) {
+    console.warn('Fallback to local dataset:', err)
   }
 
-  // 3. Fallback dataset: inject current user as top member with mock records
+  // Fallback dataset
   const userEntry: StaffMember = {
     id: currentUserId ? `wm_${currentUserId.replace(/-/g, '').slice(0, 12)}` : 'wm_usr_current',
     userId: currentUserId,
@@ -170,4 +150,114 @@ export async function fetchPaginatedStaff(
     currentPage: validPage,
     pageSize,
   }
+}
+
+export async function fetchStaffProfile(
+  staffId: string,
+  workspaceId?: string
+): Promise<StaffProfile> {
+  const currentAuth = await resolveCurrentAuthIdentity()
+  const { userId: currentUserId, name: currentUserName, email: currentUserEmail, avatarUrl: currentUserAvatar } = currentAuth
+  const cleanId = (staffId || '').trim()
+
+  const isDirectCurrent =
+    Boolean(currentUserId && cleanId.toLowerCase() === currentUserId.toLowerCase()) ||
+    Boolean(currentUserId && cleanId.toLowerCase() === `chr-${currentUserId.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
+    cleanId === 'CHR-0001' ||
+    cleanId === 'wm_usr_current' ||
+    cleanId === 'me'
+
+  if (isDirectCurrent && currentUserName) {
+    return {
+      name: currentUserName,
+      slug: slugify(currentUserName),
+      staffId: currentUserId ? `CHR-${currentUserId.replace(/-/g, '').slice(0, 4).toUpperCase()}` : 'CHR-0001',
+      role: 'Administrator',
+      status: 'Active Duty',
+      lastSync: 'Just now',
+      uptimeReliability: '100%',
+      accessLevel: '05',
+      authProtocols: ['BIOMETRIC_OVERRIDE', 'MFA_ENABLED', 'PHYSICAL_KEY'],
+      activities: [
+        { terminal: 'Main Gate - Arrival', action: 'Biometric Authenticated', time: '08:00 AM' },
+        { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
+      ],
+      timestamp: '2026.06.22.15.16',
+      avatarUrl: currentUserAvatar,
+      email: currentUserEmail,
+    }
+  }
+
+  const supabase = getSupabase()
+  try {
+    let query = supabase
+      .from('workspace_members')
+      .select('id, user_id, role, created_at')
+      .or(`id.eq.${cleanId},user_id.eq.${cleanId}`)
+
+    if (workspaceId) {
+      query = query.eq('workspace_id', workspaceId)
+    }
+
+    const { data: member } = await query.maybeSingle()
+
+    if (member) {
+      const isCurrent = Boolean(currentUserId && member.user_id === currentUserId)
+      let name = isCurrent ? currentUserName : ''
+      let email = isCurrent ? currentUserEmail : ''
+      let avatarUrl = isCurrent ? currentUserAvatar : undefined
+
+      if (member.user_id && (!name || !email)) {
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('full_name, email, avatar_url')
+            .eq('id', member.user_id)
+            .maybeSingle()
+          if (prof) {
+            if (prof.full_name && !name) name = prof.full_name
+            if (prof.email && !email) email = prof.email
+            if (prof.avatar_url && !avatarUrl) avatarUrl = prof.avatar_url
+          }
+        } catch (err) {
+          console.warn('Profile fetch error:', err)
+        }
+      }
+
+      if (!name) name = currentUserName || 'Team Member'
+      if (!email) email = currentUserEmail || 'staff@chronos.io'
+
+      const staffCode = member.user_id
+        ? `CHR-${member.user_id.replace(/-/g, '').slice(0, 4).toUpperCase()}`
+        : `CHR-${cleanId.replace(/-/g, '').slice(0, 4).toUpperCase()}`
+
+      return {
+        name,
+        slug: slugify(name),
+        staffId: staffCode,
+        role: member.role === 'admin' ? 'Administrator' : member.role === 'editor' ? 'Editor' : 'Staff',
+        status: 'Active Duty',
+        lastSync: '1m ago',
+        uptimeReliability: '99.8%',
+        accessLevel: member.role === 'admin' ? '05' : '03',
+        authProtocols: ['MFA_ENABLED', 'PHYSICAL_KEY', 'BIOMETRIC_OVERRIDE'],
+        activities: [
+          { terminal: 'Main Gate - Arrival', action: 'Biometric Authenticated', time: '08:00 AM' },
+          { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
+        ],
+        timestamp: '2026.06.22.15.16',
+        avatarUrl,
+        email,
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching member profile:', err)
+  }
+
+  return getProfile(cleanId, {
+    id: currentUserId,
+    name: currentUserName,
+    email: currentUserEmail,
+    avatarUrl: currentUserAvatar,
+  })
 }
