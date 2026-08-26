@@ -93,7 +93,7 @@ export default function OrgHubPage() {
           <div className="org-hero-top">
             <div>
               <h2>Select Workspace</h2>
-              <p>Choose an organization to continue or create a new one to start managing physical identities and security infrastructure.</p>
+              <p>Select an organization to jump back in, or set up a new workspace to start tracking team productivity.</p>
             </div>
             {dbWorkspaces.length > 0 && (
               <div className="org-hero-actions">
