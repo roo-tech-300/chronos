@@ -18,10 +18,12 @@ export interface StaffProfile {
   authProtocols: string[]
   activities: ScanActivity[]
   timestamp: string
+  avatarUrl?: string
+  email?: string
 }
 
 const profiles: Record<string, StaffProfile> = {
-  'marcus-thorne': {
+  'ID-9420': {
     name: 'Marcus Thorne',
     slug: 'marcus-thorne',
     staffId: 'ID-9420',
@@ -50,25 +52,67 @@ function deriveName(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
-export function getProfile(slug: string): StaffProfile {
-  if (profiles[slug]) return profiles[slug]
+export function getProfile(
+  identifier: string,
+  currentUser?: { id?: string; name?: string; email?: string; avatarUrl?: string }
+): StaffProfile {
+  const cleanId = (identifier || '').trim()
 
-  const rosterMember = rosterMembers.find((m) => slugify(m.name) === slug)
+  // Match current authenticated user
+  const isCurrentUser =
+    (currentUser?.id && cleanId.toLowerCase() === currentUser.id.toLowerCase()) ||
+    (currentUser?.id && cleanId.toLowerCase() === `chr-${currentUser.id.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
+    cleanId === 'CHR-0001' ||
+    (currentUser?.name && slugify(currentUser.name) === cleanId.toLowerCase())
+
+  if (isCurrentUser && currentUser?.name) {
+    return {
+      name: currentUser.name,
+      slug: slugify(currentUser.name),
+      staffId: cleanId || (currentUser.id ? `CHR-${currentUser.id.replace(/-/g, '').slice(0, 4).toUpperCase()}` : 'CHR-0001'),
+      role: 'Administrator',
+      status: 'Active Duty',
+      lastSync: 'Just now',
+      uptimeReliability: '100%',
+      accessLevel: '05',
+      authProtocols: ['BIOMETRIC_OVERRIDE', 'MFA_ENABLED', 'PHYSICAL_KEY'],
+      activities: [
+        { terminal: 'Main Gate - Arrival', action: 'Biometric Authenticated', time: '08:00 AM' },
+        { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
+      ],
+      timestamp: '2026.06.22.15.16',
+      avatarUrl: currentUser.avatarUrl,
+      email: currentUser.email,
+    }
+  }
+
+  // Match existing static profiles by ID or slug
+  if (profiles[cleanId]) return profiles[cleanId]
+  const matchedProfile = Object.values(profiles).find(
+    (p) => p.staffId.toLowerCase() === cleanId.toLowerCase() || p.slug === cleanId
+  )
+  if (matchedProfile) return matchedProfile
+
+  // Match roster mock members by ID or slug
+  const rosterMember = rosterMembers.find(
+    (m) => m.id.toLowerCase() === cleanId.toLowerCase() || slugify(m.name) === cleanId.toLowerCase()
+  )
 
   return {
-    name: rosterMember?.name ?? deriveName(slug),
-    slug,
-    staffId: rosterMember?.id ?? `CHR-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+    name: rosterMember?.name ?? deriveName(cleanId),
+    slug: slugify(rosterMember?.name ?? deriveName(cleanId)),
+    staffId: rosterMember?.id ?? cleanId,
     role: rosterMember?.role ?? 'Staff',
-    status: 'Active Duty',
+    status: rosterMember?.status === 'On-Site' ? 'Active Duty' : 'Off-Site',
     lastSync: '2m ago',
     uptimeReliability: '99.5%',
-    accessLevel: '03',
+    accessLevel: rosterMember?.role === 'Administrator' ? '05' : '03',
     authProtocols: ['MFA_ENABLED', 'PHYSICAL_KEY'],
     activities: [
       { terminal: 'Main Gate - Arrival', action: 'Biometric Entry', time: '08:12 AM' },
       { terminal: 'Main Gate - Departure', action: 'Previous Day Sign-out', time: 'Yesterday' },
     ],
     timestamp: '2026.06.22.15.16',
+    email: rosterMember?.email,
   }
 }

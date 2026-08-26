@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useWorkspace } from '../../context/useWorkspace'
 
 export interface PaginationProps {
   currentPage: number
@@ -7,6 +8,7 @@ export interface PaginationProps {
   itemsPerPage?: number
   onPageChange: (page: number) => void
   className?: string
+  accentColor?: string
 }
 
 export function Pagination({
@@ -16,7 +18,11 @@ export function Pagination({
   itemsPerPage,
   onPageChange,
   className = '',
+  accentColor: customAccentColor,
 }: PaginationProps) {
+  const { accentColor: wsAccentColor } = useWorkspace()
+  const activeColor = customAccentColor || wsAccentColor || '#7c007e'
+
   function getPageNumbers(): (number | string)[] {
     const pages: (number | string)[] = []
     for (let i = 1; i <= totalPages; i++) {
@@ -78,10 +84,15 @@ export function Pagination({
               key={i}
               type="button"
               onClick={() => onPageChange(p)}
+              style={
+                currentPage === p
+                  ? { backgroundColor: activeColor, borderColor: activeColor, color: '#ffffff' }
+                  : undefined
+              }
               className={`min-w-[36px] h-9 px-2.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                 currentPage === p
-                  ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
-                  : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                  ? 'text-white shadow-xs'
+                  : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300'
               }`}
             >
               {p}

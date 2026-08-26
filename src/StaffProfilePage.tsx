@@ -6,6 +6,9 @@ import {
   Server, Building2, Building, LogOut, DoorOpen,
 } from 'lucide-react'
 import { getProfile, type ScanActivity } from './dummy/profile-mock'
+import { getInitials } from './dummy/roster-mock'
+import { useAuth } from './context/useAuth'
+import { useWorkspace } from './context/useWorkspace'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
 import AppNavbar from './components/layout/AppNavbar'
 import { Button, Badge } from './components/ui'
@@ -27,16 +30,38 @@ function acIcon(act: ScanActivity) {
 }
 
 export default function StaffProfilePage() {
-  const { staffId } = useParams<{ staffId: string }>()
-  const profile = getProfile(staffId ?? '')
+  const { workspaceId, staffId } = useParams<{ workspaceId?: string; staffId: string }>()
+  const { user, profile: authProfile } = useAuth()
+  const { accentColor } = useWorkspace()
   const [enrollOpen, setEnrollOpen] = useState(false)
 
+  const meta = (user?.user_metadata || {}) as Record<string, string | undefined>
+  const currentUserName = authProfile?.fullName || meta.full_name || meta.name || user?.email?.split('@')[0] || ''
+  const currentUserEmail = user?.email || ''
+  const currentUserAvatar = authProfile?.avatarUrl || meta.avatar_url || meta.picture
+
+  const profile = getProfile(staffId ?? '', {
+    id: user?.id,
+    name: currentUserName,
+    email: currentUserEmail,
+    avatarUrl: currentUserAvatar,
+  })
+
+  const backLink = workspaceId ? `/workspace/${workspaceId}/staff` : '/staff'
+
   return (
-    <div className="profile-page">
+    <div
+      className="profile-page"
+      style={
+        {
+          '--prof-primary': accentColor,
+        } as React.CSSProperties
+      }
+    >
       <AppNavbar />
 
       <main className="profile-main">
-        <Link to="/staff" className="profile-back">
+        <Link to={backLink} className="profile-back">
           <ArrowLeft size={18} />
           Back to Roster
         </Link>
@@ -49,8 +74,12 @@ export default function StaffProfilePage() {
               </div>
               <div className="prof-card-body">
                 <div className="prof-avatar">
-                  <div className="prof-avatar-inner">
-                    <span>{profile.name.split(' ').map((n) => n[0]).join('')}</span>
+                  <div className="prof-avatar-inner overflow-hidden">
+                    {profile.avatarUrl ? (
+                      <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{getInitials(profile.name)}</span>
+                    )}
                   </div>
                 </div>
                 <div className="prof-info">

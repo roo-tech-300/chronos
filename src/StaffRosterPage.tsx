@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
 import { filterTabs, getInitials } from './dummy/roster-mock'
-import { slugify } from './dummy/profile-mock'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
+import { useWorkspace } from './context/useWorkspace'
 import { Badge, Pagination, Toolbar } from './components/ui'
 import { useStaffRoster } from './hooks/useStaffRoster'
 import type { StaffMember } from './types/staff'
@@ -16,6 +16,7 @@ import './styles/roster-table.css'
 export default function StaffRosterPage() {
   const { workspaceId } = useParams()
   const { role, currentDepartment } = useDevPersona()
+  const { accentColor } = useWorkspace()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('All Roles')
   const [currentPage, setCurrentPage] = useState(1)
@@ -47,7 +48,15 @@ export default function StaffRosterPage() {
   }
 
   return (
-    <div className="roster-page">
+    <div
+      className="roster-page"
+      style={
+        {
+          '--roster-primary': accentColor,
+          '--workspace-accent': accentColor,
+        } as React.CSSProperties
+      }
+    >
       <AppNavbar />
 
       <main className="roster-main">
@@ -99,14 +108,20 @@ export default function StaffRosterPage() {
               {members.length > 0 ? (
                 members.map((m: StaffMember) => {
                   const profileLink = workspaceId
-                    ? `/workspace/${workspaceId}/staff/${slugify(m.name)}`
-                    : `/staff/${slugify(m.name)}`
+                    ? `/workspace/${workspaceId}/staff/${m.id}`
+                    : `/staff/${m.id}`
                   return (
                     <tr key={m.id}>
                       <td><span className="roster-id">{m.id}</span></td>
                       <td>
                         <div className="roster-member-cell">
-                          <div className="roster-member-avatar">{getInitials(m.name)}</div>
+                          <div className="roster-member-avatar overflow-hidden">
+                            {m.avatarUrl ? (
+                              <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
+                            ) : (
+                              getInitials(m.name)
+                            )}
+                          </div>
                           <div className="roster-member-info">
                             <Link to={profileLink} className="roster-member-name">{m.name}</Link>
                             <span className="roster-member-email">{m.email}</span>

@@ -1,3 +1,5 @@
+import { useWorkspace } from '../../context/useWorkspace'
+
 export interface TabItem {
   id: string
   label: string
@@ -10,6 +12,7 @@ export interface TabsProps {
   onChange: (tabId: string) => void
   variant?: 'pill' | 'segmented' | 'underline'
   className?: string
+  accentColor?: string
 }
 
 export function Tabs({
@@ -18,7 +21,11 @@ export function Tabs({
   onChange,
   variant = 'pill',
   className = '',
+  accentColor: customAccentColor,
 }: TabsProps) {
+  const { accentColor: wsAccentColor } = useWorkspace()
+  const activeColor = customAccentColor || wsAccentColor || '#7c007e'
+
   const normalizedTabs: TabItem[] = tabs.map((t) =>
     typeof t === 'string' ? { id: t, label: t } : t
   )
@@ -63,17 +70,23 @@ export function Tabs({
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
+            style={
+              isActive
+                ? { backgroundColor: activeColor, borderColor: activeColor, color: '#ffffff' }
+                : undefined
+            }
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
               isActive
-                ? 'bg-[#7c007e] border-[#7c007e] text-white shadow-xs'
-                : 'bg-white border-zinc-200 text-zinc-600 hover:bg-purple-50/50 hover:text-zinc-900'
+                ? 'text-white shadow-xs'
+                : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
             }`}
           >
             {tab.label}
             {tab.count !== undefined && (
               <span
+                style={isActive ? { backgroundColor: 'rgba(0,0,0,0.2)' } : undefined}
                 className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-[#570058] text-white' : 'bg-zinc-100 text-zinc-600'
+                  isActive ? 'text-white' : 'bg-zinc-100 text-zinc-600'
                 }`}
               >
                 {tab.count}
