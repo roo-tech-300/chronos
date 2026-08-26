@@ -112,7 +112,7 @@ export default function StaffRosterPage() {
                     : `/staff/${m.id}`
                   return (
                     <tr key={m.id}>
-                      <td><span className="roster-id">{m.id}</span></td>
+                      <td><span className="roster-id">{m.staffCode || m.id}</span></td>
                       <td>
                         <div className="roster-member-cell">
                           <div className="roster-member-avatar overflow-hidden">

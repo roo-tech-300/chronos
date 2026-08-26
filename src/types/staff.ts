@@ -1,5 +1,7 @@
 export interface StaffMember {
-  id: string
+  id: string // workspace_members.id
+  userId?: string
+  staffCode?: string
   name: string
   email: string
   role: string

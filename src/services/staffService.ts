@@ -87,12 +87,14 @@ export async function fetchPaginatedStaff(
           ? currentUserAvatar
           : (m.profiles?.avatar_url || m.avatar_url)
 
-        const staffId = m.user_id
+        const staffCode = m.user_id
           ? `CHR-${m.user_id.replace(/-/g, '').slice(0, 4).toUpperCase()}`
           : `CHR-${String(from + index + 1000).padStart(4, '0')}`
 
         return {
-          id: staffId,
+          id: m.id, // workspace_members.id primary key in Supabase
+          userId: m.user_id,
+          staffCode,
           name,
           email,
           role: m.role === 'admin' ? 'Administrator' : m.role === 'editor' ? 'Editor' : 'Staff',
@@ -117,7 +119,9 @@ export async function fetchPaginatedStaff(
 
   // 3. Fallback dataset: inject current user as top member with mock records
   const userEntry: StaffMember = {
-    id: currentUserId ? `CHR-${currentUserId.replace(/-/g, '').slice(0, 4).toUpperCase()}` : 'CHR-0001',
+    id: currentUserId ? `wm_${currentUserId.replace(/-/g, '').slice(0, 12)}` : 'wm_usr_current',
+    userId: currentUserId,
+    staffCode: currentUserId ? `CHR-${currentUserId.replace(/-/g, '').slice(0, 4).toUpperCase()}` : 'CHR-0001',
     name: currentUserName,
     email: currentUserEmail || 'current.user@chronos.io',
     role: 'Administrator',
@@ -128,6 +132,7 @@ export async function fetchPaginatedStaff(
 
   let list: StaffMember[] = [userEntry, ...rosterMembers.map((m) => ({
     id: m.id,
+    staffCode: m.id,
     name: m.name,
     email: m.email,
     role: m.role,

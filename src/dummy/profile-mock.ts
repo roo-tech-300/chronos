@@ -60,10 +60,13 @@ export function getProfile(
 
   // Match current authenticated user
   const isCurrentUser =
-    (currentUser?.id && cleanId.toLowerCase() === currentUser.id.toLowerCase()) ||
-    (currentUser?.id && cleanId.toLowerCase() === `chr-${currentUser.id.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
-    cleanId === 'CHR-0001' ||
-    (currentUser?.name && slugify(currentUser.name) === cleanId.toLowerCase())
+    Boolean(currentUser?.name) &&
+    ((currentUser?.id && cleanId.toLowerCase().includes(currentUser.id.toLowerCase())) ||
+      (currentUser?.id && cleanId.toLowerCase() === `wm_${currentUser.id.replace(/-/g, '').slice(0, 12).toLowerCase()}`) ||
+      (currentUser?.id && cleanId.toLowerCase() === `chr-${currentUser.id.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
+      cleanId === 'CHR-0001' ||
+      cleanId === 'wm_usr_current' ||
+      (currentUser?.name && slugify(currentUser.name) === cleanId.toLowerCase()))
 
   if (isCurrentUser && currentUser?.name) {
     return {
