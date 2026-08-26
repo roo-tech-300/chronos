@@ -80,19 +80,6 @@ export default function StaffProfilePage() {
                 </div>
                 <Badge variant="purple" size="md">{profile?.role || 'Administrator'}</Badge>
               </div>
-              <div className="prof-divider" />
-              <div className="prof-stats-grid">
-                <div className="prof-stat-item">
-                  <span className="prof-stat-label">Status</span>
-                  <div className="mt-1">
-                    <Badge variant="success" showDot>{profile?.status || 'Active Duty'}</Badge>
-                  </div>
-                </div>
-                <div className="prof-stat-item">
-                  <span className="prof-stat-label">Last Sync</span>
-                  <span>{profile?.lastSync || 'Just now'}</span>
-                </div>
-              </div>
             </div>
           </div>
 
