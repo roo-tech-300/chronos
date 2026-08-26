@@ -2,24 +2,16 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown, RefreshCw, Building2, FolderPlus } from 'lucide-react'
 import { Button, Badge, SearchInput } from './components/ui'
-import futminnaLogo from './assets/logo.jpg'
-import kangarooLogo from './assets/companies/KangarooTech.png'
-import nataleLogo from './assets/companies/natale.png'
 import { useDevPersona } from './context/DevPersonaContext'
 import { useAuth } from './context/useAuth'
 import { homePathForRole } from './utils/homeRoute'
-import { getUserWorkspaces, createWorkspace } from './services/workspaces'
+import { getUserWorkspaces } from './services/workspaces'
+import { CreateWorkspaceModal } from './components/workspaces/CreateWorkspaceModal'
 import type { Workspace } from './types/workspaces'
 import logoImg from './assets/logo.png'
 import './styles/org-hub-nav.css'
 import './styles/org-hub-grid.css'
 import './styles/org-hub-foot.css'
-
-const logoMap: Record<string, string> = {
-  futminna: futminnaLogo,
-  kangaroo: kangarooLogo,
-  natale: nataleLogo,
-}
 
 export default function OrgHubPage() {
   const { role } = useDevPersona()
@@ -27,8 +19,7 @@ export default function OrgHubPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [dbWorkspaces, setDbWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
-  const [isCreating, setIsCreating] = useState(false)
-  const [newWsName, setNewWsName] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     async function loadWorkspaces() {
@@ -46,40 +37,14 @@ export default function OrgHubPage() {
     loadWorkspaces()
   }, [user?.id])
 
-  const handleCreateWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newWsName.trim()) return
-
-    const slug = newWsName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random() * 1000)
-    const { data, error: createErr } = await createWorkspace(newWsName.trim(), slug, 'starter')
-
-    if (createErr) {
-      alert(`Error creating workspace: ${createErr.message}`)
-      return
-    }
-
-    if (data) {
-      setDbWorkspaces((prev) => [data, ...prev])
-      setNewWsName('')
-      setIsCreating(false)
-    }
+  const handleWorkspaceCreated = (newWs: Workspace) => {
+    setDbWorkspaces((prev) => [newWs, ...prev])
   }
 
-  // Map real database workspaces to display objects
-  const displayWorkspaces = dbWorkspaces.map((ws) => ({
-    id: ws.id,
-    name: ws.name,
-    logoId: ws.slug.includes('kangaroo') ? 'kangaroo' : ws.slug.includes('futminna') ? 'futminna' : 'natale',
-    role: ws.role.charAt(0).toUpperCase() + ws.role.slice(1),
-    memberCount: ws.memberCount || 1,
-    category: (ws.plan || 'STARTER').toUpperCase(),
-    lastActive: 'Active now',
-  }))
-
-  const filteredWorkspaces = displayWorkspaces.filter(
+  const filteredWorkspaces = dbWorkspaces.filter(
     (ws) =>
       ws.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ws.category.toLowerCase().includes(searchTerm.toLowerCase())
+      (ws.category && ws.category.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const userInitials = profile?.fullName
@@ -107,7 +72,7 @@ export default function OrgHubPage() {
               variant="primary"
               size="sm"
               leftIcon={<Plus size={16} />}
-              onClick={() => setIsCreating(true)}
+              onClick={() => setIsModalOpen(true)}
             >
               New Workspace
             </Button>
@@ -148,29 +113,6 @@ export default function OrgHubPage() {
           </div>
         </div>
 
-        {/* Create workspace modal / inline prompt */}
-        {isCreating && (
-          <div className="mb-6 p-5 bg-white border border-zinc-200 rounded-2xl shadow-sm">
-            <h3 className="text-sm font-bold text-zinc-900 mb-2">Create New Organization Workspace</h3>
-            <form onSubmit={handleCreateWorkspace} className="flex gap-3 items-center">
-              <input
-                type="text"
-                className="flex-1 px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-900"
-                placeholder="e.g. Acme Corp, Research Lab"
-                value={newWsName}
-                onChange={(e) => setNewWsName(e.target.value)}
-                autoFocus
-              />
-              <Button type="submit" variant="primary" size="md">
-                Create
-              </Button>
-              <Button type="button" variant="secondary" size="md" onClick={() => setIsCreating(false)}>
-                Cancel
-              </Button>
-            </form>
-          </div>
-        )}
-
         {loading ? (
           <div className="flex items-center justify-center py-20 text-zinc-400 gap-2">
             <RefreshCw size={20} className="animate-spin" />
@@ -178,7 +120,7 @@ export default function OrgHubPage() {
           </div>
         ) : dbWorkspaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center max-w-xl mx-auto my-8">
-            <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 mb-4">
+            <div className="w-20 h-20 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-[#7c007e] mb-4 shadow-xs">
               <Building2 size={38} />
             </div>
             <h2 className="text-xl font-bold text-zinc-900 mb-2">No workspaces yet</h2>
@@ -189,47 +131,53 @@ export default function OrgHubPage() {
               variant="primary"
               size="md"
               leftIcon={<FolderPlus size={18} />}
-              onClick={() => setIsCreating(true)}
+              onClick={() => setIsModalOpen(true)}
             >
               Create Your First Workspace
             </Button>
           </div>
         ) : (
           <div className="org-grid">
-            {filteredWorkspaces.map((ws) => (
-              <div key={ws.id} className="org-card">
-                <div>
-                  <div className="org-card-header">
-                    <div className={'org-card-icon ' + (ws.role === 'Member' ? 'gray' : 'purple')}>
-                      {logoMap[ws.logoId] ? (
-                        <img src={logoMap[ws.logoId]} alt={ws.name} className="org-card-logo" />
-                      ) : (
-                        <Building2 size={24} className="text-zinc-600" />
-                      )}
+            {filteredWorkspaces.map((ws) => {
+              const accent = ws.accentColor || '#4f46e5'
+              return (
+                <div key={ws.id} className="org-card">
+                  <div>
+                    <div className="org-card-header">
+                      <div
+                        className="org-card-icon"
+                        style={{ backgroundColor: ws.avatarUrl ? 'transparent' : accent }}
+                      >
+                        {ws.avatarUrl ? (
+                          <img src={ws.avatarUrl} alt={ws.name} className="org-card-logo" />
+                        ) : (
+                          <Building2 size={24} className="text-white" />
+                        )}
+                      </div>
+                      <Badge variant="purple" size="sm">
+                        {ws.role.toUpperCase()}
+                      </Badge>
                     </div>
-                    <Badge variant={ws.role === 'Member' ? 'neutral' : 'purple'} size="sm">
-                      {ws.role}
-                    </Badge>
+                    <h3>{ws.name}</h3>
+                    <div className="org-card-meta">
+                      <span>{ws.memberCount} Members</span>
+                      <span className="dot" />
+                      <span>{ws.category || 'Technology'}</span>
+                    </div>
                   </div>
-                  <h3>{ws.name}</h3>
-                  <div className="org-card-meta">
-                    <span>{ws.memberCount} Members</span>
-                    <span className="dot" />
-                    <span>{ws.category}</span>
+                  <div className="org-card-footer">
+                    <span className="last-active">Active now</span>
+                    <Link to={homePathForRole(role)}>
+                      <Button variant="primary" size="sm">
+                        Select
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-                <div className="org-card-footer">
-                  <span className="last-active">{ws.lastActive}</span>
-                  <Link to={homePathForRole(role)}>
-                    <Button variant="primary" size="sm">
-                      Select
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            ))}
+              )
+            })}
 
-            <div className="org-card-create cursor-pointer" onClick={() => setIsCreating(true)}>
+            <div className="org-card-create cursor-pointer" onClick={() => setIsModalOpen(true)}>
               <div className="org-card-create-icon">
                 <PlusCircle size={32} />
               </div>
@@ -265,6 +213,13 @@ export default function OrgHubPage() {
           </div>
         </div>
       </footer>
+
+      {/* Multi-Step Modal */}
+      <CreateWorkspaceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleWorkspaceCreated}
+      />
     </div>
   )
 }

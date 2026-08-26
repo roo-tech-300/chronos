@@ -1,9 +1,8 @@
 import { getSupabase } from '../lib/supabase'
-import type { Workspace, WorkspaceRole } from '../types/workspaces'
+import type { Workspace, WorkspaceRole, WorkspaceDraft } from '../types/workspaces'
 
 /**
  * Fetch all workspaces that the currently signed-in user belongs to.
- * Uses a join on workspace_members and workspaces tables.
  */
 export async function getUserWorkspaces(userId?: string): Promise<{ data: Workspace[]; error: Error | null }> {
   const supabase = getSupabase()
@@ -28,6 +27,7 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
           name,
           slug,
           plan,
+          category,
           avatar_url,
           accent_color,
           created_at,
@@ -45,7 +45,6 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
       return { data: [], error: null }
     }
 
-    // Map the database response to frontend Workspace interface
     const workspaces: Workspace[] = data
       .filter((row) => row.workspaces !== null)
       .map((row) => {
@@ -54,6 +53,7 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
           name: string
           slug: string
           plan: 'enterprise' | 'pro' | 'starter' | 'free'
+          category?: string
           avatar_url?: string
           accent_color?: string
           created_at?: string
@@ -74,11 +74,12 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
           name: ws.name,
           slug: ws.slug,
           plan: ws.plan || 'starter',
+          category: ws.category || 'Technology',
           role: (row.role as WorkspaceRole) || 'member',
           memberCount,
           kioskCount,
           avatarUrl: ws.avatar_url,
-          accentColor: ws.accent_color,
+          accentColor: ws.accent_color || '#4f46e5',
           createdAt: ws.created_at,
         }
       })
@@ -93,12 +94,10 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
 }
 
 /**
- * Create a new workspace and add the creator as the 'owner' or 'admin'.
+ * Create a new workspace and bind creator as the admin/owner.
  */
 export async function createWorkspace(
-  name: string,
-  slug: string,
-  plan: 'enterprise' | 'pro' | 'starter' | 'free' = 'starter'
+  draft: WorkspaceDraft
 ): Promise<{ data: Workspace | null; error: Error | null }> {
   const supabase = getSupabase()
   const { data: { user } } = await supabase.auth.getUser()
@@ -108,13 +107,23 @@ export async function createWorkspace(
   }
 
   try {
-    // 1. Insert Workspace
+    // Auto-generate slug from name + random unique suffix
+    const baseSlug = draft.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'workspace'
+    const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 7)}`
+
     const { data: ws, error: wsError } = await supabase
       .from('workspaces')
       .insert({
-        name,
-        slug,
-        plan,
+        name: draft.name.trim(),
+        slug: uniqueSlug,
+        plan: 'starter',
+        category: draft.category || 'Technology',
+        accent_color: draft.accentColor || '#4f46e5',
+        avatar_url: draft.avatarUrl,
         created_by: user.id,
       })
       .select()
@@ -124,7 +133,6 @@ export async function createWorkspace(
       return { data: null, error: new Error(wsError?.message || 'Failed to create workspace') }
     }
 
-    // 2. Add creator to workspace_members as owner/admin
     const { error: memberError } = await supabase
       .from('workspace_members')
       .insert({
@@ -143,6 +151,7 @@ export async function createWorkspace(
         name: ws.name,
         slug: ws.slug,
         plan: ws.plan,
+        category: ws.category,
         role: 'admin',
         memberCount: 1,
         kioskCount: 0,

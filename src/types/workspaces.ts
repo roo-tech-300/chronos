@@ -8,6 +8,7 @@ export interface Workspace {
   role: WorkspaceRole
   memberCount: number
   kioskCount: number
+  category?: string
   avatarUrl?: string
   accentColor?: string
   logo?: string
@@ -20,7 +21,15 @@ export interface WorkspaceMember {
   workspaceId: string
   userId: string
   role: WorkspaceRole
+  department?: string
   createdAt: string
   userEmail?: string
   userFullName?: string
+}
+
+export interface WorkspaceDraft {
+  name: string
+  category: string
+  accentColor: string
+  avatarUrl?: string
 }

@@ -29,10 +29,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center font-semibold rounded-xl transition-all select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]'
 
     const variantStyles = {
-      primary: 'bg-[#111827] hover:bg-black text-white shadow-sm border border-transparent',
-      secondary: 'bg-zinc-100 hover:bg-zinc-200 text-[#111827] border border-zinc-200',
-      outline: 'bg-white hover:bg-zinc-50 text-[#111827] border border-zinc-200 shadow-sm',
-      ghost: 'bg-transparent hover:bg-zinc-100 text-zinc-600 hover:text-[#111827]',
+      primary: 'bg-[#7c007e] hover:bg-[#570058] text-white shadow-sm border border-transparent',
+      secondary: 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200',
+      outline: 'bg-white hover:bg-purple-50 text-[#7c007e] border border-purple-200 shadow-sm',
+      ghost: 'bg-transparent hover:bg-purple-50 text-zinc-600 hover:text-[#7c007e]',
       danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm',
     }[variant]
 
