@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, Settings, LogOut, User } from 'lucide-react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Bell, Settings, LogOut, User, Building2 } from 'lucide-react'
 import nataleLogo from '../../assets/companies/natale.png'
 import { useDevPersona } from '../../context/DevPersonaContext'
 import { useAuth } from '../../context/useAuth'
+import { useWorkspace } from '../../context/useWorkspace'
 import { homePathForRole } from '../../utils/homeRoute'
 
 interface AppNavbarProps {
@@ -18,18 +19,21 @@ export default function AppNavbar({
   const location = useLocation()
   const navigate = useNavigate()
   const pathname = location.pathname
+  const { workspaceId } = useParams<{ workspaceId?: string }>()
   const { role, currentDepartment, currentStaff } = useDevPersona()
   const { profile, user, signOut } = useAuth()
+  const { accentColor } = useWorkspace()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const isSettingsActive = pathname.startsWith('/setting')
-  const isDashboardActive = pathname === '/dashboard' || pathname === '/'
-  const isStaffActive = pathname.startsWith('/staff')
-  const isDevicesActive = pathname.startsWith('/devices')
-  const isAnalyticsActive = pathname.startsWith('/analytics')
-  const isTasksActive = pathname.startsWith('/tasks')
-  const homePath = homePathForRole(role)
+  const prefix = workspaceId ? `/workspace/${workspaceId}` : ''
+  const isSettingsActive = pathname.includes('/setting')
+  const isDashboardActive = pathname === `${prefix}/dashboard` || pathname === `${prefix}` || pathname === '/dashboard' || pathname === '/'
+  const isStaffActive = pathname.includes('/staff')
+  const isDevicesActive = pathname.includes('/devices')
+  const isAnalyticsActive = pathname.includes('/analytics')
+  const isTasksActive = pathname.includes('/tasks')
+  const homePath = workspaceId ? `${prefix}/dashboard` : homePathForRole(role)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -75,18 +79,18 @@ export default function AppNavbar({
   const navLinkClass = (active: boolean) =>
     `text-[15px] font-medium transition-all pb-1 border-b-2 ${
       active
-        ? 'text-[#111827] font-semibold border-[#111827]'
-        : 'text-zinc-500 hover:text-[#111827] border-transparent'
+        ? 'text-[#7c007e] font-semibold border-[#7c007e]'
+        : 'text-zinc-500 hover:text-zinc-900 border-transparent'
     }`
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#f8f9fa]/80 backdrop-blur-md border-b border-zinc-200 shadow-sm">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#f8f9fa]/85 backdrop-blur-md border-b border-zinc-200 shadow-sm">
       <div className="flex items-center justify-between h-16 px-6 max-w-7xl mx-auto w-full">
         {/* Left: Brand & nav links */}
         <div className="flex items-center gap-8">
           <Link
             to={homePath}
-            className="flex items-center gap-2.5 text-xl font-bold text-[#111827] hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2.5 text-xl font-bold text-zinc-900 hover:opacity-90 transition-opacity"
           >
             <img src={brandLogo} alt={brandName} className="w-7 h-7 object-contain rounded" />
             <span>{brandName}</span>
@@ -94,37 +98,37 @@ export default function AppNavbar({
 
           {role === 'staff' ? (
             <div className="hidden sm:flex items-center gap-6">
-              <Link to="/tasks/my-tasks" className={navLinkClass(isTasksActive)}>
+              <Link to={`${prefix}/tasks/my-tasks`} className={navLinkClass(isTasksActive)}>
                 My Tasks
               </Link>
             </div>
           ) : role === 'hod' ? (
             <div className="hidden sm:flex items-center gap-6">
-              <Link to="/dashboard" className={navLinkClass(isDashboardActive)}>
+              <Link to={`${prefix}/dashboard`} className={navLinkClass(isDashboardActive)}>
                 Dashboard
               </Link>
-              <Link to="/staff" className={navLinkClass(isStaffActive)}>
+              <Link to={`${prefix}/staff`} className={navLinkClass(isStaffActive)}>
                 Staff
               </Link>
-              <Link to="/tasks" className={navLinkClass(isTasksActive)}>
+              <Link to={`${prefix}/tasks`} className={navLinkClass(isTasksActive)}>
                 Tasks
               </Link>
             </div>
           ) : (
             <div className="hidden sm:flex items-center gap-6">
-              <Link to="/dashboard" className={navLinkClass(isDashboardActive)}>
+              <Link to={`${prefix}/dashboard`} className={navLinkClass(isDashboardActive)}>
                 Dashboard
               </Link>
-              <Link to="/staff" className={navLinkClass(isStaffActive)}>
+              <Link to={`${prefix}/staff`} className={navLinkClass(isStaffActive)}>
                 Staff
               </Link>
-              <Link to="/devices" className={navLinkClass(isDevicesActive)}>
+              <Link to={`${prefix}/devices`} className={navLinkClass(isDevicesActive)}>
                 Devices
               </Link>
-              <Link to="/analytics" className={navLinkClass(isAnalyticsActive)}>
+              <Link to={`${prefix}/analytics`} className={navLinkClass(isAnalyticsActive)}>
                 Analytics
               </Link>
-              <Link to="/tasks" className={navLinkClass(isTasksActive)}>
+              <Link to={`${prefix}/tasks`} className={navLinkClass(isTasksActive)}>
                 Tasks
               </Link>
             </div>
@@ -133,9 +137,18 @@ export default function AppNavbar({
 
         {/* Right: Actions & Avatar */}
         <div className="flex items-center gap-3">
+          <Link
+            to="/workspaces"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-purple-700 bg-zinc-100 hover:bg-purple-50 rounded-lg transition-colors"
+            title="Switch Workspace"
+          >
+            <Building2 size={14} />
+            <span>Workspaces</span>
+          </Link>
+
           <button
             type="button"
-            className="p-2 text-zinc-500 hover:text-[#111827] hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
             title="Notifications"
           >
             <Bell size={20} />
@@ -144,11 +157,11 @@ export default function AppNavbar({
           {/* Settings ONLY for Admin */}
           {role === 'admin' && (
             <Link
-              to="/settings/organization"
+              to={`${prefix}/settings/organization`}
               className={`p-2 rounded-lg transition-colors ${
                 isSettingsActive
-                  ? 'text-[#111827] bg-zinc-200/70 font-semibold'
-                  : 'text-zinc-500 hover:text-[#111827] hover:bg-zinc-100'
+                  ? 'text-purple-700 bg-purple-100/70 font-semibold'
+                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
               }`}
               title="Organization Settings"
             >
@@ -172,12 +185,15 @@ export default function AppNavbar({
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center text-[11px] font-bold tracking-wider">
+                <div
+                  className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-bold tracking-wider"
+                  style={{ backgroundColor: accentColor || '#7c007e' }}
+                >
                   {initials}
                 </div>
               )}
               <div className="hidden md:flex flex-col text-left leading-tight">
-                <span className="text-xs font-bold text-[#111827]">{displayName}</span>
+                <span className="text-xs font-bold text-zinc-900">{displayName}</span>
                 <span className="text-[10px] text-zinc-400 font-semibold uppercase">
                   {role === 'admin' ? 'Admin' : role === 'hod' ? 'HOD' : currentStaff.role}
                 </span>
@@ -193,6 +209,14 @@ export default function AppNavbar({
                   </p>
                 </div>
                 <div className="py-1">
+                  <Link
+                    to="/workspaces"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3.5 py-2 hover:bg-purple-50 text-zinc-700 hover:text-purple-700 transition-colors"
+                  >
+                    <Building2 size={14} className="text-zinc-500" />
+                    <span>Switch Workspace</span>
+                  </Link>
                   <Link
                     to={homePath}
                     onClick={() => setDropdownOpen(false)}

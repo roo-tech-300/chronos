@@ -13,6 +13,7 @@ import TasksPage from './TasksPage'
 import MyTasksPage from './MyTasksPage'
 import { AuthProvider } from './context/AuthContext'
 import { DevPersonaProvider, useDevPersona } from './context/DevPersonaContext'
+import { WorkspaceProvider } from './context/WorkspaceContext'
 import DevPersonaSwitcher from './components/common/DevPersonaSwitcher'
 
 // Staff members (non-leadership) are routed straight to their Daily Workspace;
@@ -27,27 +28,44 @@ function App() {
   return (
     <AuthProvider>
       <DevPersonaProvider>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/workspaces" element={<OrgHubPage />} />
-          <Route path="/dashboard" element={<StaffGuardedDashboard />} />
-          <Route path="/staff" element={<StaffRosterPage />} />
-          <Route path="/staff/:staffId" element={<StaffProfilePage />} />
-          <Route path="/devices" element={<DevicesPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/settings/organization" element={<OrgSettingsPage />} />
-          <Route path="/settings/organisation" element={<OrgSettingsPage />} />
-          <Route path="/setting/organisation" element={<OrgSettingsPage />} />
-          <Route path="/settings" element={<OrgSettingsPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/tasks/my-tasks" element={<MyTasksPage />} />
-        </Routes>
-        <DevPersonaSwitcher />
+        <WorkspaceProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/workspaces" element={<OrgHubPage />} />
+
+            {/* Workspace-Scoped Routes */}
+            <Route path="/workspace/:workspaceId" element={<StaffGuardedDashboard />} />
+            <Route path="/workspace/:workspaceId/dashboard" element={<StaffGuardedDashboard />} />
+            <Route path="/workspace/:workspaceId/staff" element={<StaffRosterPage />} />
+            <Route path="/workspace/:workspaceId/staff/:staffId" element={<StaffProfilePage />} />
+            <Route path="/workspace/:workspaceId/devices" element={<DevicesPage />} />
+            <Route path="/workspace/:workspaceId/analytics" element={<AnalyticsPage />} />
+            <Route path="/workspace/:workspaceId/settings" element={<OrgSettingsPage />} />
+            <Route path="/workspace/:workspaceId/settings/organization" element={<OrgSettingsPage />} />
+            <Route path="/workspace/:workspaceId/tasks" element={<TasksPage />} />
+            <Route path="/workspace/:workspaceId/tasks/my-tasks" element={<MyTasksPage />} />
+
+            {/* Legacy & Direct Default Routes */}
+            <Route path="/dashboard" element={<StaffGuardedDashboard />} />
+            <Route path="/staff" element={<StaffRosterPage />} />
+            <Route path="/staff/:staffId" element={<StaffProfilePage />} />
+            <Route path="/devices" element={<DevicesPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/settings/organization" element={<OrgSettingsPage />} />
+            <Route path="/settings/organisation" element={<OrgSettingsPage />} />
+            <Route path="/setting/organisation" element={<OrgSettingsPage />} />
+            <Route path="/settings" element={<OrgSettingsPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/tasks/my-tasks" element={<MyTasksPage />} />
+          </Routes>
+          <DevPersonaSwitcher />
+        </WorkspaceProvider>
       </DevPersonaProvider>
     </AuthProvider>
   )
 }
 
 export default App
+

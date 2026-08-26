@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown, RefreshCw, Building2, FolderPlus } from 'lucide-react'
 import { Button, Badge, SearchInput } from './components/ui'
 import { useDevPersona } from './context/DevPersonaContext'
 import { useAuth } from './context/useAuth'
-import { homePathForRole } from './utils/homeRoute'
+import { useWorkspace } from './context/useWorkspace'
 import { getUserWorkspaces } from './services/workspaces'
 import { CreateWorkspaceModal } from './components/workspaces/CreateWorkspaceModal'
 import type { Workspace } from './types/workspaces'
@@ -14,8 +14,10 @@ import './styles/org-hub-grid.css'
 import './styles/org-hub-foot.css'
 
 export default function OrgHubPage() {
+  const navigate = useNavigate()
   const { role } = useDevPersona()
   const { user, profile } = useAuth()
+  const { selectWorkspace } = useWorkspace()
   const [searchTerm, setSearchTerm] = useState('')
   const [dbWorkspaces, setDbWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +41,15 @@ export default function OrgHubPage() {
 
   const handleWorkspaceCreated = (newWs: Workspace) => {
     setDbWorkspaces((prev) => [newWs, ...prev])
+  }
+
+  const handleSelectWorkspace = (ws: Workspace) => {
+    selectWorkspace(ws)
+    if (role === 'staff') {
+      navigate(`/workspace/${ws.id}/tasks/my-tasks`)
+    } else {
+      navigate(`/workspace/${ws.id}/dashboard`)
+    }
   }
 
   const filteredWorkspaces = dbWorkspaces.filter(
@@ -167,11 +178,13 @@ export default function OrgHubPage() {
                   </div>
                   <div className="org-card-footer">
                     <span className="last-active">Active now</span>
-                    <Link to={homePathForRole(role)}>
-                      <Button variant="primary" size="sm">
-                        Select
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleSelectWorkspace(ws)}
+                    >
+                      Select
+                    </Button>
                   </div>
                 </div>
               )
