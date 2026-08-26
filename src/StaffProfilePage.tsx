@@ -71,9 +71,6 @@ export default function StaffProfilePage() {
         <div className="profile-grid">
           <div className="profile-col-left">
             <div className="prof-card">
-              <div className="prof-card-bg-icon">
-                <Fingerprint size={120} />
-              </div>
               <div className="prof-card-body">
                 <div className="prof-avatar">
                   <div className="prof-avatar-inner overflow-hidden">
