@@ -81,7 +81,7 @@
 }
 
 .bio-step.active {
-  color: var(--prof-primary, #000000);
+  color: var(--prof-primary, #7c007e);
 }
 
 .bio-step-circle {
@@ -97,7 +97,7 @@
 }
 
 .bio-step.active .bio-step-circle {
-  background: var(--prof-primary, #000000);
+  background: var(--prof-primary, #7c007e);
   color: #fff;
 }
 
@@ -117,7 +117,7 @@
 }
 
 .bio-finger {
-  color: var(--prof-primary, #000000);
+  color: var(--prof-primary, #7c007e);
   margin-bottom: 16px;
   opacity: 0.9;
 }

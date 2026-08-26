@@ -1,50 +1,50 @@
-import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { MoreVertical } from 'lucide-react'
-import { rosterMembers, filterTabs, getInitials } from './dummy/roster-mock'
+import { filterTabs, getInitials } from './dummy/roster-mock'
 import { slugify } from './dummy/profile-mock'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
 import { Badge, Pagination, Toolbar } from './components/ui'
+import { useStaffRoster } from './hooks/useStaffRoster'
+import type { StaffMember } from './types/staff'
 import './styles/roster-page.css'
 import './styles/roster-toolbar.css'
 import './styles/roster-footer.css'
 import './styles/roster-table.css'
 
 export default function StaffRosterPage() {
+  const { workspaceId } = useParams()
   const { role, currentDepartment } = useDevPersona()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('All Roles')
   const [currentPage, setCurrentPage] = useState(1)
 
-  const totalPages = 14
-  const totalMembers = 128
+  const itemsPerPage = 8
 
-  // In HOD mode, scope staff members to department & sub-units
-  const scopedMembers = useMemo(() => {
-    if (role === 'admin') return rosterMembers
-    // Filter to department staff for HOD
-    return rosterMembers.filter(
-      (m) =>
-        m.role === 'Staff' ||
-        m.name.includes('Marcus') ||
-        m.name.includes('Elena') ||
-        m.name.includes('Devon') ||
-        m.name.includes('Sarah')
-    )
-  }, [role])
-
-  const filtered = scopedMembers.filter((m) => {
-    const matchesSearch =
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab =
-      activeTab === 'All Roles' ||
-      (activeTab === 'Administrators' && m.role === 'Administrator') ||
-      (activeTab === 'Editors' && m.role === 'Editor') ||
-      (activeTab === 'Staff' && m.role === 'Staff')
-    return matchesSearch && matchesTab
+  // Server-side paginated query via TanStack Query and Supabase
+  const { data: paginatedResult } = useStaffRoster({
+    workspaceId,
+    page: currentPage,
+    pageSize: itemsPerPage,
+    search: searchQuery,
+    roleTab: activeTab,
+    role,
   })
+
+  const members = paginatedResult?.members || []
+  const totalItems = paginatedResult?.totalItems || 0
+  const totalPages = paginatedResult?.totalPages || 1
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val)
+    setCurrentPage(1)
+  }
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="roster-page">
@@ -72,14 +72,14 @@ export default function StaffRosterPage() {
           search={{
             placeholder: 'Search by name or ID...',
             value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            onClear: () => setSearchQuery(''),
+            onChange: (e) => handleSearchChange(e.target.value),
+            onClear: () => handleSearchChange(''),
             width: 'w-full sm:w-72',
           }}
           tabs={{
             tabs: filterTabs,
             activeTab: activeTab,
-            onChange: setActiveTab,
+            onChange: handleTabChange,
             variant: 'pill',
           }}
         />
@@ -96,43 +96,56 @@ export default function StaffRosterPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m) => (
-                <tr key={m.id}>
-                  <td><span className="roster-id">{m.id}</span></td>
-                  <td>
-                    <div className="roster-member-cell">
-                      <div className="roster-member-avatar">{getInitials(m.name)}</div>
-                      <div className="roster-member-info">
-                        <Link to={`/staff/${slugify(m.name)}`} className="roster-member-name">{m.name}</Link>
-                        <span className="roster-member-email">{m.email}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span className="roster-role">{m.role}</span></td>
-                  <td>
-                    <Badge
-                      variant={m.status === 'On-Site' ? 'success' : 'neutral'}
-                      showDot
-                    >
-                      {m.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <button className="roster-actions-btn" aria-label="More actions">
-                      <MoreVertical size={16} />
-                    </button>
+              {members.length > 0 ? (
+                members.map((m: StaffMember) => {
+                  const profileLink = workspaceId
+                    ? `/workspace/${workspaceId}/staff/${slugify(m.name)}`
+                    : `/staff/${slugify(m.name)}`
+                  return (
+                    <tr key={m.id}>
+                      <td><span className="roster-id">{m.id}</span></td>
+                      <td>
+                        <div className="roster-member-cell">
+                          <div className="roster-member-avatar">{getInitials(m.name)}</div>
+                          <div className="roster-member-info">
+                            <Link to={profileLink} className="roster-member-name">{m.name}</Link>
+                            <span className="roster-member-email">{m.email}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className="roster-role">{m.role}</span></td>
+                      <td>
+                        <Badge
+                          variant={m.status === 'On-Site' ? 'success' : 'neutral'}
+                          showDot
+                        >
+                          {m.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        <button className="roster-actions-btn" aria-label="More actions">
+                          <MoreVertical size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-zinc-400 text-sm">
+                    No staff records match the current filters.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
 
           <div className="px-6 py-2 border-t border-zinc-100">
             <Pagination
               currentPage={currentPage}
-              totalPages={role === 'admin' ? totalPages : 1}
-              totalItems={role === 'admin' ? totalMembers : filtered.length}
-              itemsPerPage={9}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
           </div>

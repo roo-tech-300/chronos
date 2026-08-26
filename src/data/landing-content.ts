@@ -76,7 +76,7 @@ export const content: LandingContent = {
     title: 'Identity infrastructure for the physical world.',
     subtitle:
       'The multi-tenant biometric sign-in engine engineered for modern academic institutions and high-security enterprises.',
-    primaryCta: 'Request Access',
+    primaryCta: 'Get started',
     secondaryCta: 'Read Documentation',
   },
 

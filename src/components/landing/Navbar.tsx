@@ -1,8 +1,20 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import appLogo from '../../assets/logo.png'
 import { content } from '../../data/landing-content'
+import { useAuth } from '../../context/useAuth'
 
 export default function Navbar() {
+  const navigate = useNavigate()
+  const { session, user } = useAuth()
+
+  const handleGetStarted = () => {
+    if (session || user) {
+      navigate('/workspaces')
+    } else {
+      navigate('/login')
+    }
+  }
+
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">
@@ -19,8 +31,20 @@ export default function Navbar() {
       </ul>
 
       <div className="navbar-actions">
-        <Link to="/login" className="btn btn-ghost">Sign In</Link>
-        <Link to="/login" className="btn btn-primary">Launch Portal</Link>
+        <button
+          type="button"
+          onClick={handleGetStarted}
+          className="btn btn-ghost"
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          onClick={handleGetStarted}
+          className="btn btn-primary"
+        >
+          Get started
+        </button>
       </div>
     </nav>
   )

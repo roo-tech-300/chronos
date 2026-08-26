@@ -13,8 +13,8 @@ interface AppNavbarProps {
 }
 
 export default function AppNavbar({
-  brandName = 'Natale',
-  brandLogo = nataleLogo,
+  brandName,
+  brandLogo,
 }: AppNavbarProps) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -22,9 +22,19 @@ export default function AppNavbar({
   const { workspaceId } = useParams<{ workspaceId?: string }>()
   const { role, currentDepartment, currentStaff } = useDevPersona()
   const { profile, user, signOut } = useAuth()
-  const { accentColor } = useWorkspace()
+  const { currentWorkspace, selectWorkspace, accentColor } = useWorkspace()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // Synchronize workspace if workspaceId is present in URL
+  useEffect(() => {
+    if (workspaceId && currentWorkspace?.id !== workspaceId) {
+      selectWorkspace(workspaceId)
+    }
+  }, [workspaceId, currentWorkspace?.id, selectWorkspace])
+
+  const activeBrandName = brandName || currentWorkspace?.name || 'Natale'
+  const activeBrandLogo = brandLogo || currentWorkspace?.avatarUrl || nataleLogo
 
   const prefix = workspaceId ? `/workspace/${workspaceId}` : ''
   const isSettingsActive = pathname.includes('/setting')
@@ -92,8 +102,8 @@ export default function AppNavbar({
             to={homePath}
             className="flex items-center gap-2.5 text-xl font-bold text-zinc-900 hover:opacity-90 transition-opacity"
           >
-            <img src={brandLogo} alt={brandName} className="w-7 h-7 object-contain rounded" />
-            <span>{brandName}</span>
+            <img src={activeBrandLogo} alt={activeBrandName} className="w-7 h-7 object-contain rounded" />
+            <span>{activeBrandName}</span>
           </Link>
 
           {role === 'staff' ? (

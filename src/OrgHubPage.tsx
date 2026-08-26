@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { PlusCircle, SlidersHorizontal, Plus, Bell, ChevronDown, RefreshCw, Building2, FolderPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { PlusCircle, Plus, RefreshCw, Building2, FolderPlus } from 'lucide-react'
 import { Button, Badge, SearchInput } from './components/ui'
 import { useDevPersona } from './context/DevPersonaContext'
 import { useAuth } from './context/useAuth'
@@ -8,15 +8,12 @@ import { useWorkspace } from './context/useWorkspace'
 import { getUserWorkspaces } from './services/workspaces'
 import { CreateWorkspaceModal } from './components/workspaces/CreateWorkspaceModal'
 import type { Workspace } from './types/workspaces'
-import logoImg from './assets/logo.png'
-import './styles/org-hub-nav.css'
 import './styles/org-hub-grid.css'
-import './styles/org-hub-foot.css'
 
 export default function OrgHubPage() {
   const navigate = useNavigate()
   const { role } = useDevPersona()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const { selectWorkspace } = useWorkspace()
   const [searchTerm, setSearchTerm] = useState('')
   const [dbWorkspaces, setDbWorkspaces] = useState<Workspace[]>([])
@@ -58,85 +55,54 @@ export default function OrgHubPage() {
       (ws.category && ws.category.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  const userInitials = profile?.fullName
-    ? profile.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-    : 'JD'
-
   return (
-    <div className="org-page">
-      <header className="org-navbar">
-        <div className="org-navbar-inner">
-          <div className="org-nav-left">
-            <Link to="/" className="org-nav-brand">
-              <img src={logoImg} alt="Chronos" className="org-nav-logo" />
-              <span>Chronos</span>
-            </Link>
-            <nav className="org-nav-links">
-              <a href="#" className="active">Workspaces</a>
-              <a href="#">Explore</a>
-              <a href="#">Architecture</a>
-              <a href="#">Support</a>
-            </nav>
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10 sm:py-14 flex flex-col gap-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-zinc-200">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-purple-50 text-[#7c007e] text-xs font-semibold uppercase tracking-wider mb-3">
+              <Building2 size={13} />
+              Chronos Identity
+            </div>
+            <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Select Workspace</h1>
+            <p className="text-zinc-500 text-sm mt-1 max-w-xl">
+              Select an organization to jump back in, or set up a new workspace to start tracking team productivity.
+            </p>
           </div>
-          <div className="org-nav-right">
+
+          <div className="flex items-center gap-3">
+            <div className="w-64">
+              <SearchInput
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onClear={() => setSearchTerm('')}
+                placeholder="Search workspaces..."
+              />
+            </div>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               leftIcon={<Plus size={16} />}
               onClick={() => setIsModalOpen(true)}
             >
               New Workspace
             </Button>
-            <div className="org-nav-divider" />
-            <button className="org-nav-icon-btn">
-              <Bell size={20} />
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px' }}>
-              <div className="org-nav-avatar">{userInitials}</div>
-              <ChevronDown size={16} style={{ color: 'var(--oh-on-surface-variant)' }} />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="org-content">
-        <div className="org-hero">
-          <div className="org-hero-top">
-            <div>
-              <h2>Select Workspace</h2>
-              <p>Select an organization to jump back in, or set up a new workspace to start tracking team productivity.</p>
-            </div>
-            {dbWorkspaces.length > 0 && (
-              <div className="org-hero-actions">
-                <div className="w-64">
-                  <SearchInput
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onClear={() => setSearchTerm('')}
-                    placeholder="Search workspaces..."
-                  />
-                </div>
-                <Button variant="secondary" size="md">
-                  <SlidersHorizontal size={18} />
-                </Button>
-              </div>
-            )}
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-zinc-400 gap-2">
-            <RefreshCw size={20} className="animate-spin" />
-            <span className="text-sm">Loading workspaces...</span>
+          <div className="flex items-center justify-center py-28 text-zinc-400 gap-2">
+            <RefreshCw size={22} className="animate-spin text-[#7c007e]" />
+            <span className="text-sm font-medium">Loading workspaces...</span>
           </div>
         ) : dbWorkspaces.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center max-w-xl mx-auto my-8">
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-xl mx-auto my-8 bg-white border border-zinc-200 rounded-2xl shadow-xs">
             <div className="w-20 h-20 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-[#7c007e] mb-4 shadow-xs">
               <Building2 size={38} />
             </div>
             <h2 className="text-xl font-bold text-zinc-900 mb-2">No workspaces yet</h2>
             <p className="text-sm text-zinc-500 max-w-sm mb-6">
-              You aren't a member of any workspaces. Create your first organization workspace to get started.
+              You aren&apos;t a member of any workspaces. Create your first organization workspace to get started.
             </p>
             <Button
               variant="primary"
@@ -150,7 +116,7 @@ export default function OrgHubPage() {
         ) : (
           <div className="org-grid">
             {filteredWorkspaces.map((ws) => {
-              const accent = ws.accentColor || '#4f46e5'
+              const accent = ws.accentColor || '#7c007e'
               return (
                 <div key={ws.id} className="org-card">
                   <div>
@@ -201,33 +167,8 @@ export default function OrgHubPage() {
             </div>
           </div>
         )}
-
-        <div className="org-support">
-          <p>
-            Need help managing your workspaces? <a href="#">Contact Support</a>
-          </p>
-        </div>
       </main>
 
-      <footer className="org-footer">
-        <div className="org-footer-inner">
-          <div className="org-footer-left">
-            <span className="org-footer-version">CHRONOS CORE v2.4</span>
-            <p className="org-footer-copy">&copy; 2024 Chronos Identity Infrastructure. All rights reserved.</p>
-          </div>
-          <div className="org-footer-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Security Architecture</a>
-            <div className="org-footer-status">
-              <span className="pulse-dot" />
-              <a href="#">System Status</a>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      {/* Multi-Step Modal */}
       <CreateWorkspaceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

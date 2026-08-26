@@ -65,15 +65,15 @@ export function Tabs({
             onClick={() => onChange(tab.id)}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
               isActive
-                ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
-                : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                ? 'bg-[#7c007e] border-[#7c007e] text-white shadow-xs'
+                : 'bg-white border-zinc-200 text-zinc-600 hover:bg-purple-50/50 hover:text-zinc-900'
             }`}
           >
             {tab.label}
             {tab.count !== undefined && (
               <span
                 className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-100 text-zinc-600'
+                  isActive ? 'bg-[#570058] text-white' : 'bg-zinc-100 text-zinc-600'
                 }`}
               >
                 {tab.count}

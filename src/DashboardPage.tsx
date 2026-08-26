@@ -21,10 +21,7 @@ export default function DashboardPage() {
         } as React.CSSProperties
       }
     >
-      <AppNavbar
-        brandName={brandTitle}
-        brandLogo={currentWorkspace?.avatarUrl || undefined}
-      />
+      <AppNavbar />
 
       <main className="dash-main">
         <div className="dash-grid">

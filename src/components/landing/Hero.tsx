@@ -1,9 +1,20 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Bolt, Fingerprint, Check } from 'lucide-react'
 import { content } from '../../data/landing-content'
+import { useAuth } from '../../context/useAuth'
 
 export default function Hero() {
   const { hero } = content
+  const navigate = useNavigate()
+  const { session, user } = useAuth()
+
+  const handleGetStarted = () => {
+    if (session || user) {
+      navigate('/workspaces')
+    } else {
+      navigate('/login')
+    }
+  }
 
   return (
     <section className="hero-section">
@@ -16,7 +27,13 @@ export default function Hero() {
       <p className="hero-subtitle">{hero.subtitle}</p>
 
       <div className="hero-actions">
-        <Link to="/login" className="btn btn-primary btn-lg">{hero.primaryCta}</Link>
+        <button
+          type="button"
+          onClick={handleGetStarted}
+          className="btn btn-primary btn-lg"
+        >
+          {hero.primaryCta}
+        </button>
         <button className="btn btn-outline btn-lg">{hero.secondaryCta}</button>
       </div>
 
