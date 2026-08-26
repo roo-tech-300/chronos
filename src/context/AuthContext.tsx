@@ -11,14 +11,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  function mapUserToProfile(u: User): AuthProfile {
+  async function resolveProfile(u: User): Promise<AuthProfile> {
     const meta = (u.user_metadata || {}) as Record<string, string | undefined>
     const role: PersonaRole = (meta.role as PersonaRole) || 'staff'
+    let fullName = meta.full_name || meta.name || meta.user_name || ''
+    let avatarUrl = meta.avatar_url || meta.picture
+    const email = u.email || ''
+
+    // Attempt to query Supabase profiles table for any updated user display details
+    try {
+      const supabase = getSupabase()
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', u.id)
+        .single()
+
+      if (dbProfile) {
+        if (dbProfile.full_name) fullName = dbProfile.full_name
+        if (dbProfile.avatar_url) avatarUrl = dbProfile.avatar_url
+      }
+    } catch {
+      // Graceful fallback to user metadata
+    }
+
+    if (!fullName) {
+      fullName = email ? email.split('@')[0] : 'User'
+    }
+
     return {
       id: u.id,
-      email: u.email || '',
-      fullName: meta.full_name || meta.name || u.email?.split('@')[0] || 'User',
-      avatarUrl: meta.avatar_url || meta.picture,
+      email,
+      fullName,
+      avatarUrl,
       role,
       department: meta.department || 'Deep Tech & AI Labs',
       subDepartment: meta.sub_department || 'Neural Hardware',
@@ -29,22 +54,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = getSupabase()
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession)
       setUser(currentSession?.user ?? null)
       if (currentSession?.user) {
-        setProfile(mapUserToProfile(currentSession.user))
+        const p = await resolveProfile(currentSession.user)
+        setProfile(p)
       }
       setLoading(false)
     })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession)
       setUser(newSession?.user ?? null)
       if (newSession?.user) {
-        setProfile(mapUserToProfile(newSession.user))
+        const p = await resolveProfile(newSession.user)
+        setProfile(p)
       } else {
         setProfile(null)
       }
