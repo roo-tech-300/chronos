@@ -14,7 +14,7 @@ export function AddTerminalModal({
   isOpen,
   onClose,
   onAdd,
-  workspaceId = 'fut-minna-main',
+  workspaceId,
 }: AddTerminalModalProps) {
   const [name, setName] = useState('')
   const [location, setLocation] = useState('')

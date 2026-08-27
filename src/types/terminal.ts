@@ -3,7 +3,7 @@ export type TerminalMode = 'entry' | 'exit' | 'bidirectional'
 
 export interface TerminalDevice {
   id: string
-  workspaceId: string
+  workspaceId?: string
   name: string
   location: string
   departmentId?: string

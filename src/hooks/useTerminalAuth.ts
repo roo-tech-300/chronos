@@ -32,7 +32,7 @@ export function useTerminalAuth() {
   const pairMutation = useMutation<
     PairingResult,
     Error,
-    { code: string; workspaceId: string }
+    { code: string; workspaceId?: string }
   >({
     mutationFn: async ({ code, workspaceId }) => {
       return TerminalApiService.pairDeviceWithCode(code, workspaceId)

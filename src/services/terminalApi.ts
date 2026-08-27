@@ -67,17 +67,19 @@ export class TerminalApiService {
     const normalizedInput = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
     console.log('[TerminalApiService] Step 1: Normalized code input:', normalizedInput)
 
-    const terminals = await this.fetchTerminals(workspaceId)
-    console.log(`[TerminalApiService] Step 2: Checked against ${terminals.length} terminals in workspace`)
-
-    const target = terminals.find((t) => {
-      if (!t.pairingCode) return false
-      const normalizedTarget = t.pairingCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
-      return normalizedTarget === normalizedInput
-    })
+    let target: TerminalDevice | null = await TerminalSupabaseService.findByPairingCode(normalizedInput, workspaceId)
 
     if (!target) {
-      console.warn('[TerminalApiService] ❌ Pairing code not found in any registered station')
+      const list = getStoredTerminals()
+      target = list.find((t) => {
+        if (!t.pairingCode || t.status !== 'unpaired') return false
+        const normalizedTarget = t.pairingCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+        return normalizedTarget === normalizedInput
+      }) || null
+    }
+
+    if (!target) {
+      console.warn('[TerminalApiService] ❌ Pairing code not found or invalid')
       console.groupEnd()
       return {
         success: false,

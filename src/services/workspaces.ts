@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase'
+import { isUuid } from '../utils/uuid'
 import type { Workspace, WorkspaceRole, WorkspaceDraft } from '../types/workspaces'
 
 /**
@@ -177,7 +178,8 @@ export async function getWorkspaceById(
   const supabase = getSupabase()
 
   try {
-    const { data: ws, error } = await supabase
+    const isIdUuid = isUuid(workspaceId)
+    let query = supabase
       .from('workspaces')
       .select(`
         id,
@@ -192,8 +194,14 @@ export async function getWorkspaceById(
         workspace_members(count),
         kiosks(count)
       `)
-      .eq('id', workspaceId)
-      .single()
+
+    if (isIdUuid) {
+      query = query.eq('id', workspaceId)
+    } else {
+      query = query.eq('slug', workspaceId)
+    }
+
+    const { data: ws, error } = await query.maybeSingle()
 
     if (error || !ws) {
       return { data: null, error: new Error(error?.message || 'Workspace not found') }

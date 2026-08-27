@@ -16,13 +16,14 @@ export default function DevicesPage() {
   const { workspaceId = 'fut-minna-main' } = useParams()
   const { role } = useDevPersona()
   const { currentWorkspace } = useWorkspace()
+  const activeWorkspaceId = currentWorkspace?.id || workspaceId
 
   const {
     terminals,
     createTerminal,
     generatePairingCode,
     revokeTerminal,
-  } = useWorkspaceTerminals(workspaceId, currentWorkspace?.name)
+  } = useWorkspaceTerminals(activeWorkspaceId, currentWorkspace?.name)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -146,7 +147,7 @@ export default function DevicesPage() {
           setSelectedTerminal(newTerm)
           setPairModalOpen(true)
         }}
-        workspaceId={workspaceId}
+        workspaceId={activeWorkspaceId}
       />
 
       <PairingCodeModal

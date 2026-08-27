@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase'
+import { isUuid } from '../utils/uuid'
 
 export interface WorkspaceDashboardStats {
   totalStaff: number
@@ -15,17 +16,36 @@ export async function getWorkspaceStats(workspaceId: string): Promise<WorkspaceD
   const supabase = getSupabase()
 
   try {
+    let resolvedId = workspaceId
+    if (!isUuid(workspaceId)) {
+      const { data } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('slug', workspaceId)
+        .maybeSingle()
+      if (data?.id) {
+        resolvedId = data.id
+      } else {
+        return {
+          totalStaff: 0,
+          onlineDevices: 0,
+          todayScans: null,
+          occupancyRate: 0,
+        }
+      }
+    }
+
     const [staffCountRes, kioskCountRes] = await Promise.all([
       // Fast COUNT(*) via Supabase exact head query
       supabase
         .from('workspace_members')
         .select('*', { count: 'exact', head: true })
-        .eq('workspace_id', workspaceId),
+        .eq('workspace_id', resolvedId),
       // Fast COUNT(*) for kiosks / online devices
       supabase
         .from('kiosks')
         .select('*', { count: 'exact', head: true })
-        .eq('workspace_id', workspaceId),
+        .eq('workspace_id', resolvedId),
     ])
 
     const totalStaff = staffCountRes.count ?? 0

@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Laptop, ShieldCheck, ArrowRight, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Info, Sparkles } from 'lucide-react'
+import { Laptop, ShieldCheck, ArrowRight, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Info } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
-import { useWorkspaceTerminals } from './hooks/useWorkspaceTerminals'
 import { normalizePairingCode } from './utils/pairingCode'
 import { Button } from './components/ui'
 
 export default function TerminalPairPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const workspaceId = searchParams.get('workspaceId') || 'fut-minna-main'
+  const workspaceId = searchParams.get('workspaceId') || undefined
 
   const { pairDevice, isPairing } = useTerminalAuth()
-  const { terminals } = useWorkspaceTerminals(workspaceId)
 
   const [inputCode, setInputCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -54,8 +52,6 @@ export default function TerminalPairPage() {
       setError('Failed to contact server. Please check your network connection.')
     }
   }
-
-  const pendingTerminals = terminals.filter((t) => t.status === 'unpaired' && t.pairingCode)
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between p-6 sm:p-10 font-sans text-zinc-900">
@@ -111,7 +107,7 @@ export default function TerminalPairPage() {
               <Info size={18} className="text-[#7c007e] shrink-0 mt-0.5" />
               <div className="text-xs text-zinc-600 leading-relaxed">
                 <span className="font-bold text-zinc-800 block mb-0.5">Receive OTP from your Administrator</span>
-                To pair this machine, request the <span className="font-semibold text-zinc-900">activation code</span> from your Campus IT Admin (found under <span className="font-semibold text-zinc-800">Admin Dashboard → Devices</span>, e.g. <span className="font-mono font-bold text-[#7c007e]">CH-FA-7X9K</span>).
+                To pair this machine, obtain the one-time <span className="font-semibold text-zinc-900">activation code</span> from your authorized Campus Administrator (issued via <span className="font-semibold text-zinc-800">Admin Dashboard → Devices</span>).
               </div>
             </div>
 
@@ -154,31 +150,6 @@ export default function TerminalPairPage() {
                 Pair and Unlock Terminal
               </Button>
             </form>
-
-            {/* Quick Helper for active unpaired kiosks */}
-            {pendingTerminals.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-zinc-100 text-left">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-                  <Sparkles size={13} className="text-[#7c007e]" />
-                  <span>Active Unpaired Kiosks in Database</span>
-                </div>
-                <div className="space-y-1.5">
-                  {pendingTerminals.map((pt) => (
-                    <button
-                      key={pt.id}
-                      type="button"
-                      onClick={() => setInputCode(pt.pairingCode || '')}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 hover:bg-purple-50 text-xs text-zinc-700 hover:text-[#7c007e] transition-colors cursor-pointer border border-zinc-200 hover:border-purple-200"
-                    >
-                      <span className="font-medium truncate">{pt.name}</span>
-                      <span className="font-mono font-bold text-[#7c007e] shrink-0 ml-2">
-                        {pt.pairingCode}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase'
+import { isUuid } from '../utils/uuid'
 import type { TerminalDevice, TerminalMode, TerminalStatus } from '../types/terminal'
 
 export interface KioskRow {
@@ -22,7 +23,7 @@ export interface KioskRow {
 export function mapRowToTerminal(row: KioskRow): TerminalDevice {
   return {
     id: row.id,
-    workspaceId: row.workspace_id || 'fut-minna-main',
+    workspaceId: row.workspace_id || 'default',
     name: row.name,
     location: row.location || 'Main Building',
     departmentName: row.department_name,
@@ -39,9 +40,29 @@ export function mapRowToTerminal(row: KioskRow): TerminalDevice {
   }
 }
 
+/**
+ * Resolves a workspace identifier (UUID or slug) into a valid Postgres UUID
+ */
+async function resolveWorkspaceUuid(identifier?: string): Promise<string | null> {
+  if (!identifier) return null
+  if (isUuid(identifier)) return identifier
+
+  try {
+    const supabase = getSupabase()
+    const { data } = await supabase
+      .from('workspaces')
+      .select('id')
+      .eq('slug', identifier)
+      .maybeSingle()
+    return data?.id || null
+  } catch {
+    return null
+  }
+}
+
 export class TerminalSupabaseService {
   /**
-   * Fetches kiosks with step-by-step console logging
+   * Fetches kiosks with automatic UUID resolution and step-by-step console logging
    */
   static async fetchKiosks(workspaceId?: string): Promise<TerminalDevice[] | null> {
     console.group(`[Supabase:Kiosks] 🔍 Fetching kiosks (workspace: ${workspaceId || 'ALL'})`)
@@ -49,9 +70,14 @@ export class TerminalSupabaseService {
       const supabase = getSupabase()
       console.log('[Supabase:Kiosks] Step 1: Initialized Supabase client')
 
+      const resolvedWsUuid = await resolveWorkspaceUuid(workspaceId)
       let query = supabase.from('kiosks').select('*').order('created_at', { ascending: false })
-      if (workspaceId) {
-        query = query.eq('workspace_id', workspaceId)
+
+      if (resolvedWsUuid) {
+        console.log(`[Supabase:Kiosks] Filtering by resolved workspace UUID: ${resolvedWsUuid}`)
+        query = query.eq('workspace_id', resolvedWsUuid)
+      } else if (workspaceId && !isUuid(workspaceId)) {
+        console.log(`[Supabase:Kiosks] Input "${workspaceId}" is a non-UUID slug with no DB match; fetching all active kiosks`)
       }
 
       console.log('[Supabase:Kiosks] Step 2: Executing SELECT query on table "kiosks"...')
@@ -67,14 +93,12 @@ export class TerminalSupabaseService {
           statusText,
         })
 
-        if (workspaceId) {
-          console.warn('[Supabase:Kiosks] Attempting fallback fetch without workspace filter...')
-          const fallback = await supabase.from('kiosks').select('*').order('created_at', { ascending: false })
-          if (!fallback.error && fallback.data) {
-            console.log(`[Supabase:Kiosks] ✅ Fallback fetch succeeded (${fallback.data.length} rows)`)
-            console.groupEnd()
-            return (fallback.data as KioskRow[]).map(mapRowToTerminal)
-          }
+        console.warn('[Supabase:Kiosks] Attempting fallback fetch without workspace filter...')
+        const fallback = await supabase.from('kiosks').select('*').order('created_at', { ascending: false })
+        if (!fallback.error && fallback.data) {
+          console.log(`[Supabase:Kiosks] ✅ Fallback fetch succeeded (${fallback.data.length} rows)`)
+          console.groupEnd()
+          return (fallback.data as KioskRow[]).map(mapRowToTerminal)
         }
         console.groupEnd()
         return null
@@ -91,22 +115,25 @@ export class TerminalSupabaseService {
   }
 
   /**
-   * Saves a new kiosk with full step-by-step logging and precise error reporting
+   * Saves a new kiosk with UUID validation, slug resolution, and full error reporting
    */
   static async saveNewKiosk(terminal: TerminalDevice): Promise<{ success: boolean; error?: string }> {
     console.group(`[Supabase:Kiosks] 🚀 Creating/Saving Kiosk Device [ID: ${terminal.id}]`)
     try {
       const supabase = getSupabase()
+      const resolvedWsUuid = await resolveWorkspaceUuid(terminal.workspaceId)
+
       console.log('[Supabase:Kiosks] Step 1: Validated client and prepared payload', {
         terminalId: terminal.id,
         name: terminal.name,
         workspaceId: terminal.workspaceId,
+        resolvedWsUuid,
         code: terminal.pairingCode,
       })
 
       const fullRow: Record<string, unknown> = {
         id: terminal.id,
-        workspace_id: terminal.workspaceId,
+        workspace_id: resolvedWsUuid || undefined,
         name: terminal.name,
         location: terminal.location,
         mode: terminal.mode,
@@ -121,18 +148,12 @@ export class TerminalSupabaseService {
       const res = await supabase.from('kiosks').upsert(fullRow).select()
 
       if (res.error) {
-        console.warn('[Supabase:Kiosks] ⚠️ Primary upsert failed:', {
-          code: res.error.code,
-          message: res.error.message,
-          details: res.error.details,
-          hint: res.error.hint,
-        })
+        console.warn('[Supabase:Kiosks] ⚠️ Primary upsert notice:', res.error.message)
 
-        // Check if error is related to extra columns or UUID constraints
         console.log('[Supabase:Kiosks] Step 3: Retrying with standard baseline columns...')
         const baseRow = {
           id: terminal.id,
-          workspace_id: terminal.workspaceId,
+          workspace_id: resolvedWsUuid || undefined,
           name: terminal.name,
           location: terminal.location,
           status: terminal.status,
@@ -144,12 +165,7 @@ export class TerminalSupabaseService {
         const baseRes = await supabase.from('kiosks').upsert(baseRow).select()
         if (baseRes.error) {
           const errMsg = `Database error (${baseRes.error.code}): ${baseRes.error.message}`
-          console.error('[Supabase:Kiosks] ❌ Baseline upsert also failed:', {
-            code: baseRes.error.code,
-            message: baseRes.error.message,
-            details: baseRes.error.details,
-            hint: baseRes.error.hint,
-          })
+          console.error('[Supabase:Kiosks] ❌ Baseline upsert failed:', baseRes.error)
           console.groupEnd()
           return { success: false, error: errMsg }
         }
@@ -193,11 +209,7 @@ export class TerminalSupabaseService {
         .select()
 
       if (error) {
-        console.error('[Supabase:Kiosks] ❌ Failed to update pairing code:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        })
+        console.error('[Supabase:Kiosks] ❌ Failed to update pairing code:', error.message)
         console.groupEnd()
         return { success: false, error: error.message }
       }
@@ -239,6 +251,51 @@ export class TerminalSupabaseService {
       console.error('[Supabase:Kiosks] 💥 Exception revoking terminal:', err)
       console.groupEnd()
       return false
+    }
+  }
+
+  static async findByPairingCode(code: string, workspaceId?: string): Promise<TerminalDevice | null> {
+    console.group(`[Supabase:Kiosks] 🔐 Securely validating pairing code`)
+    try {
+      const supabase = getSupabase()
+      const normalizedCode = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+      const resolvedWsUuid = await resolveWorkspaceUuid(workspaceId)
+      
+      let query = supabase
+        .from('kiosks')
+        .select('*')
+        .eq('status', 'unpaired')
+
+      if (resolvedWsUuid) {
+        query = query.eq('workspace_id', resolvedWsUuid)
+      }
+
+      const { data, error } = await query
+      if (error || !data) {
+        console.warn('[Supabase:Kiosks] Pairing code lookup query failed:', error?.message)
+        console.groupEnd()
+        return null
+      }
+
+      const match = (data as KioskRow[]).find((row) => {
+        if (!row.pairing_code) return false
+        const normalizedDbCode = row.pairing_code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+        return normalizedDbCode === normalizedCode
+      })
+
+      if (!match) {
+        console.warn('[Supabase:Kiosks] ❌ No matching unpaired station found for code')
+        console.groupEnd()
+        return null
+      }
+
+      console.log(`[Supabase:Kiosks] ✅ Match found for station: "${match.name}" (ID: ${match.id})`)
+      console.groupEnd()
+      return mapRowToTerminal(match)
+    } catch (err) {
+      console.error('[Supabase:Kiosks] 💥 Exception validating pairing code:', err)
+      console.groupEnd()
+      return null
     }
   }
 

@@ -51,13 +51,17 @@ export class TerminalVaultService {
     token: string
     terminalId: string
     terminalName: string
-    workspaceId: string
+    workspaceId?: string
   }): void {
     try {
       localStorage.setItem(STORAGE_KEYS.DEVICE_TOKEN, data.token)
       localStorage.setItem(STORAGE_KEYS.TERMINAL_ID, data.terminalId)
       localStorage.setItem(STORAGE_KEYS.TERMINAL_NAME, data.terminalName)
-      localStorage.setItem(STORAGE_KEYS.WORKSPACE_ID, data.workspaceId)
+      if (data.workspaceId) {
+        localStorage.setItem(STORAGE_KEYS.WORKSPACE_ID, data.workspaceId)
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.WORKSPACE_ID)
+      }
     } catch (e) {
       console.error('[TerminalVault] Failed to persist device token to storage', e)
     }
