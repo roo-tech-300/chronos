@@ -1,28 +1,51 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TerminalVaultService } from '../services/terminalVault'
 import { TerminalApiService } from '../services/terminalApi'
+import { TerminalHardwareService } from '../services/terminalHardware'
+import { useWorkspace } from '../context/useWorkspace'
 import type { TerminalDevice, PairingResult } from '../types/terminal'
 
 export function useTerminalAuth() {
   const queryClient = useQueryClient()
+  const { currentWorkspace } = useWorkspace()
   const localToken = TerminalVaultService.getDeviceToken()
+  const hardwareId = TerminalVaultService.getOrGenerateHardwareId()
 
   // Query: Validate local device token and fetch current terminal identity
+  // Fallback: If device is in Supabase with this hardware_id in current workspace, resolve it
   const {
     data: terminal,
     isLoading,
     isError,
     refetch,
   } = useQuery<TerminalDevice | null>({
-    queryKey: ['terminalDevice', localToken],
+    queryKey: ['terminalDevice', currentWorkspace?.id, localToken, hardwareId],
     queryFn: async () => {
-      if (!localToken) return null
-      const valid = await TerminalApiService.validateDeviceToken(localToken)
-      if (!valid) {
-        // Token was revoked or invalid - clear local device cache
-        TerminalVaultService.clearDeviceEnrollment()
+      // 1. Try checking by local device token first
+      if (localToken) {
+        const valid = await TerminalApiService.validateDeviceToken(localToken)
+        if (valid) return valid
       }
-      return valid
+
+      // 2. Hardware-level check in current workspace
+      if (currentWorkspace?.id) {
+        const hardwareMatch = await TerminalHardwareService.findActiveKioskByHardware(
+          hardwareId,
+          currentWorkspace.id
+        )
+        if (hardwareMatch && hardwareMatch.deviceToken) {
+          // Sync local vault with active token
+          TerminalVaultService.saveDeviceEnrollment({
+            token: hardwareMatch.deviceToken,
+            terminalId: hardwareMatch.id,
+            terminalName: hardwareMatch.name,
+            workspaceId: hardwareMatch.workspaceId,
+          })
+          return hardwareMatch
+        }
+      }
+
+      return null
     },
     staleTime: 1000 * 15,
     refetchInterval: 30000, // 30-second live heartbeat
@@ -40,18 +63,19 @@ export function useTerminalAuth() {
     onSuccess: (result) => {
       if (result.success && result.terminal) {
         queryClient.setQueryData(
-          ['terminalDevice', result.deviceToken],
+          ['terminalDevice', currentWorkspace?.id, result.deviceToken, hardwareId],
           result.terminal
         )
         queryClient.invalidateQueries({ queryKey: ['workspaceTerminals'] })
+        queryClient.invalidateQueries({ queryKey: ['terminalDevice'] })
       }
     },
   })
 
   // Unpair this physical device locally
   const unpairDevice = () => {
-    TerminalVaultService.clearDeviceEnrollment()
-    queryClient.setQueryData(['terminalDevice', localToken], null)
+    TerminalVaultService.clearDeviceEnrollment(currentWorkspace?.id)
+    queryClient.setQueryData(['terminalDevice', currentWorkspace?.id, localToken, hardwareId], null)
     queryClient.invalidateQueries({ queryKey: ['terminalDevice'] })
   }
 

@@ -64,25 +64,34 @@
 }
 
 .dash-kiosk {
-  background: #18181b;
-  color: #fff;
+  background: #ffffff;
+  color: var(--dash-on-surface, #18181b);
+  border: 1px solid var(--dash-outline, #e4e4e7);
   border-radius: 12px;
   padding: 32px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dash-kiosk:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .dash-kiosk h3 {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
+  color: #18181b;
   margin: 0 0 8px;
 }
 
 .dash-kiosk p {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 32px;
-  max-width: 420px;
+  font-size: 15px;
+  color: #71717a;
+  margin: 0 0 28px;
+  max-width: 520px;
   line-height: 1.6;
 }
 
@@ -96,8 +105,8 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.08em;
+  color: #a1a1aa;
   margin-bottom: 6px;
 }
 
@@ -107,13 +116,14 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
+  color: #27272a;
 }
 
 .dash-kiosk-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #a78bfa;
+  background: #10b981;
   animation: dashPulse 2s ease-in-out infinite;
 }
 
@@ -123,28 +133,29 @@
 }
 
 .dash-kiosk-btn {
-  background: #fff;
-  color: #18181b;
+  background: var(--dash-primary, #7c007e);
+  color: #ffffff;
   padding: 12px 24px;
   border: none;
   border-radius: 8px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dash-kiosk-btn:hover {
-  background: #e4e4e7;
+  filter: brightness(1.1);
 }
 
 .dash-kiosk-icon {
   position: absolute;
-  right: -48px;
-  bottom: -48px;
-  opacity: 0.08;
+  right: -32px;
+  bottom: -32px;
+  opacity: 0.035;
+  color: #18181b;
 }
 
 .dash-headcard {
