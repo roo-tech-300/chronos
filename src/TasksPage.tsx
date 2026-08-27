@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Users, Award } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
 import { initialTasks, type StaffTaskGroup, type TaskItem } from './dummy/tasks-mock'
 import { Button, Toolbar } from './components/ui'
 import StaffTaskAccordion from './components/tasks/StaffTaskAccordion'
+import SubDepartmentSection from './components/tasks/SubDepartmentSection'
 import TaskModal from './components/tasks/TaskModal'
 import TaskDetailsModal from './components/tasks/TaskDetailsModal'
 import './styles/tasks-layout.css'
@@ -17,6 +18,42 @@ const taskFilterTabs = [
   'Not Done',
   'All Tasks',
 ] as const
+
+// Define known organizational staff hierarchy with sub-department heads vs team members
+const knownStaff: Array<{
+  name: string
+  role: string
+  subDepartment: string
+  isLead?: boolean
+  leadsSubDepartment?: string
+}> = [
+  {
+    name: 'Sarah Jenkins',
+    role: 'HOD Autonomous Systems & Operations',
+    subDepartment: 'Autonomous Systems',
+    isLead: true,
+    leadsSubDepartment: 'Autonomous Systems',
+  },
+  {
+    name: 'Elena Rostova',
+    role: 'Lead Infrastructure & Edge Architect',
+    subDepartment: 'Edge Compute',
+    isLead: true,
+    leadsSubDepartment: 'Edge Compute',
+  },
+  {
+    name: 'Marcus Vance',
+    role: 'Senior Hardware Tech',
+    subDepartment: 'Neural Hardware',
+    isLead: false,
+  },
+  {
+    name: 'Devon Miles',
+    role: 'Security Systems Analyst',
+    subDepartment: 'Autonomous Systems',
+    isLead: false,
+  },
+]
 
 export default function TasksPage() {
   const { currentDepartment } = useDevPersona()
@@ -45,19 +82,14 @@ export default function TasksPage() {
 
     const map = new Map<string, StaffTaskGroup>()
 
-    const knownStaff = [
-      { name: 'Marcus Vance', role: 'Senior Hardware Tech', subDepartment: 'Neural Hardware' },
-      { name: 'Elena Rostova', role: 'Infrastructure Engineer', subDepartment: 'Edge Compute' },
-      { name: 'Devon Miles', role: 'Security Systems Analyst', subDepartment: 'Autonomous Systems' },
-      { name: 'Sarah Jenkins', role: 'Lab Operations Manager', subDepartment: 'Autonomous Systems' },
-    ]
-
     knownStaff.forEach((s) => {
       map.set(s.name, {
         name: s.name,
         role: s.role,
         subDepartment: s.subDepartment,
         initials: s.name.split(' ').map((n) => n[0]).join(''),
+        isLead: s.isLead,
+        leadsSubDepartment: s.leadsSubDepartment,
         tasks: [],
       })
     })
@@ -77,6 +109,30 @@ export default function TasksPage() {
 
     return Array.from(map.values())
   }, [tasks, activeTab, searchQuery])
+
+  // Split staff into Heads of Department vs Sub-Department Team members
+  const hasSubDepartments = Boolean(
+    currentDepartment.subDepartments && currentDepartment.subDepartments.length > 0
+  )
+
+  const hodGroups = useMemo(() => {
+    return staffGroups.filter((s) => s.isLead)
+  }, [staffGroups])
+
+  // Group non-lead staff by their sub-departments
+  const subDeptSections = useMemo(() => {
+    if (!hasSubDepartments) return []
+
+    return currentDepartment.subDepartments.map((subDeptName) => {
+      const lead = staffGroups.find((s) => s.isLead && (s.leadsSubDepartment === subDeptName || s.subDepartment === subDeptName))
+      const members = staffGroups.filter((s) => !s.isLead && s.subDepartment === subDeptName)
+      return {
+        subDeptName,
+        leadStaff: lead,
+        teamMembers: members,
+      }
+    })
+  }, [currentDepartment, staffGroups, hasSubDepartments])
 
   // Counts for summary counters
   const totalApproved = useMemo(() => tasks.filter((t) => t.status === 'approved').length, [tasks])
@@ -108,7 +164,8 @@ export default function TasksPage() {
     { label: 'Submitted', value: String(totalSubmitted), desc: 'Waiting for HOD approval' },
     { label: 'Not Done', value: String(totalNotDone), desc: 'Still open for today' },
   ]
-return (
+
+  return (
     <div className="tasks-page">
       <AppNavbar />
 
@@ -170,19 +227,82 @@ return (
           }}
         />
 
-        <div className="tasks-list">
-          {staffGroups.map((group, idx) => (
-            <StaffTaskAccordion
-              key={group.name}
-              name={group.name}
-              role={group.role}
-              subDepartment={group.subDepartment}
-              tasks={group.tasks}
-              defaultOpen={idx === 0}
-              onApproveTask={handleApproveTask}
-              onViewDetails={setSelectedTask}
-            />
-          ))}
+        {/* Hierarchical Task View: Heads of Departments first, then Sub-Department dropdowns */}
+        <div className="tasks-list flex flex-col gap-6">
+          {hasSubDepartments ? (
+            <>
+              {/* 1. Heads of Department Section at the TOP */}
+              {hodGroups.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <Award size={18} className="text-purple-700" />
+                    <h2 className="text-sm uppercase tracking-wider font-bold text-zinc-700">
+                      Heads of Departments & Unit Leads
+                    </h2>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-semibold">
+                      Direct Reports ({hodGroups.length})
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {hodGroups.map((group, idx) => (
+                      <StaffTaskAccordion
+                        key={group.name}
+                        name={group.name}
+                        role={group.role}
+                        subDepartment={group.subDepartment}
+                        tasks={group.tasks}
+                        isLead={true}
+                        leadsSubDepartment={group.leadsSubDepartment}
+                        defaultOpen={idx === 0}
+                        onApproveTask={handleApproveTask}
+                        onViewDetails={setSelectedTask}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Sub-Department Sections (Dropdowns for department team members) */}
+              <div className="flex flex-col gap-3 mt-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Users size={18} className="text-zinc-600" />
+                  <h2 className="text-sm uppercase tracking-wider font-bold text-zinc-700">
+                    Sub-Departments & Team Staff
+                  </h2>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 font-semibold">
+                    {subDeptSections.length} Sub-Units
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {subDeptSections.map((section) => (
+                    <SubDepartmentSection
+                      key={section.subDeptName}
+                      subDeptName={section.subDeptName}
+                      leadStaff={section.leadStaff}
+                      teamMembers={section.teamMembers}
+                      defaultOpen={false}
+                      onApproveTask={handleApproveTask}
+                      onViewDetails={setSelectedTask}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Flat layout for departments WITHOUT sub-departments */
+            staffGroups.map((group, idx) => (
+              <StaffTaskAccordion
+                key={group.name}
+                name={group.name}
+                role={group.role}
+                subDepartment={group.subDepartment}
+                tasks={group.tasks}
+                defaultOpen={idx === 0}
+                onApproveTask={handleApproveTask}
+                onViewDetails={setSelectedTask}
+              />
+            ))
+          )}
         </div>
       </main>
 

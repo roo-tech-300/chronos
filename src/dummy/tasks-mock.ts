@@ -44,6 +44,8 @@ export interface StaffTaskGroup {
   role: string
   subDepartment: string
   initials: string
+  isLead?: boolean
+  leadsSubDepartment?: string
   tasks: TaskItem[]
 }
 

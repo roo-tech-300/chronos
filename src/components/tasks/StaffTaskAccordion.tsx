@@ -9,6 +9,8 @@ interface StaffTaskAccordionProps {
   subDepartment: string
   tasks: TaskItem[]
   defaultOpen?: boolean
+  isLead?: boolean
+  leadsSubDepartment?: string
   onApproveTask: (task: TaskItem) => void
   onViewDetails: (task: TaskItem) => void
 }
@@ -19,6 +21,8 @@ export default function StaffTaskAccordion({
   subDepartment,
   tasks,
   defaultOpen = false,
+  isLead = false,
+  leadsSubDepartment,
   onApproveTask,
   onViewDetails,
 }: StaffTaskAccordionProps) {
@@ -40,7 +44,7 @@ export default function StaffTaskAccordion({
     .toUpperCase()
 
   return (
-    <div className="tasks-group">
+    <div className={`tasks-group ${isLead ? 'border-purple-200 ring-1 ring-purple-100' : ''}`}>
       {/* Header Row */}
       <button
         type="button"
@@ -49,11 +53,17 @@ export default function StaffTaskAccordion({
         aria-expanded={isOpen}
       >
         <div className="tasks-group-identity">
-          <div className="tasks-group-avatar">{initials}</div>
+          <div className={`tasks-group-avatar ${isLead ? '!bg-purple-900 !text-white' : ''}`}>{initials}</div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="tasks-group-name">{name}</span>
-              <span className="tasks-sub-pill">{subDepartment}</span>
+              {isLead ? (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 font-bold tracking-wide">
+                  HOD {leadsSubDepartment ? `— ${leadsSubDepartment}` : ''}
+                </span>
+              ) : (
+                <span className="tasks-sub-pill">{subDepartment}</span>
+              )}
             </div>
             <p className="tasks-group-role">{role}</p>
           </div>
