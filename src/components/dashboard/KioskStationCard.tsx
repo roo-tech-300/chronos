@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Laptop, ArrowRight } from 'lucide-react'
+import {  Laptop, ArrowRight } from 'lucide-react'
 import { useWorkspace } from '../../context/useWorkspace'
 import { useTerminalAuth } from '../../hooks/useTerminalAuth'
 
@@ -70,7 +70,6 @@ export function KioskStationCard() {
           <ArrowRight size={16} />
         </button>
       </div>
-      <TrendingUp size={240} className="dash-kiosk-icon pointer-events-none select-none" />
     </div>
   )
 }
