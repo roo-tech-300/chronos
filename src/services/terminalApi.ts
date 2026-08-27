@@ -24,30 +24,48 @@ export class TerminalApiService {
   }
 
   /**
-   * Verifies pairing code, enforces organization hardware uniqueness, and generates session.
+   * Verifies pairing code, strictly enforces organization tenant boundaries,
+   * checks hardware uniqueness, and generates the persistent terminal session.
    */
   static async pairDeviceWithCode(
     code: string,
-    workspaceId?: string
+    workspaceId?: string,
+    workspaceName?: string
   ): Promise<PairingResult> {
-    console.group(`[TerminalApiService] 🔗 Pairing Attempt (Code: "${code}")`)
+    console.group(`[TerminalApiService] 🔗 Pairing Attempt (Code: "${code}", Org: "${workspaceName || workspaceId || 'Global'}")`)
     const normalizedInput = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
 
-    let target: TerminalDevice | null = await TerminalSupabaseService.findByPairingCode(normalizedInput, workspaceId)
+    const lookup = await TerminalSupabaseService.findByPairingCode(normalizedInput, workspaceId)
+
+    // 🔒 Strict Multi-Tenant Isolation Check:
+    // If the PIN belongs to another organization entirely, reject it explicitly!
+    if (lookup.foundInDifferentWorkspace) {
+      console.warn('[TerminalApiService] 🚫 Cross-workspace pairing rejected!')
+      console.groupEnd()
+      const orgLabel = workspaceName ? `"${workspaceName}"` : 'your current workspace'
+      return {
+        success: false,
+        error: `This pairing code belongs to a different organization. It is not valid for ${orgLabel}. Please check your active workspace or request a code from your administrator.`,
+      }
+    }
+
+    let target: TerminalDevice | null = lookup.match
     if (!target) {
       const list = getStoredTerminals()
       target = list.find((t) => {
         if (!t.pairingCode || t.status !== 'unpaired') return false
+        if (workspaceId && t.workspaceId && t.workspaceId !== workspaceId) return false
         return t.pairingCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normalizedInput
       }) || null
     }
 
     if (!target) {
-      console.warn('[TerminalApiService] ❌ Pairing code not found or invalid')
+      console.warn('[TerminalApiService] ❌ Pairing code not found in current workspace')
       console.groupEnd()
+      const orgSuffix = workspaceName ? ` in ${workspaceName}` : ''
       return {
         success: false,
-        error: 'Invalid or unrecognized pairing code. Check the administrative devices tab.',
+        error: `Invalid or unrecognized pairing code${orgSuffix}. Check the administrative devices tab.`,
       }
     }
 

@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Laptop, ShieldCheck, ArrowRight, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Info } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
+import { useWorkspace } from './context/useWorkspace'
 import { normalizePairingCode } from './utils/pairingCode'
 import { Button } from './components/ui'
 
 export default function TerminalPairPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const workspaceId = searchParams.get('workspaceId') || undefined
+  const { currentWorkspace } = useWorkspace()
+  const workspaceId = searchParams.get('workspaceId') || currentWorkspace?.id || undefined
 
   const { pairDevice, isPairing } = useTerminalAuth()
 
@@ -39,7 +41,11 @@ export default function TerminalPairPage() {
     const normalized = normalizePairingCode(clean)
 
     try {
-      const res = await pairDevice({ code: normalized, workspaceId })
+      const res = await pairDevice({
+        code: normalized,
+        workspaceId,
+        workspaceName: currentWorkspace?.name,
+      })
       if (res.success && res.terminal) {
         setSuccessTerminalName(res.terminal.name)
         setTimeout(() => {
