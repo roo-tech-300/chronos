@@ -121,10 +121,10 @@ export default function AppNavbar({
         </div>
 
         {/* Right: Actions & Avatar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             to="/workspaces"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-purple-700 bg-zinc-100 hover:bg-purple-50 rounded-lg transition-colors"
+            className="hidden min-[1120px]:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-purple-700 bg-zinc-100 hover:bg-purple-50 rounded-lg transition-colors"
             title="Switch Workspace"
           >
             <Building2 size={14} />
@@ -133,7 +133,7 @@ export default function AppNavbar({
 
           <button
             type="button"
-            className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+            className="hidden min-[1120px]:flex p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
             title="Notifications"
           >
             <Bell size={20} />
@@ -143,7 +143,7 @@ export default function AppNavbar({
           {role === 'admin' && (
             <Link
               to={`${prefix}/settings/organization`}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`hidden min-[1120px]:flex p-2 rounded-lg transition-colors ${
                 isSettingsActive
                   ? 'text-purple-700 bg-purple-100/70 font-semibold'
                   : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
@@ -154,7 +154,7 @@ export default function AppNavbar({
             </Link>
           )}
 
-          {/* User Profile Menu */}
+          {/* User Profile Menu with Dropdown Modal */}
           <NavbarUserMenu
             dropdownOpen={dropdownOpen}
             setDropdownOpen={setDropdownOpen}
@@ -166,6 +166,7 @@ export default function AppNavbar({
             role={role}
             currentStaffRole={currentStaff.role}
             homePath={homePath}
+            prefix={prefix}
             onSignOut={signOut}
           />
         </div>

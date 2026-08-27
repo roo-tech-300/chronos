@@ -11,6 +11,8 @@ import AnalyticsPage from './AnalyticsPage'
 import OrgSettingsPage from './OrgSettingsPage'
 import TasksPage from './TasksPage'
 import MyTasksPage from './MyTasksPage'
+import TerminalPairPage from './TerminalPairPage'
+import KioskScanPage from './KioskScanPage'
 import { AuthProvider } from './context/AuthContext'
 import { DevPersonaProvider, useDevPersona } from './context/DevPersonaContext'
 import { WorkspaceProvider } from './context/WorkspaceContext'
@@ -61,6 +63,10 @@ function App() {
             <Route path="/settings" element={<OrgSettingsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/my-tasks" element={<MyTasksPage />} />
+
+            {/* Hardware Kiosk & Terminal Routes */}
+            <Route path="/terminal/pair" element={<TerminalPairPage />} />
+            <Route path="/scan" element={<KioskScanPage />} />
           </Routes>
           <DevPersonaSwitcher />
         </WorkspaceProvider>

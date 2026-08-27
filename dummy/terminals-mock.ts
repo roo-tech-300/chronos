@@ -1,0 +1,65 @@
+import type { TerminalDevice } from '../src/types/terminal'
+
+export const INITIAL_TERMINALS_MOCK: TerminalDevice[] = [
+  {
+    id: 'term-001',
+    workspaceId: 'fut-minna-main',
+    name: 'Main Gate - Arrival Kiosk',
+    location: 'Campus West Entrance, Gate A',
+    departmentId: 'dept-security',
+    departmentName: 'Campus Security & Access',
+    mode: 'entry',
+    status: 'online',
+    deviceToken: 'tkn_term_live_9f82b71a4e6c3d90',
+    hardwareId: 'HW-DELL-LAT-7420-X1902',
+    lastIpAddress: '192.168.1.104',
+    lastHeartbeatAt: new Date(Date.now() - 1000 * 20).toISOString(), // 20s ago
+    pairedAt: '2025-01-15T08:00:00Z',
+    createdAt: '2025-01-10T10:00:00Z',
+  },
+  {
+    id: 'term-002',
+    workspaceId: 'fut-minna-main',
+    name: 'Terminal 04 - East Wing',
+    location: 'Engineering Complex, Level 1',
+    departmentId: 'dept-engineering',
+    departmentName: 'School of Engineering',
+    mode: 'bidirectional',
+    status: 'online',
+    deviceToken: 'tkn_term_live_4a11b988f002cd31',
+    hardwareId: 'HW-HP-PRO-450-G8-E8821',
+    lastIpAddress: '192.168.1.118',
+    lastHeartbeatAt: new Date(Date.now() - 1000 * 45).toISOString(), // 45s ago
+    pairedAt: '2025-02-01T09:30:00Z',
+    createdAt: '2025-01-20T11:00:00Z',
+  },
+  {
+    id: 'term-003',
+    workspaceId: 'fut-minna-main',
+    name: 'Server Room B Access',
+    location: 'IT Services Data Center, Basement',
+    departmentId: 'dept-it',
+    departmentName: 'Information Technology Services',
+    mode: 'bidirectional',
+    status: 'offline',
+    deviceToken: 'tkn_term_live_21cc49aa765d11ee',
+    hardwareId: 'HW-LEN-T14-GEN3-L4409',
+    lastIpAddress: '192.168.2.55',
+    lastHeartbeatAt: new Date(Date.now() - 1000 * 60 * 42).toISOString(), // 42m ago
+    pairedAt: '2025-02-10T14:15:00Z',
+    createdAt: '2025-02-05T08:45:00Z',
+  },
+  {
+    id: 'term-004',
+    workspaceId: 'fut-minna-main',
+    name: 'Boardroom North - Executive',
+    location: 'Senate Building, 3rd Floor',
+    departmentId: 'dept-admin',
+    departmentName: 'University Administration',
+    mode: 'entry',
+    status: 'unpaired',
+    pairingCode: 'CH-FA-7X9K',
+    pairingExpiresAt: new Date(Date.now() + 1000 * 60 * 14).toISOString(), // expires in 14 mins
+    createdAt: new Date().toISOString(),
+  },
+]

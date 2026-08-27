@@ -1,139 +1,160 @@
 import { useState } from 'react'
-import { Plus, ChevronRight } from 'lucide-react'
-import { devices, deviceMetrics } from './dummy/devices-mock'
+import { useParams, Navigate, Link } from 'react-router-dom'
+import { Plus, QrCode } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
-import { Button, Badge, Toolbar } from './components/ui'
+import { Button, Toolbar } from './components/ui'
+import { useDevPersona } from './context/DevPersonaContext'
+import { useWorkspace } from './context/useWorkspace'
+import { useWorkspaceTerminals } from './hooks/useWorkspaceTerminals'
+import { TerminalTable } from './components/terminals/TerminalTable'
+import { AddTerminalModal } from './components/terminals/AddTerminalModal'
+import { PairingCodeModal } from './components/terminals/PairingCodeModal'
+import type { TerminalDevice } from './types/terminal'
 import './styles/devices-page.css'
-import './styles/devices-card.css'
 
 export default function DevicesPage() {
-  const [searchQuery, setSearchQuery] = useState('')
+  const { workspaceId = 'fut-minna-main' } = useParams()
+  const { role } = useDevPersona()
+  const { currentWorkspace } = useWorkspace()
 
-  const filtered = devices.filter((d) =>
+  const {
+    terminals,
+    createTerminal,
+    generatePairingCode,
+    revokeTerminal,
+  } = useWorkspaceTerminals(workspaceId, currentWorkspace?.name)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [pairModalOpen, setPairModalOpen] = useState(false)
+  const [selectedTerminal, setSelectedTerminal] = useState<TerminalDevice | null>(null)
+
+  // Guard: Hardware device and kiosk terminal management is strictly restricted to Admins
+  if (role !== 'admin') {
+    return <Navigate to={role === 'staff' ? '/tasks/my-tasks' : `/workspace/${workspaceId}/dashboard`} replace />
+  }
+
+  const filtered = terminals.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     d.location.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const getStatusVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'success'
-      case 'idle':
-        return 'neutral'
-      case 'disconnected':
-        return 'danger'
-      default:
-        return 'neutral'
-    }
+  const activeCount = terminals.filter((t) => t.status === 'online').length
+  const unpairedCount = terminals.filter((t) => t.status === 'unpaired').length
+  const offlineCount = terminals.filter((t) => t.status === 'offline').length
+
+  const handleOpenPair = (t: TerminalDevice) => {
+    setSelectedTerminal(t)
+    setPairModalOpen(true)
+  }
+
+  const activeTerminal = terminals.find((t) => t.id === selectedTerminal?.id) || selectedTerminal
+
+  const handleRegenerateCode = async (terminalId: string) => {
+    const newCode = await generatePairingCode(terminalId)
+    setSelectedTerminal((prev) =>
+      prev && prev.id === terminalId ? { ...prev, pairingCode: newCode } : prev
+    )
+    return newCode
   }
 
   return (
-    <div className="dev-page">
+    <div className="dev-page min-h-screen bg-[#fafafa]">
       <AppNavbar />
 
-      <main className="dev-main">
-        <div className="dev-header">
-          <div className="dev-header-left">
-            <h1>Devices</h1>
-            <p>Manage and monitor hardware terminal stations across the campus.</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Hardware Terminal Stations</h1>
+            <p className="text-sm text-zinc-500 mt-1">
+              Manage permanent physical scanning laptops, kiosk devices, and biometric stations.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/terminal/pair"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl shadow-xs transition-colors"
+            >
+              <QrCode size={15} className="text-zinc-500" />
+              <span>Pair Device</span>
+            </Link>
+            <Button
+              variant="primary"
+              leftIcon={<Plus size={18} />}
+              onClick={() => setAddModalOpen(true)}
+            >
+              Provision Terminal
+            </Button>
+          </div>
+        </div>
+
+        {/* Metrics Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-xs">
+            <span className="text-2xl font-extrabold text-zinc-900 block">{terminals.length}</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-1 block">
+              Total Enrolled Stations
+            </span>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-extrabold text-emerald-600 block">{activeCount}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                Online
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-1 block">
+              Active Kiosks Online
+            </span>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-extrabold text-zinc-700 block">{unpairedCount + offlineCount}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">
+                {unpairedCount} Pending
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-1 block">
+              Offline / Pending Pairing
+            </span>
           </div>
         </div>
 
         <Toolbar
           className="mb-6"
           search={{
-            placeholder: 'Search by station name or location...',
+            placeholder: 'Search stations by name, room, or location...',
             value: searchQuery,
             onChange: (e) => setSearchQuery(e.target.value),
             onClear: () => setSearchQuery(''),
             width: 'w-full sm:w-80 md:w-96',
           }}
-          primaryAction={
-            <Button
-              variant="primary"
-              leftIcon={<Plus size={18} />}
-            >
-              Pair New Station
-            </Button>
-          }
         />
 
-        <div className="dev-metrics">
-          <div className="dev-metric-card">
-            <div className="dev-metric-value">{deviceMetrics.total}</div>
-            <div className="dev-metric-label">Total Registered Stations</div>
-          </div>
-          <div className="dev-metric-card">
-            <div className="dev-metric-value">{deviceMetrics.active}</div>
-            <div className="dev-metric-label">Active Stations Online</div>
-          </div>
-          <div className="dev-metric-card">
-            <div className="dev-metric-value">{deviceMetrics.disconnected}</div>
-            <div className="dev-metric-label">Disconnected Alerts</div>
-          </div>
-        </div>
-
-        <div className="dev-grid">
-          {filtered.map((d) => (
-            <div key={d.id} className={`dev-card ${d.status.toLowerCase()}`}>
-              <div className="dev-card-top">
-                <p className="dev-card-name">{d.name}</p>
-                <Badge
-                  variant={getStatusVariant(d.status)}
-                  showDot
-                  pulseDot={d.status.toLowerCase() === 'active'}
-                >
-                  {d.status}
-                </Badge>
-              </div>
-              <p className="dev-card-location">{d.location}</p>
-              <div className="dev-card-meta">
-                <div>
-                  <span className="dev-card-meta-label">{d.latency ? 'Latency' : 'Alert'}</span>
-                  <div className={d.latency ? 'dev-card-meta-value' : 'dev-card-meta-value alert'}>
-                    {d.latency ?? d.alert}
-                  </div>
-                </div>
-                <button className="dev-card-action" aria-label="View station details">
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="dev-infra">
-          <div className="dev-infra-text">
-            <p>Monitoring identity infrastructure security across all 128 registered terminal stations. Low-latency biometric validation is currently operating at 99.98% efficiency.</p>
-          </div>
-          <div className="dev-infra-stats">
-            <div className="dev-infra-stat">
-              <span className="dev-infra-stat-value">128</span>
-              <span className="dev-infra-stat-label">Secure Nodes</span>
-            </div>
-            <div className="dev-infra-stat">
-              <span className="dev-infra-stat-value">14ms</span>
-              <span className="dev-infra-stat-label">Avg Latency</span>
-            </div>
-          </div>
-        </div>
+        <TerminalTable
+          terminals={filtered}
+          onOpenPairModal={handleOpenPair}
+          onRevoke={revokeTerminal}
+        />
       </main>
 
-      <footer className="dev-footer">
-        <div className="dev-footer-inner">
-          <div>
-            <div className="dev-footer-label">Natale Identity</div>
-            <p className="dev-footer-copy">&copy; 2025 Natale Identity Corp. All rights reserved.</p>
-          </div>
-          <div className="dev-footer-links">
-            <a href="#">Security Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Compliance</a>
-            <a href="#">Infrastructure Status</a>
-          </div>
-        </div>
-      </footer>
+      <AddTerminalModal
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdd={async (data) => {
+          const newTerm = await createTerminal(data)
+          setSelectedTerminal(newTerm)
+          setPairModalOpen(true)
+        }}
+        workspaceId={workspaceId}
+      />
+
+      <PairingCodeModal
+        terminal={activeTerminal}
+        isOpen={pairModalOpen}
+        onClose={() => setPairModalOpen(false)}
+        onRegenerateCode={handleRegenerateCode}
+      />
     </div>
   )
 }
-
