@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, AlertCircle } from 'lucide-react'
 import { Button } from '../ui'
 import type { TerminalMode, TerminalDevice } from '../../types/terminal'
 
@@ -21,6 +21,7 @@ export function AddTerminalModal({
   const [departmentName, setDepartmentName] = useState('')
   const [mode, setMode] = useState<TerminalMode>('entry')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   if (!isOpen) return null
 
@@ -28,7 +29,14 @@ export function AddTerminalModal({
     e.preventDefault()
     if (!name.trim() || !location.trim()) return
     setIsSubmitting(true)
+    setErrorMessage(null)
+
     try {
+      console.log('[AddTerminalModal] Submitting terminal provision form:', {
+        name: name.trim(),
+        location: location.trim(),
+        workspaceId,
+      })
       await onAdd({
         workspaceId,
         name: name.trim(),
@@ -41,8 +49,10 @@ export function AddTerminalModal({
       setLocation('')
       setDepartmentName('')
       setMode('entry')
-    } catch (err) {
-      console.error(err)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[AddTerminalModal] Provision failed with error:', err)
+      setErrorMessage(msg || 'Failed to save terminal to database. Check console for details.')
     } finally {
       setIsSubmitting(false)
     }
@@ -66,6 +76,16 @@ export function AddTerminalModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-150">
+              <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">Database Error</span>
+                <span>{errorMessage}</span>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
               Terminal Name <span className="text-red-500">*</span>
@@ -130,7 +150,7 @@ export function AddTerminalModal({
           </div>
 
           <div className="pt-2 flex items-center justify-end gap-2.5">
-            <Button variant="outline" size="md" onClick={onClose} type="button">
+            <Button variant="outline" size="md" onClick={onClose} type="button" disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
@@ -139,6 +159,7 @@ export function AddTerminalModal({
               type="submit"
               leftIcon={<Plus size={16} />}
               isLoading={isSubmitting}
+              disabled={isSubmitting}
             >
               Generate Pairing Code
             </Button>

@@ -40,30 +40,205 @@ export function mapRowToTerminal(row: KioskRow): TerminalDevice {
 }
 
 export class TerminalSupabaseService {
+  /**
+   * Fetches kiosks with step-by-step console logging
+   */
   static async fetchKiosks(workspaceId?: string): Promise<TerminalDevice[] | null> {
+    console.group(`[Supabase:Kiosks] 🔍 Fetching kiosks (workspace: ${workspaceId || 'ALL'})`)
     try {
       const supabase = getSupabase()
+      console.log('[Supabase:Kiosks] Step 1: Initialized Supabase client')
+
       let query = supabase.from('kiosks').select('*').order('created_at', { ascending: false })
       if (workspaceId) {
         query = query.eq('workspace_id', workspaceId)
       }
-      const { data, error } = await query
+
+      console.log('[Supabase:Kiosks] Step 2: Executing SELECT query on table "kiosks"...')
+      const { data, error, status, statusText } = await query
+
       if (error) {
+        console.error('[Supabase:Kiosks] ❌ SELECT query failed:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          httpStatus: status,
+          statusText,
+        })
+
         if (workspaceId) {
-          const fallback = await supabase
-            .from('kiosks')
-            .select('*')
-            .order('created_at', { ascending: false })
+          console.warn('[Supabase:Kiosks] Attempting fallback fetch without workspace filter...')
+          const fallback = await supabase.from('kiosks').select('*').order('created_at', { ascending: false })
           if (!fallback.error && fallback.data) {
+            console.log(`[Supabase:Kiosks] ✅ Fallback fetch succeeded (${fallback.data.length} rows)`)
+            console.groupEnd()
             return (fallback.data as KioskRow[]).map(mapRowToTerminal)
           }
         }
+        console.groupEnd()
         return null
       }
-      if (!data) return []
-      return (data as KioskRow[]).map(mapRowToTerminal)
-    } catch {
+
+      console.log(`[Supabase:Kiosks] ✅ Fetch succeeded: found ${data?.length ?? 0} rows`, data)
+      console.groupEnd()
+      return (data as KioskRow[] || []).map(mapRowToTerminal)
+    } catch (err: unknown) {
+      console.error('[Supabase:Kiosks] 💥 Unexpected exception during fetch:', err)
+      console.groupEnd()
       return null
+    }
+  }
+
+  /**
+   * Saves a new kiosk with full step-by-step logging and precise error reporting
+   */
+  static async saveNewKiosk(terminal: TerminalDevice): Promise<{ success: boolean; error?: string }> {
+    console.group(`[Supabase:Kiosks] 🚀 Creating/Saving Kiosk Device [ID: ${terminal.id}]`)
+    try {
+      const supabase = getSupabase()
+      console.log('[Supabase:Kiosks] Step 1: Validated client and prepared payload', {
+        terminalId: terminal.id,
+        name: terminal.name,
+        workspaceId: terminal.workspaceId,
+        code: terminal.pairingCode,
+      })
+
+      const fullRow: Record<string, unknown> = {
+        id: terminal.id,
+        workspace_id: terminal.workspaceId,
+        name: terminal.name,
+        location: terminal.location,
+        mode: terminal.mode,
+        status: terminal.status,
+        department_name: terminal.departmentName,
+        pairing_code: terminal.pairingCode,
+        pairing_expires_at: terminal.pairingExpiresAt,
+        created_at: terminal.createdAt,
+      }
+
+      console.log('[Supabase:Kiosks] Step 2: Sending INSERT/UPSERT to Supabase "kiosks" table...', fullRow)
+      const res = await supabase.from('kiosks').upsert(fullRow).select()
+
+      if (res.error) {
+        console.warn('[Supabase:Kiosks] ⚠️ Primary upsert failed:', {
+          code: res.error.code,
+          message: res.error.message,
+          details: res.error.details,
+          hint: res.error.hint,
+        })
+
+        // Check if error is related to extra columns or UUID constraints
+        console.log('[Supabase:Kiosks] Step 3: Retrying with standard baseline columns...')
+        const baseRow = {
+          id: terminal.id,
+          workspace_id: terminal.workspaceId,
+          name: terminal.name,
+          location: terminal.location,
+          status: terminal.status,
+          pairing_code: terminal.pairingCode,
+          pairing_expires_at: terminal.pairingExpiresAt,
+          created_at: terminal.createdAt,
+        }
+
+        const baseRes = await supabase.from('kiosks').upsert(baseRow).select()
+        if (baseRes.error) {
+          const errMsg = `Database error (${baseRes.error.code}): ${baseRes.error.message}`
+          console.error('[Supabase:Kiosks] ❌ Baseline upsert also failed:', {
+            code: baseRes.error.code,
+            message: baseRes.error.message,
+            details: baseRes.error.details,
+            hint: baseRes.error.hint,
+          })
+          console.groupEnd()
+          return { success: false, error: errMsg }
+        }
+
+        console.log('[Supabase:Kiosks] ✅ Baseline upsert succeeded!', baseRes.data)
+        console.groupEnd()
+        return { success: true }
+      }
+
+      console.log('[Supabase:Kiosks] ✅ Full upsert successfully persisted to Supabase!', res.data)
+      console.groupEnd()
+      return { success: true }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('[Supabase:Kiosks] 💥 Exception during saveNewKiosk:', err)
+      console.groupEnd()
+      return { success: false, error: errMsg }
+    }
+  }
+
+  /**
+   * Updates pairing code with step logging
+   */
+  static async updatePairingCode(
+    terminalId: string,
+    code: string,
+    expiresAt: string
+  ): Promise<{ success: boolean; error?: string }> {
+    console.group(`[Supabase:Kiosks] 🔄 Updating Pairing Code for Terminal [ID: ${terminalId}]`)
+    try {
+      const supabase = getSupabase()
+      console.log(`[Supabase:Kiosks] New Code: ${code} (expires: ${expiresAt})`)
+
+      const { data, error } = await supabase
+        .from('kiosks')
+        .update({
+          pairing_code: code,
+          pairing_expires_at: expiresAt,
+        })
+        .eq('id', terminalId)
+        .select()
+
+      if (error) {
+        console.error('[Supabase:Kiosks] ❌ Failed to update pairing code:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        })
+        console.groupEnd()
+        return { success: false, error: error.message }
+      }
+
+      console.log('[Supabase:Kiosks] ✅ Pairing code updated in database successfully:', data)
+      console.groupEnd()
+      return { success: true }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('[Supabase:Kiosks] 💥 Exception updating pairing code:', err)
+      console.groupEnd()
+      return { success: false, error: errMsg }
+    }
+  }
+
+  static async revokeKiosk(terminalId: string): Promise<boolean> {
+    console.group(`[Supabase:Kiosks] 🛑 Revoking Terminal [ID: ${terminalId}]`)
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase
+        .from('kiosks')
+        .update({
+          device_token: null,
+          status: 'unpaired',
+          paired_at: null,
+          last_heartbeat_at: null,
+        })
+        .eq('id', terminalId)
+
+      if (error) {
+        console.error('[Supabase:Kiosks] ❌ Revoke failed:', error.message)
+        console.groupEnd()
+        return false
+      }
+      console.log('[Supabase:Kiosks] ✅ Terminal revoked successfully')
+      console.groupEnd()
+      return true
+    } catch (err) {
+      console.error('[Supabase:Kiosks] 💥 Exception revoking terminal:', err)
+      console.groupEnd()
+      return false
     }
   }
 
@@ -78,7 +253,6 @@ export class TerminalSupabaseService {
 
       if (error || !data) return null
 
-      // Update heartbeat
       const now = new Date().toISOString()
       await supabase
         .from('kiosks')
@@ -114,72 +288,14 @@ export class TerminalSupabaseService {
         .select()
         .single()
 
-      if (error || !data) return null
-      return mapRowToTerminal(data as KioskRow)
-    } catch {
-      return null
-    }
-  }
-
-  static async saveNewKiosk(
-    terminal: TerminalDevice
-  ): Promise<boolean> {
-    try {
-      const supabase = getSupabase()
-      const row: KioskRow = {
-        id: terminal.id,
-        workspace_id: terminal.workspaceId,
-        name: terminal.name,
-        location: terminal.location,
-        mode: terminal.mode,
-        status: terminal.status,
-        department_name: terminal.departmentName,
-        pairing_code: terminal.pairingCode,
-        pairing_expires_at: terminal.pairingExpiresAt,
-        created_at: terminal.createdAt,
+      if (error || !data) {
+        console.warn('[Supabase:Kiosks] Pair session update notice:', error?.message)
+        return null
       }
-      const { error } = await supabase.from('kiosks').upsert(row)
-      return !error
-    } catch {
-      return false
-    }
-  }
-
-  static async revokeKiosk(terminalId: string): Promise<boolean> {
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase
-        .from('kiosks')
-        .update({
-          device_token: null,
-          status: 'unpaired',
-          paired_at: null,
-          last_heartbeat_at: null,
-        })
-        .eq('id', terminalId)
-      return !error
-    } catch {
-      return false
-    }
-  }
-
-  static async updatePairingCode(
-    terminalId: string,
-    code: string,
-    expiresAt: string
-  ): Promise<boolean> {
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase
-        .from('kiosks')
-        .update({
-          pairing_code: code,
-          pairing_expires_at: expiresAt,
-        })
-        .eq('id', terminalId)
-      return !error
-    } catch {
-      return false
+      return mapRowToTerminal(data as KioskRow)
+    } catch (err) {
+      console.warn('[Supabase:Kiosks] Error updating pair session:', err)
+      return null
     }
   }
 }
