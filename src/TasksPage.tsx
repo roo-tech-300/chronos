@@ -1,143 +1,75 @@
-import { useState, useMemo } from 'react'
-import { Plus, Users, Award } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
 import { initialTasks, type StaffTaskGroup, type TaskItem } from './dummy/tasks-mock'
+import { STAFF_DIRECTORY } from './dummy/staff-directory'
 import { Button, Toolbar } from './components/ui'
-import StaffTaskAccordion from './components/tasks/StaffTaskAccordion'
-import SubDepartmentSection from './components/tasks/SubDepartmentSection'
-import TaskModal from './components/tasks/TaskModal'
-import TaskDetailsModal from './components/tasks/TaskDetailsModal'
+import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
+import TasksMetrics from './components/tasks/TasksMetrics'
+import StaffDirectoryModal from './components/tasks/StaffDirectoryModal'
+import {
+  TASK_FILTER_TABS,
+  buildStaffGroups,
+  filterReviewTasks,
+  summarizeStatuses,
+  type StatusSummary,
+  type TasksFilterTab,
+} from './utils/taskAggregation'
 import './styles/tasks-layout.css'
 import './styles/tasks-widgets.css'
+import './styles/tasks-directory.css'
+import TaskModal from './components/tasks/TaskModal'
 
-const taskFilterTabs = [
-  "Today's Tasks",
-  'Submitted (Waiting Approval)',
-  'Approved',
-  'Not Done',
-  'All Tasks',
-] as const
-
-// Define known organizational staff hierarchy with sub-department heads vs team members
-const knownStaff: Array<{
+/** One browseable unit rendered on the page; selecting it opens the directory. */
+interface UnitOverview {
   name: string
-  role: string
-  subDepartment: string
-  isLead?: boolean
-  leadsSubDepartment?: string
-}> = [
-  {
-    name: 'Sarah Jenkins',
-    role: 'HOD Autonomous Systems & Operations',
-    subDepartment: 'Autonomous Systems',
-    isLead: true,
-    leadsSubDepartment: 'Autonomous Systems',
-  },
-  {
-    name: 'Elena Rostova',
-    role: 'Lead Infrastructure & Edge Architect',
-    subDepartment: 'Edge Compute',
-    isLead: true,
-    leadsSubDepartment: 'Edge Compute',
-  },
-  {
-    name: 'Marcus Vance',
-    role: 'Senior Hardware Tech',
-    subDepartment: 'Neural Hardware',
-    isLead: false,
-  },
-  {
-    name: 'Devon Miles',
-    role: 'Security Systems Analyst',
-    subDepartment: 'Autonomous Systems',
-    isLead: false,
-  },
-]
+  leadName: string | null
+  memberCount: number
+  groups: StaffTaskGroup[]
+  summary: StatusSummary
+}
 
 export default function TasksPage() {
   const { currentDepartment } = useDevPersona()
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
-  const [activeTab, setActiveTab] = useState<string>("Today's Tasks")
+  const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
+  const [activeUnitName, setActiveUnitName] = useState<string | null>(null)
 
-  // Filter tasks according to activeTab & searchQuery, then group by staff.
-  const staffGroups = useMemo(() => {
-    const filtered = tasks.filter((task) => {
-      const matchSearch =
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.assigneeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.subDepartment.toLowerCase().includes(searchQuery.toLowerCase())
+  // Lifecycle anchors stay unfiltered so headline totals remain stable.
+  const overall = useMemo(() => summarizeStatuses(tasks), [tasks])
 
-      if (!matchSearch) return false
-
-      if (activeTab === "Today's Tasks") return task.isToday !== false
-      if (activeTab === 'Submitted (Waiting Approval)') return task.status === 'submitted'
-      if (activeTab === 'Approved') return task.status === 'approved'
-      if (activeTab === 'Not Done') return task.status === 'not_done'
-      return true
-    })
-
-    const map = new Map<string, StaffTaskGroup>()
-
-    knownStaff.forEach((s) => {
-      map.set(s.name, {
-        name: s.name,
-        role: s.role,
-        subDepartment: s.subDepartment,
-        initials: s.name.split(' ').map((n) => n[0]).join(''),
-        isLead: s.isLead,
-        leadsSubDepartment: s.leadsSubDepartment,
-        tasks: [],
-      })
-    })
-
-    filtered.forEach((task) => {
-      if (!map.has(task.assigneeName)) {
-        map.set(task.assigneeName, {
-          name: task.assigneeName,
-          role: task.assigneeRole,
-          subDepartment: task.subDepartment,
-          initials: task.assigneeName.split(' ').map((n) => n[0]).join(''),
-          tasks: [],
-        })
-      }
-      map.get(task.assigneeName)!.tasks.push(task)
-    })
-
-    return Array.from(map.values())
-  }, [tasks, activeTab, searchQuery])
-
-  // Split staff into Heads of Department vs Sub-Department Team members
-  const hasSubDepartments = Boolean(
-    currentDepartment.subDepartments && currentDepartment.subDepartments.length > 0
+  // Everything below honours the toolbar filter (status tab + search).
+  const filteredTasks = useMemo(
+    () => filterReviewTasks(tasks, activeTab, searchQuery),
+    [tasks, activeTab, searchQuery],
   )
 
-  const hodGroups = useMemo(() => {
-    return staffGroups.filter((s) => s.isLead)
-  }, [staffGroups])
+  const units = useMemo<UnitOverview[]>(() => {
+    const hasSubUnits = currentDepartment.subDepartments.length > 0
+    const unitNames = hasSubUnits ? currentDepartment.subDepartments : [currentDepartment.name]
 
-  // Group non-lead staff by their sub-departments
-  const subDeptSections = useMemo(() => {
-    if (!hasSubDepartments) return []
-
-    return currentDepartment.subDepartments.map((subDeptName) => {
-      const lead = staffGroups.find((s) => s.isLead && (s.leadsSubDepartment === subDeptName || s.subDepartment === subDeptName))
-      const members = staffGroups.filter((s) => !s.isLead && s.subDepartment === subDeptName)
+    return unitNames.map((unitName) => {
+      const roster = hasSubUnits
+        ? STAFF_DIRECTORY.filter((s) => s.subDepartment === unitName)
+        : STAFF_DIRECTORY
+      const unitTasks = hasSubUnits
+        ? filteredTasks.filter((t) => t.subDepartment === unitName)
+        : filteredTasks
       return {
-        subDeptName,
-        leadStaff: lead,
-        teamMembers: members,
+        name: unitName,
+        leadName:
+          roster.find((s) => s.isLead)?.name ?? (hasSubUnits ? null : currentDepartment.lead),
+        memberCount: roster.length,
+        groups: buildStaffGroups(unitTasks, roster),
+        summary: summarizeStatuses(unitTasks),
       }
     })
-  }, [currentDepartment, staffGroups, hasSubDepartments])
+  }, [currentDepartment, filteredTasks])
 
-  // Counts for summary counters
-  const totalApproved = useMemo(() => tasks.filter((t) => t.status === 'approved').length, [tasks])
-  const totalSubmitted = useMemo(() => tasks.filter((t) => t.status === 'submitted').length, [tasks])
-  const totalNotDone = useMemo(() => tasks.filter((t) => t.status === 'not_done').length, [tasks])
+  const activeUnit = units.find((u) => u.name === activeUnitName) ?? null
 
   function handleCreateBatch(newTasks: Omit<TaskItem, 'id' | 'status'>[]) {
     const createdList: TaskItem[] = newTasks.map((t) => ({
@@ -153,30 +85,30 @@ export default function TasksPage() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskToApprove.id
-          ? { ...t, status: 'approved', completedAt: 'Just now by HOD', verifiedBy: currentDepartment.lead }
+          ? {
+              ...t,
+              status: 'approved',
+              completedAt: 'Just now by HOD',
+              verifiedBy: currentDepartment.lead,
+            }
           : t,
       ),
     )
   }
-
-  const metrics = [
-    { label: 'Approved', value: String(totalApproved), desc: 'Verified by HOD' },
-    { label: 'Submitted', value: String(totalSubmitted), desc: 'Waiting for HOD approval' },
-    { label: 'Not Done', value: String(totalNotDone), desc: 'Still open for today' },
-  ]
 
   return (
     <div className="tasks-page">
       <AppNavbar />
 
       <main className="tasks-main">
+        {/* Page header */}
         <div className="tasks-header">
           <div className="tasks-header-row">
             <div>
               <h1>Departmental Tasks</h1>
               <p>
-                Review deliverables across 3 states: Approved ({totalApproved}), Submitted for
-                Approval ({totalSubmitted}), and Not Done ({totalNotDone}).
+                Browse by unit, open any team member, and review their deliverables in one
+                clean flow.
               </p>
             </div>
             <div className="tasks-header-actions">
@@ -192,117 +124,58 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <div className="tasks-metrics">
-          {metrics.map((m) => (
-            <div key={m.label} className="tasks-metric">
-              <div className="tasks-metric-top">
-                <span className="tasks-metric-label">{m.label}</span>
-              </div>
-              <span className="tasks-metric-value">{m.value}</span>
-              <span className="tasks-metric-desc">{m.desc}</span>
-            </div>
-          ))}
-        </div>
+        {/* Lifecycle metric anchors */}
+        <TasksMetrics overall={overall} />
 
+        {/* Filter toolbar */}
         <Toolbar
-          className="mb-6"
+          className="mb-8"
           search={{
-            placeholder: 'Search staff or tasks...',
+            placeholder: 'Search tasks, staff, or units...',
             value: searchQuery,
             onChange: (e) => setSearchQuery(e.target.value),
             onClear: () => setSearchQuery(''),
             width: 'w-full sm:w-72',
           }}
           tabs={{
-            tabs: taskFilterTabs.map((t) => ({
-              id: t,
+            tabs: TASK_FILTER_TABS.map((tab) => ({
+              id: tab,
               label:
-                t === 'Submitted (Waiting Approval)' && totalSubmitted > 0
-                  ? `Submitted (${totalSubmitted})`
-                  : t,
+                tab === 'Submitted (Waiting Approval)' && overall.submitted > 0
+                  ? `Submitted (${overall.submitted})`
+                  : tab,
             })),
             activeTab,
-            onChange: setActiveTab,
+            onChange: (id) => setActiveTab(id as TasksFilterTab),
             variant: 'pill',
           }}
         />
 
-        {/* Hierarchical Task View: Heads of Departments first, then Sub-Department dropdowns */}
-        <div className="tasks-list flex flex-col gap-6">
-          {hasSubDepartments ? (
-            <>
-              {/* 1. Heads of Department Section at the TOP */}
-              {hodGroups.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2 px-1">
-                    <Award size={18} className="text-purple-700" />
-                    <h2 className="text-sm uppercase tracking-wider font-bold text-zinc-700">
-                      Heads of Departments & Unit Leads
-                    </h2>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-semibold">
-                      Direct Reports ({hodGroups.length})
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {hodGroups.map((group, idx) => (
-                      <StaffTaskAccordion
-                        key={group.name}
-                        name={group.name}
-                        role={group.role}
-                        subDepartment={group.subDepartment}
-                        tasks={group.tasks}
-                        isLead={true}
-                        leadsSubDepartment={group.leadsSubDepartment}
-                        defaultOpen={idx === 0}
-                        onApproveTask={handleApproveTask}
-                        onViewDetails={setSelectedTask}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* Browse-by-unit grid */}
+        <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900">Review by Unit</h2>
+            <p className="text-sm text-zinc-500 mt-0.5">
+              Select a unit to see its people, then open anyone to walk through their day.
+            </p>
+          </div>
+          <span className="tasks-badge">
+            {units.length} {units.length === 1 ? 'Unit' : 'Units'} · {filteredTasks.length} in
+            view
+          </span>
+        </div>
 
-              {/* 2. Sub-Department Sections (Dropdowns for department team members) */}
-              <div className="flex flex-col gap-3 mt-2">
-                <div className="flex items-center gap-2 px-1">
-                  <Users size={18} className="text-zinc-600" />
-                  <h2 className="text-sm uppercase tracking-wider font-bold text-zinc-700">
-                    Sub-Departments & Team Staff
-                  </h2>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 font-semibold">
-                    {subDeptSections.length} Sub-Units
-                  </span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {subDeptSections.map((section) => (
-                    <SubDepartmentSection
-                      key={section.subDeptName}
-                      subDeptName={section.subDeptName}
-                      leadStaff={section.leadStaff}
-                      teamMembers={section.teamMembers}
-                      defaultOpen={false}
-                      onApproveTask={handleApproveTask}
-                      onViewDetails={setSelectedTask}
-                    />
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Flat layout for departments WITHOUT sub-departments */
-            staffGroups.map((group, idx) => (
-              <StaffTaskAccordion
-                key={group.name}
-                name={group.name}
-                role={group.role}
-                subDepartment={group.subDepartment}
-                tasks={group.tasks}
-                defaultOpen={idx === 0}
-                onApproveTask={handleApproveTask}
-                onViewDetails={setSelectedTask}
-              />
-            ))
-          )}
+        <div className="unit-grid">
+          {units.map((unit) => (
+            <DepartmentUnitCard
+              key={unit.name}
+              unitName={unit.name}
+              leadName={unit.leadName}
+              memberCount={unit.memberCount}
+              summary={unit.summary}
+              onSelect={() => setActiveUnitName(unit.name)}
+            />
+          ))}
         </div>
       </main>
 
@@ -327,15 +200,18 @@ export default function TasksPage() {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreateBatch={handleCreateBatch}
-        subDepartments={currentDepartment.subDepartments}
       />
 
-      <TaskDetailsModal
-        open={Boolean(selectedTask)}
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onApprove={handleApproveTask}
-      />
+      {activeUnit && (
+        <StaffDirectoryModal
+          open
+          onClose={() => setActiveUnitName(null)}
+          unitName={activeUnit.name}
+          leadName={activeUnit.leadName}
+          members={activeUnit.groups}
+          onApproveTask={handleApproveTask}
+        />
+      )}
     </div>
   )
 }

@@ -1,34 +1,25 @@
 import { useState } from 'react'
 import { Plus, Check, Users } from 'lucide-react'
 import type { TaskItem, TaskPriority, TaskType } from '../../dummy/tasks-mock'
+import { STAFF_DIRECTORY } from '../../dummy/staff-directory'
 import { Modal, Button, Input, Select } from '../ui'
-
-interface StaffOption {
-  name: string
-  role: string
-  subDepartment: string
-}
 
 interface TaskModalProps {
   open: boolean
   onClose: () => void
   onCreateBatch: (tasks: Omit<TaskItem, 'id' | 'status'>[]) => void
-  subDepartments: string[]
 }
 
-const mockStaffList: StaffOption[] = [
-  { name: 'Marcus Vance', role: 'Senior Hardware Tech', subDepartment: 'Neural Hardware' },
-  { name: 'Elena Rostova', role: 'Infrastructure Engineer', subDepartment: 'Edge Compute' },
-  { name: 'Devon Miles', role: 'Security Systems Analyst', subDepartment: 'Autonomous Systems' },
-  { name: 'Sarah Jenkins', role: 'Lab Operations Manager', subDepartment: 'Autonomous Systems' },
-]
+// Preserve the historical default assignee (pre-ticked checkbox).
+const DEFAULT_ASSIGNEE =
+  STAFF_DIRECTORY.find((s) => s.name === 'Marcus Vance')?.name ?? STAFF_DIRECTORY[0].name
 
 export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<TaskType>('special')
   const [priority, setPriority] = useState<TaskPriority>('medium')
-  const [selectedStaffNames, setSelectedStaffNames] = useState<string[]>([mockStaffList[0].name])
+  const [selectedStaffNames, setSelectedStaffNames] = useState<string[]>([DEFAULT_ASSIGNEE])
   const [recurrence, setRecurrence] = useState('Every weekday at 09:00 AM')
   const [dueDate, setDueDate] = useState('Today, 05:00 PM')
 
@@ -43,10 +34,10 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
   }
 
   function toggleAllStaff() {
-    if (selectedStaffNames.length === mockStaffList.length) {
-      setSelectedStaffNames([mockStaffList[0].name])
+    if (selectedStaffNames.length === STAFF_DIRECTORY.length) {
+      setSelectedStaffNames([DEFAULT_ASSIGNEE])
     } else {
-      setSelectedStaffNames(mockStaffList.map((s) => s.name))
+      setSelectedStaffNames(STAFF_DIRECTORY.map((s) => s.name))
     }
   }
 
@@ -56,7 +47,7 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
 
     // Mass produce independent task instances for each selected person
     const batch: Omit<TaskItem, 'id' | 'status'>[] = selectedStaffNames.map((staffName) => {
-      const staffInfo = mockStaffList.find((s) => s.name === staffName)
+      const staffInfo = STAFF_DIRECTORY.find((s) => s.name === staffName)
       return {
         title,
         description,
@@ -74,11 +65,11 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
     onCreateBatch(batch)
     setTitle('')
     setDescription('')
-    setSelectedStaffNames([mockStaffList[0].name])
+    setSelectedStaffNames([DEFAULT_ASSIGNEE])
     onClose()
   }
 
-  const isAllSelected = selectedStaffNames.length === mockStaffList.length
+  const isAllSelected = selectedStaffNames.length === STAFF_DIRECTORY.length
 
   return (
     <Modal
@@ -132,7 +123,7 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-            {mockStaffList.map((staff) => {
+            {STAFF_DIRECTORY.map((staff) => {
               const isChecked = selectedStaffNames.includes(staff.name)
               return (
                 <button
@@ -207,14 +198,16 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
 
         <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
           <span className="text-xs text-zinc-500">
-            Creates <strong>{selectedStaffNames.length}</strong> independent {selectedStaffNames.length === 1 ? 'task' : 'tasks'}
+            Creates <strong>{selectedStaffNames.length}</strong> independent{' '}
+            {selectedStaffNames.length === 1 ? 'task' : 'tasks'}
           </span>
           <div className="flex items-center gap-3">
             <Button variant="outline" type="button" onClick={onClose}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" leftIcon={<Plus size={16} />}>
-              Create {selectedStaffNames.length > 1 ? `${selectedStaffNames.length} Tasks` : 'Task'}
+              Create{' '}
+              {selectedStaffNames.length > 1 ? `${selectedStaffNames.length} Tasks` : 'Task'}
             </Button>
           </div>
         </div>

@@ -54,6 +54,22 @@
   color: var(--tasks-on-surface);
 }
 
+/* Tinted accent variants for the review metric anchors */
+.tasks-metric-icon--ok {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.tasks-metric-icon--warn {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.tasks-metric-icon--muted {
+  background: #f4f4f5;
+  color: #71717a;
+}
+
 .tasks-metric-value {
   font-size: 32px;
   font-weight: 800;
