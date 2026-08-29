@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, Clock } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Clock, Database, CloudOff } from 'lucide-react'
 import type { ScannedStaffResult } from '../../hooks/useKioskScan'
 
 interface KioskSuccessCardProps {
@@ -32,15 +32,30 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
         <CheckCircle2 size={44} />
       </div>
 
-      <span
-        className={`inline-block px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider mb-2 border ${
-          isCheckIn
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-amber-50 text-amber-700 border-amber-200'
-        }`}
-      >
-        {staff.type} Confirmed
-      </span>
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <span
+          className={`inline-block px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border ${
+            isCheckIn
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-amber-50 text-amber-700 border-amber-200'
+          }`}
+        >
+          {staff.type} Confirmed
+        </span>
+
+        {staff.dbSaved !== undefined && (
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+              staff.dbSaved
+                ? 'bg-purple-50 text-[#7c007e] border-purple-200'
+                : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+            }`}
+          >
+            {staff.dbSaved ? <Database size={10} /> : <CloudOff size={10} />}
+            <span>{staff.dbSaved ? 'Supabase Saved' : 'Buffered'}</span>
+          </span>
+        )}
+      </div>
 
       <h2 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">{staff.name}</h2>
 

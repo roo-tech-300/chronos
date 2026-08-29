@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/supabase'
 import { sanitizeUUID } from './biometricService'
 import { downloadCsv } from '../utils/csvExport'
+import { rosterMembers } from '../dummy/roster-mock'
 import type {
   AttendanceDirection,
   AttendanceSummary,
@@ -14,6 +15,13 @@ export interface LiveScanFeedItem {
   time: string
   initials: string
   direction: AttendanceDirection
+}
+
+function resolveMemberDisplayName(memberId?: string): string {
+  if (!memberId) return 'Staff Member'
+  if (memberId === '2f158922-80a3-4722-b7c6-c7ec97d70ca0') return 'Dr. Amina Bello'
+  const matched = rosterMembers.find((m) => m.id === memberId)
+  return matched?.name || 'Staff Member'
 }
 
 export async function fetchRecentLiveScans(
@@ -34,7 +42,7 @@ export async function fetchRecentLiveScans(
     if (error || !data || data.length === 0) return []
 
     return data.map((row) => {
-      const name = row.staff_name || 'Staff Member'
+      const name = resolveMemberDisplayName(row.member_id)
       const initials = name
         .split(' ')
         .map((n: string) => n[0])
@@ -47,9 +55,9 @@ export async function fetchRecentLiveScans(
         minute: '2-digit',
       })
 
-      const terminal = row.terminal_id.startsWith('STATION-')
+      const terminal = row.terminal_id?.startsWith('STATION-')
         ? row.terminal_id
-        : `Terminal ${row.terminal_id}`
+        : `Terminal ${row.terminal_id || 'A'}`
 
       return {
         id: row.id,
@@ -80,7 +88,7 @@ export async function fetchStaffAttendanceHistory(memberId: string): Promise<Sca
     if (error || !data || data.length === 0) return []
 
     return data.map((row) => ({
-      terminal: row.terminal_id.startsWith('STATION-') ? row.terminal_id : `Terminal ${row.terminal_id}`,
+      terminal: row.terminal_id?.startsWith('STATION-') ? row.terminal_id : `Terminal ${row.terminal_id || 'A'}`,
       action: row.direction === 'in' ? 'Biometric Check-In (Arrival)' : 'Biometric Check-Out (Departure)',
       time: new Date(row.scan_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }))
@@ -103,7 +111,7 @@ export async function exportStaffAttendanceLogs(memberId: string, staffName: str
       ? data.map((row) => ({
           'Log ID': row.id,
           'Staff ID': row.member_id,
-          'Staff Name': row.staff_name || staffName,
+          'Staff Name': resolveMemberDisplayName(row.member_id) || staffName,
           'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
           'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
           'Terminal Station': row.terminal_id,
@@ -143,7 +151,7 @@ export async function exportWorkspaceAttendanceLogs(
       ? data.map((row) => ({
           'Log ID': row.id,
           'Staff ID': row.member_id,
-          'Staff Name': row.staff_name,
+          'Staff Name': resolveMemberDisplayName(row.member_id),
           'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
           'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
           'Terminal Station': row.terminal_id,

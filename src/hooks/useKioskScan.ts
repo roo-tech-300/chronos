@@ -12,6 +12,7 @@ export interface ScannedStaffResult {
   dept: string
   type: 'Check-In' | 'Check-Out'
   statusMessage?: string
+  dbSaved?: boolean
 }
 
 export function useKioskScan(terminal: TerminalDevice | null) {
@@ -49,8 +50,8 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       setErrorMessage(null)
 
       try {
-        const terminalId = terminal?.id || 'STATION-01'
-        const orgId = terminal?.workspaceId || '00000000-0000-0000-0000-000000000000'
+        const terminalId = terminal?.id || '5af3f6a1-ff4a-4591-8752-e14cd953e6c2'
+        const orgId = terminal?.workspaceId || 'f1bad42f-69ef-40d1-965c-780833890b2f'
         const terminalModeDirection =
           terminal?.mode === 'entry' ? 'in' : terminal?.mode === 'exit' ? 'out' : staffData.direction
 
@@ -79,6 +80,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           dept: staffData.department || 'Faculty Member',
           type: resolvedDirection === 'in' ? 'Check-In' : 'Check-Out',
           statusMessage: result.message,
+          dbSaved: result.dbSaved,
         })
         setScanStatus('success')
       } catch (err) {
