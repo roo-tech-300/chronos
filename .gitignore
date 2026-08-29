@@ -7,10 +7,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies / Build Outputs
 node_modules
 dist
 dist-ssr
 *.local
+
+# Tauri / Rust Build Output
+# Tauri / Rust Build Output
+src-tauri/target/
+# Tauri auto-generated schemas (regenerated on every build)
+src-tauri/gen/schemas/
+src-tauri/target/
 
 # Editor directories and files
 .vscode/*
@@ -22,5 +30,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-opencode.json 
-opencode.json 
+opencode.json

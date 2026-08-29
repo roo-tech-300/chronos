@@ -226,7 +226,7 @@ export default function BiometricEnrollmentModal({
                       ? 'Saving to Database...'
                       : phase === 'scanning'
                       ? 'Scanning...'
-                      : `Capture Pass ${currentStepIndex + 1} (${currentStep.label})`}
+                      : `Capture Pass`}
                   </Button>
                 )}
               </>
