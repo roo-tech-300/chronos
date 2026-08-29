@@ -42,15 +42,35 @@ exports.capture = (id, count) => {
 exports.checkDevice = () => {
   return new Promise((resolve) => {
     // Quick hardware probe using fcmb.exe
-    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 2500 }, (error, stdout, stderr) => {
-      // If fcmb cannot find the USB optical device, stdout is missing lines or has fatal device code
-      const noScanner = stdout.split("\n")[2] === undefined || (stderr && stderr.toLowerCase().includes("device"));
-      const isConnected = !noScanner;
+    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 3000 }, (error, stdout, stderr) => {
+      const out = (stdout || "").trim();
+      const err = (stderr || "").trim();
+
+      // Clean up test minutiae file if created
+      try {
+        const testFile = path.join(EXEC_DIR, "probe_test.xyt");
+        if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
+      } catch {
+        // ignore
+      }
+
+      // Check fcmb output for disconnected hardware indicators:
+      // When disconnected: stdout is empty or missing line 2, or stderr contains error/device/fail, or error code
+      const hasDeviceError = Boolean(
+        error ||
+        out.split("\n").length < 3 ||
+        err.toLowerCase().includes("device") ||
+        err.toLowerCase().includes("cannot") ||
+        out.toLowerCase().includes("failed") ||
+        out.toLowerCase().includes("cannot open")
+      );
+
+      const isConnected = !hasDeviceError;
       resolve({
         connected: isConnected,
         model: "Futronic FS80H USB Scanner",
         status: isConnected ? "ready" : "connect scanner",
-        message: isConnected ? "Futronic FS80H detected & driver initialized" : "No Futronic USB scanner detected on station",
+        message: isConnected ? "Futronic FS80H detected & driver ready" : "Scanner disconnected (connect USB scanner)",
       });
     });
   });
