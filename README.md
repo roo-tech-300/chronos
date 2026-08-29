@@ -1,75 +1,48 @@
-# React + TypeScript + Vite
+# Chronos — Autonomous Terminal & Biometric Attendance Engine
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Chronos is a high-performance attendance and terminal management platform built with React, TypeScript, Tailwind CSS, and Tauri 2.0.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Architecture Overview
 
-## React Compiler
+1. **Web Environment (Admin & Multi-Tenant Management)**:
+   - Run in any modern web browser to access administrative controls, task assignments, staff rosters, analytics, and device activation keys.
+   - Built with resilient fallbacks for native Tauri hardware boundaries.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+2. **Windows Desktop App (Tauri 2.0 Native Shell)**:
+   - Runs on terminal station PCs.
+   - Binds to physical **Futronic FS80H USB optical fingerprint scanners** via native Rust IPC bridges (`src-tauri`).
+   - Strict Biometric Privacy: Generates and handles irreversible SHA-256 cryptographic signatures rather than raw fingerprint images.
 
-Note: This will impact Vite dev & build performances.
+---
 
-## Expanding the ESLint configuration
+## Desktop Quickstart (Tauri)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- [Rust & Cargo](https://www.rust-lang.org/tools/install)
+- [Node.js 18+](https://nodejs.org/)
+- Windows Build Tools (for Windows `.exe` / `.msi` targets)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Development Mode
+```bash
+# Install frontend dependencies
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run frontend + native Tauri shell concurrently
+npm run tauri:dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Production Build (.exe / .msi)
+```bash
+npm run tauri:build
 ```
+The compiled standalone Windows binaries will be generated in `src-tauri/target/release/bundle/`.
+
+---
+
+## Web Preview Mode
+```bash
+npm run dev
+```
+To test hardware kiosk pairing in the browser preview, use the **Developer: Simulate Windows Tauri Shell** bypass switch located on the `/terminal/pair` and `/scan` screens.

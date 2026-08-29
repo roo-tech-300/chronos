@@ -9,6 +9,7 @@ import { useWorkspaceTerminals } from './hooks/useWorkspaceTerminals'
 import { TerminalTable } from './components/terminals/TerminalTable'
 import { AddTerminalModal } from './components/terminals/AddTerminalModal'
 import { PairingCodeModal } from './components/terminals/PairingCodeModal'
+import { BridgeDiagnosticsCard } from './components/terminals/BridgeDiagnosticsCard'
 import type { TerminalDevice } from './types/terminal'
 import './styles/devices-page.css'
 
@@ -120,6 +121,24 @@ export default function DevicesPage() {
             </span>
           </div>
         </div>
+
+        {/* Info Banner */}
+        <div className="bg-purple-50/60 border border-purple-200/80 rounded-2xl p-4 mb-6 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-xl bg-purple-100 text-[#7c007e] flex items-center justify-center shrink-0 mt-0.5">
+            <QrCode size={16} />
+          </div>
+          <div className="text-xs text-zinc-600 leading-relaxed">
+            <span className="font-bold text-zinc-900 block mb-0.5">
+              Windows Desktop Application (Tauri) Required for Scanner Stations
+            </span>
+            <span>
+              Kiosk terminal devices must run the official Chronos Windows Desktop app on the physical station PC to interface with the Futronic FS80H USB optical fingerprint scanner. Web browsers are restricted to administrative dashboards.
+            </span>
+          </div>
+        </div>
+
+        {/* Local Futronic Node Bridge Diagnostics */}
+        <BridgeDiagnosticsCard />
 
         <Toolbar
           className="mb-6"

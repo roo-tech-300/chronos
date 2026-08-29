@@ -34,3 +34,20 @@ export interface PairingResult {
   terminal?: TerminalDevice
   error?: string
 }
+
+export interface ScannerHardwareStatus {
+  isConnected: boolean
+  deviceModel: string
+  serialNumber?: string
+  driverVersion?: string
+  bridgeVersion?: string
+  error?: string
+}
+
+export interface BiometricCapturePayload {
+  templateHash: string
+  qualityScore: number
+  scannerModel: string
+  capturedAt: string
+}
+

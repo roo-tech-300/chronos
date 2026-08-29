@@ -120,8 +120,7 @@ export function PairingCodeModal({
                 </div>
 
                 <p className="text-[11px] text-zinc-500 mt-1.5">
-                  Valid for 15 minutes. Enter this code on the kiosk machine at{' '}
-                  <span className="font-mono font-medium text-zinc-700">/terminal/pair</span>.
+                  Valid for 15 minutes. Enter this code on the <span className="font-semibold text-zinc-800">Chronos Windows Desktop App</span> at the kiosk station.
                 </p>
               </>
             )}
