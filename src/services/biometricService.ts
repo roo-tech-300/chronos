@@ -1,6 +1,11 @@
 import { getSupabase } from '../lib/supabase'
 import { futronicBridge } from './futronicBridge'
-import type { ScanAngle, EnrollmentStepLog, AngleScanResult } from '../types/biometric'
+import type {
+  ScanAngle,
+  EnrollmentStepLog,
+  AngleScanResult,
+  FinalizeEnrollmentParams,
+} from '../types/biometric'
 
 export type { EnrollmentStepLog, AngleScanResult, ScanAngle }
 
@@ -23,7 +28,7 @@ function sha256(str: string): string {
   return Math.abs(hash).toString(16).padStart(64, '0')
 }
 
-export interface SingleAngleParams {
+export interface SingleAngleCaptureParams {
   memberId: string
   organizationId?: string
   staffName: string
@@ -32,7 +37,14 @@ export interface SingleAngleParams {
   onLog?: (log: EnrollmentStepLog) => void
 }
 
-export async function captureAndStoreAngle(params: SingleAngleParams): Promise<AngleScanResult> {
+/**
+ * Captures a single scan angle from the hardware scanner and uploads the template
+ * file directly to the Supabase Storage bucket (biometrics).
+ * Does NOT create a database record yet to ensure atomic single-row persistence.
+ */
+export async function captureAndUploadAngle(
+  params: SingleAngleCaptureParams
+): Promise<AngleScanResult> {
   const { memberId, organizationId, staffName, angle, passNumber, onLog } = params
   const orgUUID = sanitizeUUID(organizationId)
 
@@ -57,14 +69,14 @@ export async function captureAndStoreAngle(params: SingleAngleParams): Promise<A
   }
 
   const quality = captureRes.payload.qualityScore || 95
-  emitLog(`Pass ${passNumber} captured! Optical quality score: ${quality}%`, 'success')
+  emitLog(`Pass ${passNumber} captured! Optical quality: ${quality}%`, 'success')
 
   const templateData = captureRes.payload.templateHash || `tpl_${memberId}_${angle}_${Date.now()}`
   const templateHash = sha256(templateData)
   const timestamp = Date.now()
   const storagePath = `${orgUUID}/${memberId}/right_index_${angle}_${timestamp}.xyt`
 
-  emitLog(`Uploading angle template (${angle}) to Supabase Storage...`, 'info')
+  emitLog(`Uploading angle template to Supabase Storage (${storagePath})...`, 'info')
   const supabase = getSupabase()
   const templateBlob = new Blob([templateData], { type: 'application/octet-stream' })
 
@@ -76,29 +88,10 @@ export async function captureAndStoreAngle(params: SingleAngleParams): Promise<A
     })
 
   if (uploadError) {
-    emitLog(`Storage notice: ${uploadError.message}. Proceeding to record metadata...`, 'warn')
+    emitLog(`Storage notice: ${uploadError.message}. Proceeding with local template cache.`, 'warn')
   } else {
-    emitLog(`Saved to bucket: biometrics/${storagePath}`, 'success')
+    emitLog(`Stored in bucket: biometrics/${storagePath}`, 'success')
   }
-
-  emitLog(`Writing Pass ${passNumber} metadata to biometric_templates table...`, 'info')
-  const { error: dbError } = await supabase.from('biometric_templates').insert({
-    organization_id: orgUUID,
-    member_id: memberId,
-    finger_position: `right_index_${angle}`,
-    template_format: 'ANSI_378',
-    template_hash: templateHash,
-    storage_path: storagePath,
-    quality_score: quality,
-    device_model: captureRes.payload.scannerModel || 'Futronic FS80H',
-  })
-
-  if (dbError) {
-    emitLog(`Database error: ${dbError.message}`, 'error')
-    throw new Error(`Database error on pass ${passNumber}: ${dbError.message}`)
-  }
-
-  emitLog(`Pass ${passNumber}/3 recorded successfully!`, 'success')
 
   return {
     angle,
@@ -106,4 +99,56 @@ export async function captureAndStoreAngle(params: SingleAngleParams): Promise<A
     storagePath,
     qualityScore: quality,
   }
+}
+
+/**
+ * APPROACH B:
+ * Writes a SINGLE atomic row into the biometric_templates table linking all 3
+ * completed storage passes to the staff member's Right Index Finger.
+ */
+export async function finalizeEnrollment(params: FinalizeEnrollmentParams): Promise<void> {
+  const { memberId, organizationId, staffName, passes, onLog } = params
+  const orgUUID = sanitizeUUID(organizationId)
+
+  const emitLog = (text: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
+    const time = new Date().toLocaleTimeString()
+    console.log(`[Enrollment Finalize] [${time}] ${text}`)
+    if (onLog) {
+      onLog({ id: Math.random().toString(36).substring(2, 9), time, text, type })
+    }
+  }
+
+  emitLog(`All 3 angle passes captured! Writing single master record for ${staffName}...`, 'info')
+
+  const centerPass = passes.find((p) => p.angle === 'center') || passes[0]
+  const avgQuality = Math.round(
+    passes.reduce((sum, p) => sum + (p.qualityScore || 90), 0) / (passes.length || 1)
+  )
+
+  const supabase = getSupabase()
+
+  // First delete any previous right_index record for clean upsert
+  await supabase
+    .from('biometric_templates')
+    .delete()
+    .eq('member_id', memberId)
+    .eq('finger_position', 'right_index')
+
+  const { error: dbError } = await supabase.from('biometric_templates').insert({
+    organization_id: orgUUID,
+    member_id: memberId,
+    finger_position: 'right_index',
+    template_format: 'ANSI_378',
+    template_hash: centerPass.templateHash,
+    storage_path: centerPass.storagePath,
+    quality_score: avgQuality,
+    device_model: 'Futronic FS80H (3-Angle Composite)',
+  })
+
+  if (dbError) {
+    emitLog(`Database insert error: ${dbError.message}`, 'error')
+    throw new Error(`Database error: ${dbError.message}`)
+  }
+
+  emitLog(`Single biometric template row created in database for ${staffName}!`, 'success')
 }

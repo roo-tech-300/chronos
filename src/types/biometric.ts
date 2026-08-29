@@ -21,6 +21,14 @@ export interface AngleScanResult {
   qualityScore: number
 }
 
+export interface FinalizeEnrollmentParams {
+  memberId: string
+  organizationId?: string
+  staffName: string
+  passes: AngleScanResult[]
+  onLog?: (log: EnrollmentStepLog) => void
+}
+
 export interface MultiPassEnrollmentResult {
   success: boolean
   passes: AngleScanResult[]

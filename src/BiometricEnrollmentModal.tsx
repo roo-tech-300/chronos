@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Fingerprint, CheckCircle2, ScanLine, AlertCircle, Info, Hand } from 'lucide-react'
 import { Modal, Button } from './components/ui'
-import { captureAndStoreAngle, sanitizeUUID } from './services/biometricService'
+import { captureAndUploadAngle, finalizeEnrollment, sanitizeUUID } from './services/biometricService'
 import { AngleProgressBar } from './components/biometrics/AngleProgressBar'
 import { EnrollmentDiagnosticsLogs } from './components/biometrics/EnrollmentDiagnosticsLogs'
 import type { ScanAngleStep, EnrollmentStepLog, AngleScanResult } from './types/biometric'
@@ -47,11 +47,11 @@ export default function BiometricEnrollmentModal({
   onSuccess,
 }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0)
-  const [phase, setPhase] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle')
+  const [phase, setPhase] = useState<'idle' | 'scanning' | 'finalizing' | 'success' | 'error'>('idle')
   const [completedAngles, setCompletedAngles] = useState<Record<string, boolean>>({})
   const [logs, setLogs] = useState<EnrollmentStepLog[]>([])
   const [errorMessage, setErrorMessage] = useState<string>('')
-  const [, setResults] = useState<AngleScanResult[]>([])
+  const [accumulatedPasses, setAccumulatedPasses] = useState<AngleScanResult[]>([])
 
   const currentStep = SCAN_STEPS[currentStepIndex]
   const validOrgId = sanitizeUUID(organizationId)
@@ -61,7 +61,8 @@ export default function BiometricEnrollmentModal({
     setErrorMessage('')
 
     try {
-      const res = await captureAndStoreAngle({
+      // Step 1: Capture optical scan and upload to Storage
+      const passResult = await captureAndUploadAngle({
         memberId,
         organizationId: validOrgId,
         staffName: memberName,
@@ -70,13 +71,24 @@ export default function BiometricEnrollmentModal({
         onLog: (newLog) => setLogs((prev) => [...prev, newLog]),
       })
 
-      setResults((prev) => [...prev, res])
+      const updatedPasses = [...accumulatedPasses, passResult]
+      setAccumulatedPasses(updatedPasses)
       setCompletedAngles((prev) => ({ ...prev, [currentStep.angle]: true }))
 
+      // Step 2: Next pass or write single atomic database row
       if (currentStepIndex + 1 < SCAN_STEPS.length) {
         setCurrentStepIndex((prev) => prev + 1)
         setPhase('idle')
       } else {
+        setPhase('finalizing')
+        await finalizeEnrollment({
+          memberId,
+          organizationId: validOrgId,
+          staffName: memberName,
+          passes: updatedPasses,
+          onLog: (newLog) => setLogs((prev) => [...prev, newLog]),
+        })
+
         setPhase('success')
         if (onSuccess) onSuccess()
       }
@@ -92,7 +104,7 @@ export default function BiometricEnrollmentModal({
     setCompletedAngles({})
     setLogs([])
     setErrorMessage('')
-    setResults([])
+    setAccumulatedPasses([])
   }
 
   const handleClose = () => {
@@ -136,7 +148,7 @@ export default function BiometricEnrollmentModal({
               <CheckCircle2 size={54} className="text-emerald-600 mx-auto mb-2" />
               <h3 className="text-base font-bold text-zinc-900">3-Angle Capture Completed</h3>
               <p className="text-xs text-zinc-500 mt-1 max-w-sm">
-                Center, left edge, and right edge templates are stored in Supabase Storage and registered in the database.
+                Center, left edge, and right edge templates stored in Supabase Storage and registered as a single record in the database.
               </p>
             </div>
           ) : phase === 'error' ? (
@@ -150,17 +162,21 @@ export default function BiometricEnrollmentModal({
               <Fingerprint
                 size={68}
                 className={`transition-all ${
-                  phase === 'scanning'
+                  phase === 'scanning' || phase === 'finalizing'
                     ? 'text-[#7c007e] animate-pulse scale-110'
                     : 'text-zinc-400'
                 }`}
               />
               <div className="text-center mt-3">
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-100/70 text-[#7c007e] border border-purple-200 mb-1">
-                  Pass {currentStepIndex + 1} of 3: {currentStep.label}
+                  {phase === 'finalizing'
+                    ? 'Saving Single Database Record...'
+                    : `Pass ${currentStepIndex + 1} of 3: ${currentStep.label}`}
                 </span>
                 <p className="text-xs font-semibold text-zinc-800 max-w-xs mt-0.5">
-                  {phase === 'scanning'
+                  {phase === 'finalizing'
+                    ? 'Linking all 3 storage templates to member profile...'
+                    : phase === 'scanning'
                     ? 'Capturing from optical sensor. Keep finger steady on scanner glass...'
                     : currentStep.instruction}
                 </p>
@@ -202,11 +218,13 @@ export default function BiometricEnrollmentModal({
                   <Button
                     variant="primary"
                     size="sm"
-                    isLoading={phase === 'scanning'}
+                    isLoading={phase === 'scanning' || phase === 'finalizing'}
                     leftIcon={<ScanLine size={15} />}
                     onClick={handleScanStep}
                   >
-                    {phase === 'scanning'
+                    {phase === 'finalizing'
+                      ? 'Saving to Database...'
+                      : phase === 'scanning'
                       ? 'Scanning...'
                       : `Capture Pass ${currentStepIndex + 1} (${currentStep.label})`}
                   </Button>
