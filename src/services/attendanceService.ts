@@ -22,14 +22,14 @@ const recentScansDebounce = new Map<string, number>()
 export async function getLastScanToday(memberId: string): Promise<AttendanceLog | null> {
   try {
     const supabase = getSupabase()
-    const validMemberUuid = ensureValidUuid(memberId)
+    const validMemberId = (memberId || '').trim()
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
 
     const { data, error } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('member_id', validMemberUuid)
+      .eq('member_id', validMemberId)
       .gte('scan_timestamp', startOfDay.toISOString())
       .order('scan_timestamp', { ascending: false })
       .limit(1)
@@ -91,26 +91,30 @@ export async function logAttendanceScan(
   }
 
   const direction = await determineDirection(memberId, explicitDirection)
-  const orgUUID = ensureValidUuid(organizationId, 'f1bad42f-69ef-40d1-965c-780833890b2f')
-  const memberUUID = ensureValidUuid(memberId, '2f158922-80a3-4722-b7c6-c7ec97d70ca0')
+  const orgUUID = ensureValidUuid(organizationId, '00000000-0000-0000-0000-000000000000')
+  const cleanMemberId = (memberId || '').trim()
+  const cleanTerminalId = (terminalId || '5af3f6a1-ff4a-4591-8752-e14cd953e6c2').trim()
   const scanIso = new Date(now).toISOString()
+
+  // Exact DDL schema payload
+  const insertPayload = {
+    organization_id: orgUUID,
+    member_id: cleanMemberId,
+    terminal_id: cleanTerminalId,
+    direction: direction, // 'in' | 'out'
+    scan_timestamp: scanIso,
+    verification_mode: verificationMode,
+    confidence_score: Math.round(confidenceScore),
+    status: 'verified', // 'verified' | 'flagged' | 'manual_override'
+  }
 
   try {
     const supabase = getSupabase()
 
-    // 1. Insert into attendance_logs (Strict column schema matching remote DB)
+    // Insert into attendance_logs matching table DDL
     const { data, error } = await supabase
       .from('attendance_logs')
-      .insert({
-        organization_id: orgUUID,
-        member_id: memberUUID,
-        terminal_id: terminalId,
-        direction,
-        scan_timestamp: scanIso,
-        verification_mode: verificationMode,
-        confidence_score: confidenceScore,
-        status: 'verified',
-      })
+      .insert(insertPayload)
       .select()
       .single()
 
@@ -118,13 +122,12 @@ export async function logAttendanceScan(
 
     if (error) {
       console.warn('[Attendance] Supabase insert warning (RLS or policy):', error.message)
-      // Provide detailed logging to help diagnose
       const syntheticLog: AttendanceLog = {
         id: `att_${now}`,
         organizationId: orgUUID,
-        memberId: memberUUID,
+        memberId: cleanMemberId,
         staffName,
-        terminalId,
+        terminalId: cleanTerminalId,
         direction,
         scanTimestamp: scanIso,
         verificationMode,

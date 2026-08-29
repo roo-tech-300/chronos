@@ -44,10 +44,24 @@ export interface ScannerHardwareStatus {
   error?: string
 }
 
-export interface BiometricCapturePayload {
-  templateHash: string
-  qualityScore: number
-  scannerModel: string
-  capturedAt: string
+export interface NodeBridgeMatch {
+  id: string
+  name?: string
+  department?: string
+  role?: string
+  confidence?: number
+  score?: number
 }
 
+export interface BiometricCapturePayload {
+  event?: string
+  matched?: boolean
+  match?: NodeBridgeMatch
+  templateHash?: string
+  qualityScore?: number
+  scannerModel?: string
+  capturedAt?: string
+  status?: string
+  error?: string
+  message?: string
+}

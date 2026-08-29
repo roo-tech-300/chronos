@@ -7,41 +7,44 @@ interface DatabaseSyncHelpModalProps {
 }
 
 const SUPABASE_SQL_MIGRATION = `-- =========================================================
--- CHRONOS: ENABLE BIOMETRIC ATTENDANCE LOGGING IN SUPABASE
+-- CHRONOS: ENABLE ATTENDANCE LOGGING & RLS IN SUPABASE
 -- Run this in your Supabase Project -> SQL Editor
 -- =========================================================
 
--- 1. Create table if not exists
+-- 1. Create table matching exact DDL schema
 CREATE TABLE IF NOT EXISTS public.attendance_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL,
-    member_id UUID NOT NULL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'::UUID,
+    member_id TEXT NOT NULL,
     terminal_id TEXT NOT NULL,
-    direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
-    scan_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    verification_mode TEXT NOT NULL DEFAULT 'biometric_fs80h',
+    direction TEXT NOT NULL,
+    scan_timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    verification_mode TEXT NOT NULL DEFAULT 'biometric_fs80h'::TEXT,
     confidence_score INTEGER NOT NULL DEFAULT 98,
-    status TEXT NOT NULL DEFAULT 'verified',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    status TEXT NOT NULL DEFAULT 'verified'::TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT attendance_logs_pkey PRIMARY KEY (id),
+    CONSTRAINT attendance_logs_direction_check CHECK (
+        (direction = ANY (ARRAY['in'::TEXT, 'out'::TEXT]))
+    ),
+    CONSTRAINT attendance_logs_status_check CHECK (
+        (status = ANY (ARRAY['verified'::TEXT, 'flagged'::TEXT, 'manual_override'::TEXT]))
+    )
 );
 
--- 2. Enable Row Level Security (RLS)
+-- 2. Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_attendance_member_day ON public.attendance_logs USING btree (member_id, scan_timestamp desc);
+CREATE INDEX IF NOT EXISTS idx_attendance_org_time ON public.attendance_logs USING btree (organization_id, scan_timestamp desc);
+CREATE INDEX IF NOT EXISTS idx_attendance_member_time ON public.attendance_logs USING btree (member_id, scan_timestamp desc);
+CREATE INDEX IF NOT EXISTS idx_attendance_terminal_time ON public.attendance_logs USING btree (terminal_id, scan_timestamp desc);
+
+-- 3. Enable Row Level Security (RLS)
 ALTER TABLE public.attendance_logs ENABLE ROW LEVEL SECURITY;
 
--- 3. Allow Kiosk Terminals & Authenticated Users to Insert & Read Logs
+-- 4. Allow Terminals and Users to insert and query attendance logs
 DROP POLICY IF EXISTS "Allow public attendance scan inserts" ON public.attendance_logs;
 CREATE POLICY "Allow public attendance scan inserts"
     ON public.attendance_logs
-    FOR ALL
-    TO anon, authenticated
-    USING (true)
-    WITH CHECK (true);
-
--- 4. Allow Biometric Templates read & write
-ALTER TABLE public.biometric_templates ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow biometric templates access" ON public.biometric_templates;
-CREATE POLICY "Allow biometric templates access"
-    ON public.biometric_templates
     FOR ALL
     TO anon, authenticated
     USING (true)
@@ -72,8 +75,8 @@ export function DatabaseSyncHelpModal({ isOpen, onClose }: DatabaseSyncHelpModal
               <Database size={18} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-zinc-900">Database Persistence Setup</h2>
-              <p className="text-xs text-zinc-500">Supabase Table Schema & RLS Policy</p>
+              <h2 className="text-base font-bold text-zinc-900">Database Schema & RLS</h2>
+              <p className="text-xs text-zinc-500">public.attendance_logs</p>
             </div>
           </div>
           <button
@@ -89,12 +92,12 @@ export function DatabaseSyncHelpModal({ isOpen, onClose }: DatabaseSyncHelpModal
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-start gap-3 text-xs text-amber-900">
             <ShieldAlert size={16} className="text-amber-700 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Supabase Row-Level Security:</span> To allow hardware terminal kiosks to save scans directly into Supabase without blocking on RLS, run this SQL script in your Supabase SQL Editor once.
+              <span className="font-bold">Row-Level Security (RLS) Policy:</span> Run the policy script in your Supabase SQL Editor to allow the kiosk to insert verified scan rows.
             </div>
           </div>
 
           <div className="relative">
-            <pre className="p-4 rounded-2xl bg-zinc-900 text-zinc-200 font-mono text-[11px] max-h-48 overflow-y-auto leading-relaxed select-all">
+            <pre className="p-4 rounded-2xl bg-zinc-900 text-zinc-200 font-mono text-[11px] max-h-52 overflow-y-auto leading-relaxed select-all">
               {SUPABASE_SQL_MIGRATION}
             </pre>
             <button
@@ -114,7 +117,7 @@ export function DatabaseSyncHelpModal({ isOpen, onClose }: DatabaseSyncHelpModal
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-bold text-white transition-colors cursor-pointer"
           >
-            Got it, thanks
+            Close
           </button>
         </div>
       </div>
