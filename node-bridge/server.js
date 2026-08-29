@@ -105,17 +105,10 @@ app.post("/api/scanner/identify", async (_req, res) => {
 // Query physical Futronic USB scanner hardware status
 app.get("/api/scanner/status", async (_req, res) => {
   try {
-    console.log("Checking for hardware connection");
     const { checkDevice } = require("./src/scannerService");
     const status = await checkDevice();
-    if (status.connected) {
-      console.log("Found the device plugged in");
-    } else {
-      console.log("No device plugged");
-    }
     res.json({ success: true, ...status });
   } catch (err) {
-    console.log("No device plugged");
     res.json({
       success: false,
       connected: false,
@@ -197,8 +190,6 @@ app.post("/api/scanner/sync-template", (req, res) => {
 
 // Health + info for the frontend to discover the bridge
 app.get("/api/health", (_req, res) => {
-  console.log("Checking if server is active");
-  console.log("server is active");
   res.json({
     ok: true,
     dataDir: store.DATA_DIR,

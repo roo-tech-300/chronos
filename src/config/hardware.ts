@@ -35,7 +35,7 @@ export const HARDWARE_CONFIG: HardwareBridgeConfig = {
   capturePath: '/api/scanner/enroll',
   statusPath: '/api/scanner/status',
   timeoutMs: 3500,
-  pollIntervalMs: 1500,
+  pollIntervalMs: 30000,
   autoResetDelayMs: 3000,
 }
 
