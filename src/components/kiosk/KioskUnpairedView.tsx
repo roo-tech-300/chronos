@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Laptop, ShieldAlert, QrCode, ArrowRight, AlertTriangle, Code2 } from 'lucide-react'
+import { Laptop, ShieldAlert, QrCode, ArrowRight, AlertTriangle, Code2, ArrowLeft } from 'lucide-react'
+import { Button } from '../ui'
 
 interface KioskUnpairedViewProps {
   canBecomeTerminal: boolean
@@ -15,77 +16,102 @@ export function KioskUnpairedView({
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-between p-6 sm:p-12 font-sans selection:bg-[#7c007e]/30">
+    <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex flex-col items-center justify-between p-6 sm:p-12 font-sans select-none">
+      {/* Top Bar */}
       <div className="w-full max-w-xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-            <Laptop size={20} className="text-zinc-400" />
+          <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-[#7c007e] shadow-xs">
+            <Laptop size={20} />
           </div>
-          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
-            Chronos Hardware Terminal
-          </span>
+          <div>
+            <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider block">
+              Chronos Hardware Terminal
+            </span>
+            <span className="text-[11px] text-zinc-400">Autonomous Scanning Station</span>
+          </div>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => navigate('/devices')}
-          className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+          leftIcon={<ArrowLeft size={14} />}
         >
           Admin Dashboard
-        </button>
+        </Button>
       </div>
 
-      <div className="w-full max-w-md bg-white/[0.03] border border-white/10 rounded-3xl p-8 sm:p-10 backdrop-blur-xl text-center shadow-2xl">
+      {/* Main Card */}
+      <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-8 sm:p-10 shadow-lg shadow-zinc-900/5 text-center">
         {!canBecomeTerminal ? (
           <>
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto mb-5">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto mb-5 shadow-xs">
               <AlertTriangle size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Windows Desktop App Required</h2>
-            <p className="text-xs text-zinc-400 leading-relaxed mb-6">
-              This terminal scanner is running in a standard web browser. Hardware biometric stations require the native Chronos Windows desktop application (Tauri) to interface with the Futronic FS80H scanner.
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold uppercase tracking-wider mb-3">
+              <AlertTriangle size={13} />
+              <span>Windows App Required</span>
+            </div>
+            <h2 className="text-2xl font-extrabold text-zinc-900 tracking-tight mb-2">
+              Desktop Shell Required
+            </h2>
+            <p className="text-xs text-zinc-600 leading-relaxed mb-6">
+              This terminal scanner is running in a web browser. Hardware biometric scanning stations require the native Chronos Windows desktop application (Tauri) to interface with the Futronic FS80H scanner.
             </p>
             <div className="space-y-3">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full justify-center"
                 onClick={() => navigate('/devices')}
-                className="w-full h-12 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm tracking-wide border border-white/15 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>Go to Admin Devices</span>
-              </button>
-              <button
-                type="button"
-                onClick={onToggleDevBypass}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 hover:text-purple-400 transition-colors cursor-pointer"
-              >
-                <Code2 size={13} />
-                <span>{devBypassActive ? 'Disable Dev Simulation' : 'Developer: Simulate Windows Shell'}</span>
-              </button>
+                Go to Admin Devices
+              </Button>
+              <div className="pt-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={onToggleDevBypass}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 hover:text-purple-700 transition-colors cursor-pointer"
+                >
+                  <Code2 size={13} />
+                  <span>{devBypassActive ? 'Disable Dev Simulation' : 'Developer: Simulate Windows Shell'}</span>
+                </button>
+              </div>
             </div>
           </>
         ) : (
           <>
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto mb-5">
+            <div className="w-16 h-16 rounded-2xl bg-purple-50 text-[#7c007e] border border-purple-100 flex items-center justify-center mx-auto mb-5 shadow-xs">
               <ShieldAlert size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Unpaired Terminal Station</h2>
-            <p className="text-xs text-zinc-400 leading-relaxed mb-8">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-[#7c007e] border border-purple-100 text-xs font-bold uppercase tracking-wider mb-3">
+              <ShieldAlert size={13} />
+              <span>Device Not Paired</span>
+            </div>
+            <h2 className="text-2xl font-extrabold text-zinc-900 tracking-tight mb-2">
+              Unpaired Terminal Station
+            </h2>
+            <p className="text-xs text-zinc-600 leading-relaxed mb-8">
               This desktop machine has not been paired with a permanent Chronos hardware station token. An administrator must pair this device before it can record attendance.
             </p>
 
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full justify-center"
+              leftIcon={<QrCode size={18} />}
+              rightIcon={<ArrowRight size={16} />}
               onClick={() => navigate('/terminal/pair')}
-              className="w-full h-12 rounded-xl bg-[#7c007e] hover:bg-[#8c008e] text-white font-bold text-sm tracking-wide shadow-lg shadow-[#7c007e]/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <QrCode size={18} />
-              <span>Pair This Machine</span>
-              <ArrowRight size={16} />
-            </button>
+              Pair This Machine
+            </Button>
           </>
         )}
       </div>
 
-      <div className="text-xs text-zinc-600">Chronos Autonomous Terminal Engine</div>
+      {/* Footer */}
+      <div className="text-xs text-zinc-400 font-medium">
+        Chronos Autonomous Terminal Engine • Secure Hardware Verification
+      </div>
     </div>
   )
 }

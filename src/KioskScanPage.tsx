@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserCheck } from 'lucide-react'
+import { ShieldCheck, LogOut } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
 import { KioskHeader } from './components/kiosk/KioskHeader'
@@ -62,10 +62,10 @@ export default function KioskScanPage() {
   // If loading local credentials
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-[#7c007e] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-zinc-400 font-medium tracking-wide">Validating Terminal Credentials...</p>
+          <div className="w-10 h-10 border-3 border-[#7c007e] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-zinc-500 font-semibold tracking-wide">Validating Terminal Station...</p>
         </div>
       </div>
     )
@@ -82,9 +82,9 @@ export default function KioskScanPage() {
     )
   }
 
-  // PAIRED KIOSK INTERFACE (RUNNING IN TAURI / WINDOWS APP)
+  // PAIRED KIOSK INTERFACE (CLEAN CHRONOS DESIGN SYSTEM)
   return (
-    <div className="min-h-screen bg-[#070709] text-white flex flex-col justify-between p-6 sm:p-10 select-none font-sans">
+    <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex flex-col justify-between p-6 sm:p-10 select-none font-sans">
       <KioskHeader
         terminal={terminal}
         isWindowsApp={isWindowsApp}
@@ -93,7 +93,7 @@ export default function KioskScanPage() {
       />
 
       {/* Centerpiece Scanner / Confirmation Feed */}
-      <main className="w-full max-w-lg mx-auto text-center my-auto">
+      <main className="w-full max-w-lg mx-auto text-center my-auto py-6">
         {scanStatus === 'success' && lastScannedStaff ? (
           <KioskSuccessCard staff={lastScannedStaff} />
         ) : (
@@ -106,19 +106,20 @@ export default function KioskScanPage() {
       </main>
 
       {/* Footer Details */}
-      <footer className="w-full flex items-center justify-between text-xs text-zinc-500">
+      <footer className="w-full max-w-5xl mx-auto flex items-center justify-between text-xs text-zinc-500 pt-4 border-t border-zinc-200/80">
         <div className="flex items-center gap-2">
-          <UserCheck size={15} className="text-zinc-400" />
+          <ShieldCheck size={16} className="text-[#7c007e]" />
           <span>
-            Terminal ID: <span className="font-mono text-zinc-300">{terminal.id}</span>
+            Station ID: <span className="font-mono font-bold text-zinc-700">{terminal.id}</span>
           </span>
         </div>
         <button
           type="button"
           onClick={() => navigate('/devices')}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
         >
-          Exit Kiosk Mode
+          <LogOut size={13} />
+          <span>Exit Kiosk Mode</span>
         </button>
       </footer>
 
