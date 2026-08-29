@@ -24,7 +24,7 @@ export function useFutronicBridge() {
     try {
       const health = await futronicBridge.checkBridgeHealth()
       setIsBridgeOnline(health.isOnline)
-      setBridgeVersion(health.version)
+      setBridgeVersion(health.appName)
 
       if (health.isOnline) {
         const scanner = await futronicBridge.getScannerStatus()
