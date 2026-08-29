@@ -14,11 +14,9 @@ dist-ssr
 *.local
 
 # Tauri / Rust Build Output
-# Tauri / Rust Build Output
 src-tauri/target/
 # Tauri auto-generated schemas (regenerated on every build)
 src-tauri/gen/schemas/
-src-tauri/target/
 
 # Editor directories and files
 .vscode/*
