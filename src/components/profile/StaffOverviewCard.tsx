@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import {
-  Fingerprint, Pencil, History,
+  Fingerprint, History,
   Server, Building2, Building, LogOut, DoorOpen, Shield,
 } from 'lucide-react'
 import { Button } from '../ui'
@@ -8,8 +8,8 @@ import type { ScanActivity } from '../../dummy/profile-mock'
 
 interface StaffOverviewCardProps {
   activities?: ScanActivity[]
+  canEnroll?: boolean
   onEnrollFingerprint: () => void
-  onEditDetails?: () => void
   onDownloadLog?: () => void
 }
 
@@ -32,8 +32,8 @@ const DEFAULT_ACTIVITIES: ScanActivity[] = [
 
 export default function StaffOverviewCard({
   activities = DEFAULT_ACTIVITIES,
+  canEnroll = false,
   onEnrollFingerprint,
-  onEditDetails,
   onDownloadLog,
 }: StaffOverviewCardProps) {
   const displayActivities = activities.length > 0 ? activities : DEFAULT_ACTIVITIES
@@ -44,22 +44,16 @@ export default function StaffOverviewCard({
       <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-white">
         <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Overview & Activity</h2>
         <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<Fingerprint size={16} />}
-            onClick={onEnrollFingerprint}
-          >
-            Enroll Fingerprint
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            leftIcon={<Pencil size={16} />}
-            onClick={onEditDetails}
-          >
-            Edit Details
-          </Button>
+          {canEnroll && (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Fingerprint size={16} />}
+              onClick={onEnrollFingerprint}
+            >
+              Enroll Fingerprint
+            </Button>
+          )}
         </div>
       </div>
 

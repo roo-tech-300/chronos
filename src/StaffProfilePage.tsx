@@ -5,6 +5,8 @@ import { getInitials } from './dummy/roster-mock'
 import { useAuth } from './context/useAuth'
 import { useWorkspace } from './context/useWorkspace'
 import { useStaffProfile } from './hooks/useStaffProfile'
+import { useTerminalAuth } from './hooks/useTerminalAuth'
+import { useTauriEnvironment } from './hooks/useTauriEnvironment'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
 import AppNavbar from './components/layout/AppNavbar'
 import StaffOverviewCard from './components/profile/StaffOverviewCard'
@@ -16,7 +18,12 @@ export default function StaffProfilePage() {
   const { workspaceId, staffId } = useParams<{ workspaceId?: string; staffId: string }>()
   const { profile: authProfile } = useAuth()
   const { accentColor } = useWorkspace()
+  const { isPaired } = useTerminalAuth()
+  const { isWindowsApp, canBecomeTerminal } = useTauriEnvironment()
   const [enrollOpen, setEnrollOpen] = useState(false)
+
+  // A machine is only authorized to capture biometrics if it is a paired terminal / hardware desktop app
+  const isTerminalDevice = Boolean(isPaired && isWindowsApp && canBecomeTerminal)
 
   const { data: profile, isLoading } = useStaffProfile(staffId, workspaceId)
 
@@ -68,21 +75,23 @@ export default function StaffProfilePage() {
           <div className="profile-col-right">
             <StaffOverviewCard
               activities={profile?.activities}
+              canEnroll={isTerminalDevice}
               onEnrollFingerprint={() => setEnrollOpen(true)}
-              onEditDetails={() => {}}
               onDownloadLog={() => {}}
             />
           </div>
         </div>
       </main>
 
-      <BiometricEnrollmentModal
-        open={enrollOpen}
-        onClose={() => setEnrollOpen(false)}
-        memberId={staffId}
-        memberName={displayName}
-        organizationId={workspaceId || 'default-org'}
-      />
+      {isTerminalDevice && (
+        <BiometricEnrollmentModal
+          open={enrollOpen}
+          onClose={() => setEnrollOpen(false)}
+          memberId={staffId}
+          memberName={displayName}
+          organizationId={workspaceId || '00000000-0000-0000-0000-000000000000'}
+        />
+      )}
 
       <footer className="profile-footer">
         <div className="profile-footer-inner">

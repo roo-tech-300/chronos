@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { ShieldCheck, LogOut } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
@@ -7,12 +7,11 @@ import { KioskHeader } from './components/kiosk/KioskHeader'
 import { KioskScanSensor } from './components/kiosk/KioskScanSensor'
 import { KioskSuccessCard } from './components/kiosk/KioskSuccessCard'
 import { KioskUnpairModal } from './components/kiosk/KioskUnpairModal'
-import { KioskUnpairedView } from './components/kiosk/KioskUnpairedView'
 
 export default function KioskScanPage() {
   const navigate = useNavigate()
   const { terminal, isPaired, isLoading, unpairDevice } = useTerminalAuth()
-  const { isWindowsApp, canBecomeTerminal, devBypassActive, toggleDevBypass } = useTauriEnvironment()
+  const { isWindowsApp, canBecomeTerminal, devBypassActive } = useTauriEnvironment()
 
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success'>('idle')
   const [lastScannedStaff, setLastScannedStaff] = useState<{
@@ -71,15 +70,10 @@ export default function KioskScanPage() {
     )
   }
 
-  // IF UNPAIRED MACHINE OR BROWSER GATE
+  // Strictly block any regular laptop/web browser that is NOT an authorized paired terminal
+  // Redirect back to dashboard instead of allowing kiosk entry
   if (!isPaired || !terminal || !canBecomeTerminal) {
-    return (
-      <KioskUnpairedView
-        canBecomeTerminal={canBecomeTerminal}
-        devBypassActive={devBypassActive}
-        onToggleDevBypass={toggleDevBypass}
-      />
-    )
+    return <Navigate to="/dashboard" replace />
   }
 
   // PAIRED KIOSK INTERFACE (CLEAN CHRONOS DESIGN SYSTEM)
