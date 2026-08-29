@@ -39,7 +39,19 @@ class FutronicBridgeService {
   private activeWs: WebSocket | null = null
   private eventListeners: Set<(payload: BiometricCapturePayload) => void> = new Set()
   private statusListeners: Set<(status: ScannerHardwareStatus) => void> = new Set()
+  private logListeners: Set<(log: string) => void> = new Set()
   private isListeningToWs = false
+
+  private log(message: string) {
+    console.log(`[Futronic] ${message}`)
+    this.logListeners.forEach((fn) => {
+      try {
+        fn(message)
+      } catch (err) {
+        console.error(err)
+      }
+    })
+  }
 
   /**
    * Helper to perform timeout-safe HTTP requests to the local Node bridge
@@ -82,14 +94,17 @@ class FutronicBridgeService {
    * Checks if the Node Bridge process is running and answering health checks
    */
   async checkBridgeHealth(): Promise<{ isOnline: boolean; appName?: string; error?: string }> {
+    this.log('Checking if server is active')
     const res = await this.requestWithTimeout<{ ok?: boolean; app?: string }>(HARDWARE_CONFIG.healthPath)
     if (!res.ok || !res.data) {
+      this.log('Server is not active')
       return {
         isOnline: false,
         error: res.error || 'Cannot connect to local Futronic Node Bridge service on 127.0.0.1',
       }
     }
 
+    this.log('Server is active')
     return {
       isOnline: true,
       appName: res.data.app || 'Futronic Fingerprint Scanner Bridge',
@@ -100,6 +115,7 @@ class FutronicBridgeService {
    * Queries the Node Bridge for physical Futronic FS80H USB scanner state
    */
   async getScannerStatus(): Promise<ScannerHardwareStatus> {
+    this.log('Checking for hardware connection')
     const res = await this.requestWithTimeout<{
       connected?: boolean
       model?: string
@@ -110,6 +126,11 @@ class FutronicBridgeService {
 
     if (res.ok && res.data) {
       const isConnected = Boolean(res.data.connected)
+      if (isConnected) {
+        this.log('Found the device plugged in')
+      } else {
+        this.log('No device plugged')
+      }
       return {
         isConnected,
         deviceModel: res.data.model || 'Futronic FS80H USB Scanner',
@@ -122,6 +143,7 @@ class FutronicBridgeService {
     // Fallback: If older running node-bridge doesn't have /status yet, probe /api/scanner/templates
     const fallbackRes = await this.requestWithTimeout<{ studentIds?: string[] }>('/api/scanner/templates')
     if (fallbackRes.ok && fallbackRes.data) {
+      this.log('Found the device plugged in')
       return {
         isConnected: true,
         deviceModel: 'Futronic FS80H (Legacy Bridge Active)',
@@ -131,6 +153,7 @@ class FutronicBridgeService {
       }
     }
 
+    this.log('No device plugged')
     return {
       isConnected: false,
       deviceModel: 'Futronic FS80H (Bridge Offline)',
@@ -264,6 +287,11 @@ class FutronicBridgeService {
   onStatusEvent(cb: (status: ScannerHardwareStatus) => void): () => void {
     this.statusListeners.add(cb)
     return () => this.statusListeners.delete(cb)
+  }
+
+  onLogEvent(cb: (log: string) => void): () => void {
+    this.logListeners.add(cb)
+    return () => this.logListeners.delete(cb)
   }
 
   private notifyEventListeners(payload: BiometricCapturePayload) {

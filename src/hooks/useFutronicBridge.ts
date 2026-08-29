@@ -18,6 +18,23 @@ export function useFutronicBridge() {
   const [isCapturing, setIsCapturing] = useState<boolean>(false)
   const [lastCapture, setLastCapture] = useState<BiometricCapturePayload | null>(null)
   const [currentPort, setCurrentPort] = useState<number>(() => getHardwareBridgePort())
+  const [logs, setLogs] = useState<Array<{ id: string; time: string; text: string; type: 'info' | 'success' | 'warn' | 'error' }>>([])
+
+  useEffect(() => {
+    const unsubLog = futronicBridge.onLogEvent((text) => {
+      const now = new Date().toLocaleTimeString()
+      let type: 'info' | 'success' | 'warn' | 'error' = 'info'
+      if (text.includes('active') && !text.includes('not active')) type = 'success'
+      else if (text.includes('Found the device plugged in')) type = 'success'
+      else if (text.includes('No device plugged') || text.includes('not active')) type = 'warn'
+
+      setLogs((prev) => [
+        { id: Math.random().toString(36).substring(2, 9), time: now, text, type },
+        ...prev.slice(0, 24),
+      ])
+    })
+    return () => unsubLog()
+  }, [])
 
   const checkStatus = useCallback(async () => {
     setIsChecking(true)
@@ -109,6 +126,7 @@ export function useFutronicBridge() {
     isCapturing,
     lastCapture,
     currentPort,
+    logs,
     checkStatus,
     triggerCapture,
     updatePort,

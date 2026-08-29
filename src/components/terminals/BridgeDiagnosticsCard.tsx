@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Cpu, RefreshCw, CheckCircle2, AlertCircle, Fingerprint, Zap, Settings2 } from 'lucide-react'
+import { Cpu, RefreshCw, CheckCircle2, AlertCircle, Fingerprint, Zap, Settings2, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { useFutronicBridge } from '../../hooks/useFutronicBridge'
 import { Button } from '../ui'
 
@@ -12,12 +12,14 @@ export function BridgeDiagnosticsCard() {
     isCapturing,
     lastCapture,
     currentPort,
+    logs,
     checkStatus,
     triggerCapture,
     updatePort,
   } = useFutronicBridge()
 
   const [isEditingPort, setIsEditingPort] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
   const [portInput, setPortInput] = useState(currentPort.toString())
 
   const handlePortSubmit = (e: React.FormEvent) => {
@@ -61,6 +63,14 @@ export function BridgeDiagnosticsCard() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowLogs(!showLogs)}
+            leftIcon={<Terminal size={13} />}
+          >
+            Logs {showLogs ? <ChevronUp size={13} className="ml-1" /> : <ChevronDown size={13} className="ml-1" />}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => checkStatus()}
             isLoading={isChecking}
             leftIcon={<RefreshCw size={13} className={isChecking ? 'animate-spin' : ''} />}
@@ -92,6 +102,41 @@ export function BridgeDiagnosticsCard() {
           <Button type="submit" size="sm" variant="primary">Save</Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setIsEditingPort(false)}>Cancel</Button>
         </form>
+      )}
+
+      {/* Live Terminal Diagnostic Logs */}
+      {showLogs && (
+        <div className="my-3 p-3 bg-zinc-950 text-zinc-200 rounded-xl font-mono text-xs border border-zinc-800 shadow-inner">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800 text-[11px] text-zinc-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Live Diagnostic Log Feed
+            </span>
+            <span>Console + Terminal Sync</span>
+          </div>
+          <div className="max-h-36 overflow-y-auto space-y-1 pr-1 text-[11px]">
+            {logs.length === 0 ? (
+              <p className="text-zinc-500 italic">No logs yet. Click &quot;Check Health&quot; to probe.</p>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} className="flex items-start gap-2">
+                  <span className="text-zinc-500 select-none">[{log.time}]</span>
+                  <span
+                    className={
+                      log.type === 'success'
+                        ? 'text-emerald-400 font-semibold'
+                        : log.type === 'warn'
+                        ? 'text-amber-400 font-semibold'
+                        : 'text-zinc-300'
+                    }
+                  >
+                    {log.text}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {/* Status Grid */}
