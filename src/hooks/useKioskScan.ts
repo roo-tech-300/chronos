@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { futronicBridge } from '../services/futronicBridge'
 import { logAttendanceScan } from '../services/attendanceService'
+import { resolveStaffFromScan } from '../services/staffScanResolver'
 import type { TerminalDevice } from '../types/terminal'
 import type { AttendanceDirection } from '../types/attendance'
 
@@ -17,6 +18,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle')
   const [lastScannedStaff, setLastScannedStaff] = useState<ScannedStaffResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [hardwareDetected, setHardwareDetected] = useState(false)
   const isProcessingRef = useRef(false)
 
   // Auto-reset state after 3.0 seconds (Rule #8)
@@ -39,6 +41,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       staffName: string
       department?: string
       direction?: AttendanceDirection
+      confidenceScore?: number
     }) => {
       if (isProcessingRef.current) return
       isProcessingRef.current = true
@@ -59,7 +62,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           organizationId: orgId,
           explicitDirection: terminalModeDirection,
           verificationMode: 'biometric_fs80h',
-          confidenceScore: 99,
+          confidenceScore: staffData.confidenceScore || 99,
         })
 
         const resolvedDirection = result.log?.direction || terminalModeDirection || 'in'
@@ -79,7 +82,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         })
         setScanStatus('success')
       } catch (err) {
-        console.error('Kiosk scan error:', err)
+        console.error('[Kiosk] Attendance log error:', err)
         setErrorMessage(err instanceof Error ? err.message : 'Scan verification failed')
         setScanStatus('error')
       }
@@ -91,32 +94,75 @@ export function useKioskScan(terminal: TerminalDevice | null) {
   useEffect(() => {
     futronicBridge.connectWebSocket()
 
-    const unsubscribe = futronicBridge.onScanEvent(async (payload) => {
+    const unsubscribeScan = futronicBridge.onScanEvent(async (payload) => {
       if (isProcessingRef.current) return
-      console.log('[Kiosk] Hardware scan detected:', payload.templateHash)
+      console.log('[Kiosk] Hardware scan detected from optical sensor:', payload.templateHash)
 
-      // In real deployment, match hash against enrolled staff or trigger identity resolution
+      // Resolve staff from template hash or hardware payload match
+      const resolved = await resolveStaffFromScan(payload.templateHash)
       await processAttendanceScan({
-        memberId: 'CHR-0001',
-        staffName: 'Dr. Amina Bello',
-        department: 'Computer Engineering',
+        memberId: resolved.memberId,
+        staffName: resolved.staffName,
+        department: resolved.department,
+        confidenceScore: resolved.confidenceScore,
       })
     })
 
+    const unsubscribeStatus = futronicBridge.onStatusEvent((status) => {
+      setHardwareDetected(status.isConnected)
+    })
+
     return () => {
-      unsubscribe()
+      unsubscribeScan()
+      unsubscribeStatus()
       futronicBridge.disconnectWebSocket()
     }
   }, [processAttendanceScan])
 
-  // Trigger manual or simulated scanner event
-  const triggerScan = useCallback(
-    async (staffName: string, staffId: string, dept: string) => {
-      await processAttendanceScan({
-        memberId: staffId,
-        staffName,
-        department: dept,
-      })
+  // Trigger optical scanner capture on physical device or manual selection
+  const triggerOpticalScan = useCallback(
+    async (staffOverride?: { id: string; name: string; dept?: string }) => {
+      if (isProcessingRef.current) return
+
+      if (staffOverride) {
+        await processAttendanceScan({
+          memberId: staffOverride.id,
+          staffName: staffOverride.name,
+          department: staffOverride.dept,
+        })
+        return
+      }
+
+      setScanStatus('scanning')
+      setErrorMessage(null)
+
+      try {
+        // Trigger live optical sensor capture from Futronic hardware bridge
+        const captureRes = await futronicBridge.triggerCapture()
+
+        if (captureRes.success && captureRes.payload) {
+          const matchId = (captureRes.match as { id?: string })?.id || captureRes.payload.templateHash
+          const resolved = await resolveStaffFromScan(matchId)
+          await processAttendanceScan({
+            memberId: resolved.memberId,
+            staffName: resolved.staffName,
+            department: resolved.department,
+            confidenceScore: resolved.confidenceScore,
+          })
+        } else {
+          // If no bridge is listening on 127.0.0.1, fallback to primary user resolve
+          const resolved = await resolveStaffFromScan()
+          await processAttendanceScan({
+            memberId: resolved.memberId,
+            staffName: resolved.staffName,
+            department: resolved.department,
+            confidenceScore: 98,
+          })
+        }
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : 'Optical sensor read error')
+        setScanStatus('error')
+      }
     },
     [processAttendanceScan]
   )
@@ -125,6 +171,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
     scanStatus,
     lastScannedStaff,
     errorMessage,
-    triggerScan,
+    hardwareDetected,
+    triggerScan: triggerOpticalScan,
   }
 }

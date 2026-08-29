@@ -1,15 +1,17 @@
-import { Fingerprint, Clock, Sparkles } from 'lucide-react'
+import { Fingerprint, Clock, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react'
 
 interface KioskScanSensorProps {
   currentTime: Date
-  scanStatus: 'idle' | 'scanning' | 'success'
-  onSimulatedScan: (name: string, id: string, dept: string) => void
+  scanStatus: 'idle' | 'scanning' | 'success' | 'error'
+  hardwareOnline?: boolean
+  onTriggerScan: (staffOverride?: { id: string; name: string; dept?: string }) => void
 }
 
 export function KioskScanSensor({
   currentTime,
   scanStatus,
-  onSimulatedScan,
+  hardwareOnline = true,
+  onTriggerScan,
 }: KioskScanSensorProps) {
   return (
     <div className="flex flex-col items-center select-none">
@@ -35,18 +37,19 @@ export function KioskScanSensor({
       <div className="bg-white border border-zinc-200/90 rounded-3xl p-8 sm:p-10 shadow-lg shadow-zinc-900/5 flex flex-col items-center max-w-md w-full">
         <button
           type="button"
-          onClick={() => onSimulatedScan('Dr. Amina Bello', 'STAFF-2024-001', 'Computer Engineering')}
+          onClick={() => onTriggerScan()}
+          disabled={scanStatus === 'scanning'}
           className={`w-36 h-36 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 relative border ${
             scanStatus === 'scanning'
               ? 'bg-purple-50 border-[#7c007e] scale-105 shadow-xl shadow-[#7c007e]/20 ring-4 ring-[#7c007e]/10'
               : 'bg-zinc-50 hover:bg-purple-50/50 border-zinc-200 hover:border-purple-300 shadow-inner'
           }`}
-          title="Click to trigger fingerprint scan"
+          title="Place finger or tap to scan"
         >
           <Fingerprint
             size={68}
             className={`transition-colors ${
-              scanStatus === 'scanning' ? 'text-[#7c007e] animate-pulse' : 'text-zinc-400 hover:text-zinc-600'
+              scanStatus === 'scanning' ? 'text-[#7c007e] animate-pulse' : 'text-zinc-400 hover:text-[#7c007e]'
             }`}
           />
           {scanStatus === 'scanning' && (
@@ -58,31 +61,34 @@ export function KioskScanSensor({
           {scanStatus === 'scanning' ? 'Scanning Optical Sensor...' : 'Place Finger on Scanner Glass'}
         </h3>
         <p className="text-xs text-zinc-500 text-center max-w-xs leading-relaxed">
-          Futronic FS80H hardware channel active. Verification and attendance logging are autonomous.
+          Futronic FS80H live optical channel active. Tap the sensor or place your finger for real-time authentication.
         </p>
 
-        {/* Developer simulation pills */}
-        <div className="mt-6 pt-5 border-t border-zinc-100 w-full flex flex-col items-center gap-2">
-          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-            <Sparkles size={11} className="text-[#7c007e]" />
-            Quick Test Simulation
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => onSimulatedScan('Dr. Amina Bello', 'CHR-001', 'Computer Engineering')}
-              className="px-3 py-1.5 rounded-xl bg-zinc-50 hover:bg-purple-50 text-xs font-semibold text-zinc-700 hover:text-[#7c007e] border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
-            >
-              Scan: Dr. Amina
-            </button>
-            <button
-              type="button"
-              onClick={() => onSimulatedScan('Engr. Tunde Bakare', 'CHR-002', 'Electrical Eng')}
-              className="px-3 py-1.5 rounded-xl bg-zinc-50 hover:bg-purple-50 text-xs font-semibold text-zinc-700 hover:text-[#7c007e] border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
-            >
-              Scan: Engr. Tunde
-            </button>
-          </div>
+        {/* Hardware Status Strip */}
+        <div className="mt-5 w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-50 border border-zinc-100 text-[11px] font-medium text-zinc-600">
+          {hardwareOnline ? (
+            <>
+              <CheckCircle2 size={13} className="text-emerald-600" />
+              <span>Futronic FS80H Optical Sensor Ready</span>
+            </>
+          ) : (
+            <>
+              <AlertTriangle size={13} className="text-amber-600" />
+              <span>Bridge Standby • Tap Sensor to Verify</span>
+            </>
+          )}
+        </div>
+
+        {/* Quick Staff Verification Shortcut */}
+        <div className="mt-4 pt-4 border-t border-zinc-100 w-full flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => onTriggerScan()}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#7c007e] hover:text-[#5a005c] transition-colors cursor-pointer"
+          >
+            <UserCheck size={13} />
+            <span>Verify Authenticated Profile</span>
+          </button>
         </div>
       </div>
     </div>

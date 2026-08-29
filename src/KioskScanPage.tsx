@@ -13,7 +13,13 @@ export default function KioskScanPage() {
   const navigate = useNavigate()
   const { terminal, isPaired, isLoading, unpairDevice } = useTerminalAuth()
   const { isWindowsApp, canBecomeTerminal, devBypassActive } = useTauriEnvironment()
-  const { scanStatus, lastScannedStaff, errorMessage, triggerScan } = useKioskScan(terminal)
+  const {
+    scanStatus,
+    lastScannedStaff,
+    errorMessage,
+    hardwareDetected,
+    triggerScan,
+  } = useKioskScan(terminal)
 
   const [currentTime, setCurrentTime] = useState(new Date())
   const [unpairModalOpen, setUnpairModalOpen] = useState(false)
@@ -69,8 +75,9 @@ export default function KioskScanPage() {
         ) : (
           <KioskScanSensor
             currentTime={currentTime}
-            scanStatus={scanStatus === 'scanning' ? 'scanning' : 'idle'}
-            onSimulatedScan={triggerScan}
+            scanStatus={scanStatus}
+            hardwareOnline={hardwareDetected}
+            onTriggerScan={triggerScan}
           />
         )}
       </main>
