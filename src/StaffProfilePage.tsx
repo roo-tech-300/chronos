@@ -25,13 +25,14 @@ export default function StaffProfilePage() {
   // A machine is only authorized to capture biometrics if it is a paired terminal / hardware desktop app
   const isTerminalDevice = Boolean(isPaired && isWindowsApp && canBecomeTerminal)
 
-  const { data: profile, isLoading } = useStaffProfile(staffId, workspaceId)
+  const { data: profile, isLoading, refetch } = useStaffProfile(staffId, workspaceId)
 
   const backLink = workspaceId ? `/workspace/${workspaceId}/staff` : '/staff'
 
   const displayName = profile?.name || authProfile?.fullName || 'Staff Member'
   const displayStaffCode = profile?.staffId || (staffId?.startsWith('CHR-') ? staffId : 'CHR-0001')
   const displayAvatar = profile?.avatarUrl || authProfile?.avatarUrl
+  const isEnrolled = Boolean(profile?.isBiometricEnrolled)
 
   return (
     <div
@@ -76,6 +77,7 @@ export default function StaffProfilePage() {
             <StaffOverviewCard
               activities={profile?.activities}
               canEnroll={isTerminalDevice}
+              isEnrolled={isEnrolled}
               onEnrollFingerprint={() => setEnrollOpen(true)}
               onDownloadLog={() => {}}
             />
@@ -83,13 +85,17 @@ export default function StaffProfilePage() {
         </div>
       </main>
 
-      {isTerminalDevice && (
+      {isTerminalDevice && !isEnrolled && (
         <BiometricEnrollmentModal
           open={enrollOpen}
           onClose={() => setEnrollOpen(false)}
           memberId={staffId}
           memberName={displayName}
           organizationId={workspaceId || '00000000-0000-0000-0000-000000000000'}
+          onSuccess={() => {
+            setEnrollOpen(false)
+            refetch()
+          }}
         />
       )}
 

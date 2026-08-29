@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase'
 import { rosterMembers } from '../dummy/roster-mock'
 import { getProfile, slugify, type StaffProfile } from '../dummy/profile-mock'
 import { resolveCurrentAuthIdentity, fetchMemberProfilesMap } from './identityResolver'
+import { checkBiometricEnrolled } from './biometricService'
 import type { StaffMember, StaffQueryParams, PaginatedStaffResponse } from '../types/staff'
 
 interface RawMemberRow {
@@ -160,6 +161,9 @@ export async function fetchStaffProfile(
   const { userId: currentUserId, name: currentUserName, email: currentUserEmail, avatarUrl: currentUserAvatar } = currentAuth
   const cleanId = (staffId || '').trim()
 
+  // Query biometric template status from database
+  const isEnrolled = await checkBiometricEnrolled(cleanId)
+
   const isDirectCurrent =
     Boolean(currentUserId && cleanId.toLowerCase() === currentUserId.toLowerCase()) ||
     Boolean(currentUserId && cleanId.toLowerCase() === `chr-${currentUserId.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
@@ -168,6 +172,7 @@ export async function fetchStaffProfile(
     cleanId === 'me'
 
   if (isDirectCurrent && currentUserName) {
+    const directUserEnrolled = isEnrolled || (currentUserId ? await checkBiometricEnrolled(currentUserId) : false)
     return {
       name: currentUserName,
       slug: slugify(currentUserName),
@@ -185,6 +190,7 @@ export async function fetchStaffProfile(
       timestamp: '2026.06.22.15.16',
       avatarUrl: currentUserAvatar,
       email: currentUserEmail,
+      isBiometricEnrolled: directUserEnrolled,
     }
   }
 
@@ -231,6 +237,9 @@ export async function fetchStaffProfile(
         ? `CHR-${member.user_id.replace(/-/g, '').slice(0, 4).toUpperCase()}`
         : `CHR-${cleanId.replace(/-/g, '').slice(0, 4).toUpperCase()}`
 
+      const memberBiometricEnrolled =
+        isEnrolled || (member.user_id ? await checkBiometricEnrolled(member.user_id) : false)
+
       return {
         name,
         slug: slugify(name),
@@ -248,16 +257,22 @@ export async function fetchStaffProfile(
         timestamp: '2026.06.22.15.16',
         avatarUrl,
         email,
+        isBiometricEnrolled: memberBiometricEnrolled,
       }
     }
   } catch (err) {
     console.warn('Error fetching member profile:', err)
   }
 
-  return getProfile(cleanId, {
+  const fallback = getProfile(cleanId, {
     id: currentUserId,
     name: currentUserName,
     email: currentUserEmail,
     avatarUrl: currentUserAvatar,
   })
+
+  return {
+    ...fallback,
+    isBiometricEnrolled: isEnrolled || fallback.isBiometricEnrolled,
+  }
 }

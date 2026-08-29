@@ -38,6 +38,30 @@ export interface SingleAngleCaptureParams {
 }
 
 /**
+ * Checks whether a staff member already has an enrolled fingerprint template in the database.
+ */
+export async function checkBiometricEnrolled(memberId?: string): Promise<boolean> {
+  if (!memberId) return false
+  try {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+      .from('biometric_templates')
+      .select('id')
+      .eq('member_id', memberId)
+      .limit(1)
+
+    if (error) {
+      console.warn('Biometric status check error:', error.message)
+      return false
+    }
+    return Boolean(data && data.length > 0)
+  } catch (err) {
+    console.warn('Biometric query exception:', err)
+    return false
+  }
+}
+
+/**
  * Captures a single scan angle from the hardware scanner and uploads the template
  * file directly to the Supabase Storage bucket (biometrics).
  * Does NOT create a database record yet to ensure atomic single-row persistence.

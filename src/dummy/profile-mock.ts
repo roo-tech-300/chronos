@@ -20,6 +20,7 @@ export interface StaffProfile {
   timestamp: string
   avatarUrl?: string
   email?: string
+  isBiometricEnrolled?: boolean
 }
 
 const profiles: Record<string, StaffProfile> = {
@@ -41,6 +42,7 @@ const profiles: Record<string, StaffProfile> = {
       { terminal: 'Main Gate - Departure', action: 'Previous Day Sign-out', time: 'Yesterday' },
     ],
     timestamp: '2026.06.22.15.16',
+    isBiometricEnrolled: true,
   },
 }
 
@@ -90,6 +92,7 @@ export function getProfile(
       timestamp: '2026.06.22.15.16',
       avatarUrl: currentUser.avatarUrl,
       email: currentUser.email,
+      isBiometricEnrolled: false,
     }
   }
 
@@ -123,5 +126,6 @@ export function getProfile(
     ],
     timestamp: '2026.06.22.15.16',
     email: rosterMember?.email || currentUser?.email,
+    isBiometricEnrolled: false,
   }
 }
