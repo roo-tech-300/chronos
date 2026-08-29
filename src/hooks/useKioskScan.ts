@@ -58,12 +58,12 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         const result = await logAttendanceScan({
           memberId: staffData.memberId,
           staffName: staffData.staffName,
-          department: staffData.department || 'Academic Staff',
+          department: staffData.department || 'Staff Member',
           terminalId,
           organizationId: orgId,
           explicitDirection: terminalModeDirection,
           verificationMode: 'biometric_fs80h',
-          confidenceScore: staffData.confidenceScore || 99,
+          confidenceScore: staffData.confidenceScore || 98,
         })
 
         const resolvedDirection = result.log?.direction || terminalModeDirection || 'in'
@@ -77,7 +77,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           name: staffData.staffName,
           id: staffData.memberId,
           time: timeStr,
-          dept: staffData.department || 'Faculty Member',
+          dept: staffData.department || 'Staff Member',
           type: resolvedDirection === 'in' ? 'Check-In' : 'Check-Out',
           statusMessage: result.message,
           dbSaved: result.dbSaved,
@@ -98,10 +98,16 @@ export function useKioskScan(terminal: TerminalDevice | null) {
 
     const unsubscribeScan = futronicBridge.onScanEvent(async (payload) => {
       if (isProcessingRef.current) return
-      console.log('[Kiosk] Hardware scan detected from optical sensor:', payload.templateHash)
+      console.log('[Kiosk] Hardware scan event received from sensor:', payload.templateHash)
 
-      // Resolve staff from template hash or hardware payload match
+      // Resolve staff strictly from database enrolled templates
       const resolved = await resolveStaffFromScan(payload.templateHash)
+      if (!resolved) {
+        setErrorMessage('Unrecognized Fingerprint: No enrolled staff profile matches this biometric scan.')
+        setScanStatus('error')
+        return
+      }
+
       await processAttendanceScan({
         memberId: resolved.memberId,
         staffName: resolved.staffName,
@@ -145,6 +151,12 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         if (captureRes.success && captureRes.payload) {
           const matchId = (captureRes.match as { id?: string })?.id || captureRes.payload.templateHash
           const resolved = await resolveStaffFromScan(matchId)
+          if (!resolved) {
+            setErrorMessage('Biometric Mismatch: Fingerprint captured but not enrolled in database.')
+            setScanStatus('error')
+            return
+          }
+
           await processAttendanceScan({
             memberId: resolved.memberId,
             staffName: resolved.staffName,
@@ -152,14 +164,11 @@ export function useKioskScan(terminal: TerminalDevice | null) {
             confidenceScore: resolved.confidenceScore,
           })
         } else {
-          // If no bridge is listening on 127.0.0.1, fallback to primary user resolve
-          const resolved = await resolveStaffFromScan()
-          await processAttendanceScan({
-            memberId: resolved.memberId,
-            staffName: resolved.staffName,
-            department: resolved.department,
-            confidenceScore: 98,
-          })
+          // Scanner returned an error or is disconnected
+          setErrorMessage(
+            captureRes.error || 'Futronic FS80H scanner is not connected or no finger was detected.'
+          )
+          setScanStatus('error')
         }
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : 'Optical sensor read error')

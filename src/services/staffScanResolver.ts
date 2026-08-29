@@ -1,105 +1,91 @@
 import { getSupabase } from '../lib/supabase'
-import { rosterMembers } from '../dummy/roster-mock'
-import { ensureValidUuid } from '../utils/uuid'
 
-export interface EnrolledBiometricRecord {
-  id: string
-  memberId: string
-  organizationId: string
-  templateHash: string
-  qualityScore: number
-  staffName: string
-  department?: string
-  role?: string
-}
-
-/**
- * Resolves a scanned fingerprint template hash or member ID to the actual staff member.
- * Checks Supabase profiles + biometric_templates table, and falls back to local roster dataset.
- */
-export async function resolveStaffFromScan(
-  identifierOrHash?: string
-): Promise<{
+export interface ResolvedStaffResult {
   memberId: string
   staffName: string
   department: string
   role: string
   confidenceScore: number
-}> {
+}
+
+/**
+ * Resolves a scanned fingerprint template hash or member ID to the actual enrolled staff member.
+ * Strictly queries Supabase database. Returns null if not enrolled / not found.
+ */
+export async function resolveStaffFromScan(
+  identifierOrHash?: string
+): Promise<ResolvedStaffResult | null> {
   const supabase = getSupabase()
 
-  // 1. If an explicit memberId or template hash is provided, attempt database resolution
-  if (identifierOrHash) {
-    try {
-      const { data: templateRows } = await supabase
-        .from('biometric_templates')
-        .select('member_id, template_hash, quality_score')
-        .limit(10)
+  if (!identifierOrHash || identifierOrHash.trim().length === 0) {
+    return null
+  }
 
-      if (templateRows && templateRows.length > 0) {
-        const matched = templateRows.find(
-          (t) => t.member_id === identifierOrHash || t.template_hash === identifierOrHash
-        ) || templateRows[0]
+  const searchTarget = identifierOrHash.trim()
 
-        if (matched) {
-          const matchedMemberId = matched.member_id || '2f158922-80a3-4722-b7c6-c7ec97d70ca0'
-          const quality = matched.quality_score || 98
+  try {
+    // 1. Query biometric_templates table for enrolled match
+    const { data: templateRows, error } = await supabase
+      .from('biometric_templates')
+      .select('member_id, template_hash, quality_score')
+      .limit(200)
 
-          // Check in roster backup
-          const matchedRoster = rosterMembers.find(
-            (m) => m.id === matchedMemberId || m.name.toLowerCase() === matchedMemberId.toLowerCase()
-          ) || rosterMembers[0]
+    if (!error && templateRows && templateRows.length > 0) {
+      const matched = templateRows.find(
+        (t) =>
+          t.member_id === searchTarget ||
+          t.template_hash === searchTarget ||
+          (t.template_hash && searchTarget.includes(t.template_hash)) ||
+          (searchTarget.length >= 16 && t.template_hash?.startsWith(searchTarget.slice(0, 16)))
+      )
 
-          return {
-            memberId: matchedMemberId,
-            staffName: matchedRoster?.name || 'Dr. Amina Bello',
-            department: 'Computer Engineering',
-            role: matchedRoster?.role || 'Senior Lecturer',
-            confidenceScore: quality,
-          }
+      if (matched && matched.member_id) {
+        const quality = matched.quality_score || 96
+
+        // Query profiles table for real user info
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, full_name, department, role')
+          .eq('id', matched.member_id)
+          .maybeSingle()
+
+        return {
+          memberId: matched.member_id,
+          staffName: profile?.full_name || 'Enrolled Staff Member',
+          department: profile?.department || 'Staff Member',
+          role: profile?.role || 'Staff',
+          confidenceScore: quality,
         }
       }
-    } catch (err) {
-      console.warn('[StaffScanResolver] Database query error:', err)
     }
-  }
 
-  // 2. Query recently logged-in authenticated user profile as primary staff
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const meta = (user.user_metadata || {}) as Record<string, string | undefined>
-      const name = meta.full_name || meta.name || user.email?.split('@')[0] || 'Staff Member'
+    // 2. Check if searchTarget matches a profile ID directly
+    const { data: directProfile } = await supabase
+      .from('profiles')
+      .select('id, full_name, department, role')
+      .eq('id', searchTarget)
+      .maybeSingle()
+
+    if (directProfile) {
       return {
-        memberId: user.id,
-        staffName: name,
-        department: meta.department || 'Faculty of Engineering',
-        role: meta.role || 'Lecturer',
-        confidenceScore: 99,
+        memberId: directProfile.id,
+        staffName: directProfile.full_name || 'Staff Member',
+        department: directProfile.department || 'Staff Member',
+        role: directProfile.role || 'Staff',
+        confidenceScore: 98,
       }
     }
-  } catch {
-    // Graceful offline fallback
-  }
 
-  // 3. Fallback to active roster member with valid UUID
-  const fallback = rosterMembers[0] || {
-    id: 'STAFF-2024-001',
-    name: 'Dr. Amina Bello',
-    role: 'Senior Lecturer',
-  }
-
-  return {
-    memberId: ensureValidUuid(fallback.id, '2f158922-80a3-4722-b7c6-c7ec97d70ca0'),
-    staffName: fallback.name,
-    department: 'Computer Engineering',
-    role: fallback.role,
-    confidenceScore: 97,
+    // No matching fingerprint enrolled in database
+    return null
+  } catch (err) {
+    console.error('[StaffScanResolver] Database query error during biometric match:', err)
+    return null
   }
 }
 
 /**
- * Fetches all registered staff members available for terminal identification.
+ * Fetches all registered staff members with enrolled biometrics from Supabase.
  */
 export async function fetchEnrolledStaffList(): Promise<
   Array<{ id: string; name: string; department: string; role: string }>
@@ -109,24 +95,18 @@ export async function fetchEnrolledStaffList(): Promise<
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, department, role')
-      .limit(50)
+      .limit(100)
 
     if (profiles && profiles.length > 0) {
       return profiles.map((p) => ({
         id: p.id,
         name: p.full_name || 'Staff Member',
-        department: p.department || 'Academic Staff',
-        role: p.role || 'Lecturer',
+        department: p.department || 'Staff',
+        role: p.role || 'Staff',
       }))
     }
   } catch {
-    // Ignore and fallback
+    // Database unreachable
   }
-
-  return rosterMembers.slice(0, 12).map((m) => ({
-    id: ensureValidUuid(m.id, '2f158922-80a3-4722-b7c6-c7ec97d70ca0'),
-    name: m.name,
-    department: m.role === 'Administrator' ? 'Administration' : 'Academic Staff',
-    role: m.role,
-  }))
+  return []
 }

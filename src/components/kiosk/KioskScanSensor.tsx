@@ -1,10 +1,10 @@
-import { Fingerprint, Clock, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react'
+import { Fingerprint, Clock, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 interface KioskScanSensorProps {
   currentTime: Date
   scanStatus: 'idle' | 'scanning' | 'success' | 'error'
   hardwareOnline?: boolean
-  onTriggerScan: (staffOverride?: { id: string; name: string; dept?: string }) => void
+  onTriggerScan: () => void
 }
 
 export function KioskScanSensor({
@@ -37,14 +37,14 @@ export function KioskScanSensor({
       <div className="bg-white border border-zinc-200/90 rounded-3xl p-8 sm:p-10 shadow-lg shadow-zinc-900/5 flex flex-col items-center max-w-md w-full">
         <button
           type="button"
-          onClick={() => onTriggerScan()}
+          onClick={onTriggerScan}
           disabled={scanStatus === 'scanning'}
           className={`w-36 h-36 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 relative border ${
             scanStatus === 'scanning'
               ? 'bg-purple-50 border-[#7c007e] scale-105 shadow-xl shadow-[#7c007e]/20 ring-4 ring-[#7c007e]/10'
               : 'bg-zinc-50 hover:bg-purple-50/50 border-zinc-200 hover:border-purple-300 shadow-inner'
           }`}
-          title="Place finger or tap to scan"
+          title="Place finger or trigger scan"
         >
           <Fingerprint
             size={68}
@@ -58,10 +58,10 @@ export function KioskScanSensor({
         </button>
 
         <h3 className="text-base font-extrabold text-zinc-900 mt-6 mb-1 tracking-tight">
-          {scanStatus === 'scanning' ? 'Scanning Optical Sensor...' : 'Place Finger on Scanner Glass'}
+          {scanStatus === 'scanning' ? 'Reading Sensor Glass...' : 'Place Finger on Scanner Glass'}
         </h3>
         <p className="text-xs text-zinc-500 text-center max-w-xs leading-relaxed">
-          Futronic FS80H live optical channel active. Tap the sensor or place your finger for real-time authentication.
+          Futronic FS80H live optical channel active. Place your finger firmly on the sensor surface.
         </p>
 
         {/* Hardware Status Strip */}
@@ -74,21 +74,9 @@ export function KioskScanSensor({
           ) : (
             <>
               <AlertTriangle size={13} className="text-amber-600" />
-              <span>Bridge Standby • Tap Sensor to Verify</span>
+              <span>Sensor Standby • Place Finger to Scan</span>
             </>
           )}
-        </div>
-
-        {/* Quick Staff Verification Shortcut */}
-        <div className="mt-4 pt-4 border-t border-zinc-100 w-full flex items-center justify-center">
-          <button
-            type="button"
-            onClick={() => onTriggerScan()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#7c007e] hover:text-[#5a005c] transition-colors cursor-pointer"
-          >
-            <UserCheck size={13} />
-            <span>Verify Authenticated Profile</span>
-          </button>
         </div>
       </div>
     </div>
