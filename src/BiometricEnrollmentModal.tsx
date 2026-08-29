@@ -1,9 +1,33 @@
 import { useState } from 'react'
-import { Fingerprint, Info, ScanLine, CheckCircle, Terminal, AlertCircle } from 'lucide-react'
-import { Modal, Button, Badge } from './components/ui'
-import { enrollStaffFingerprint, type EnrollmentStepLog } from './services/biometricService'
+import { Fingerprint, CheckCircle2, ScanLine, AlertCircle, Info, Hand } from 'lucide-react'
+import { Modal, Button } from './components/ui'
+import { captureAndStoreAngle, sanitizeUUID } from './services/biometricService'
+import { AngleProgressBar } from './components/biometrics/AngleProgressBar'
+import { EnrollmentDiagnosticsLogs } from './components/biometrics/EnrollmentDiagnosticsLogs'
+import type { ScanAngleStep, EnrollmentStepLog, AngleScanResult } from './types/biometric'
 import './styles/biometric-modal.css'
 import './styles/biometric-actions.css'
+
+const SCAN_STEPS: ScanAngleStep[] = [
+  {
+    angle: 'center',
+    label: 'Center / Flat',
+    instruction: 'Place your Right Index Finger flat in the middle of the scanner glass.',
+    description: 'Core ridge capture',
+  },
+  {
+    angle: 'left_edge',
+    label: 'Left Tilt',
+    instruction: 'Tilt your Right Index Finger slightly to the left to capture the left edge.',
+    description: 'Left ridge capture',
+  },
+  {
+    angle: 'right_edge',
+    label: 'Right Tilt',
+    instruction: 'Tilt your Right Index Finger slightly to the right to capture the right edge.',
+    description: 'Right ridge capture',
+  },
+]
 
 interface Props {
   open: boolean
@@ -19,42 +43,60 @@ export default function BiometricEnrollmentModal({
   onClose,
   memberId = 'wm_usr_current',
   memberName = 'Staff Member',
-  organizationId = 'default-org',
+  organizationId = '00000000-0000-0000-0000-000000000000',
   onSuccess,
 }: Props) {
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0)
   const [phase, setPhase] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle')
+  const [completedAngles, setCompletedAngles] = useState<Record<string, boolean>>({})
   const [logs, setLogs] = useState<EnrollmentStepLog[]>([])
   const [errorMessage, setErrorMessage] = useState<string>('')
-  const [fingerPosition, setFingerPosition] = useState<string>('right_index')
+  const [, setResults] = useState<AngleScanResult[]>([])
 
-  const handleBeginScan = async () => {
+  const currentStep = SCAN_STEPS[currentStepIndex]
+  const validOrgId = sanitizeUUID(organizationId)
+
+  const handleScanStep = async () => {
     setPhase('scanning')
     setErrorMessage('')
-    setLogs([])
 
-    const result = await enrollStaffFingerprint({
-      memberId,
-      organizationId,
-      staffName: memberName,
-      fingerPosition,
-      onLog: (newLog) => {
-        setLogs((prev) => [...prev, newLog])
-      },
-    })
+    try {
+      const res = await captureAndStoreAngle({
+        memberId,
+        organizationId: validOrgId,
+        staffName: memberName,
+        angle: currentStep.angle,
+        passNumber: currentStepIndex + 1,
+        onLog: (newLog) => setLogs((prev) => [...prev, newLog]),
+      })
 
-    if (result.success) {
-      setPhase('success')
-      if (onSuccess) onSuccess()
-    } else {
+      setResults((prev) => [...prev, res])
+      setCompletedAngles((prev) => ({ ...prev, [currentStep.angle]: true }))
+
+      if (currentStepIndex + 1 < SCAN_STEPS.length) {
+        setCurrentStepIndex((prev) => prev + 1)
+        setPhase('idle')
+      } else {
+        setPhase('success')
+        if (onSuccess) onSuccess()
+      }
+    } catch (err: unknown) {
       setPhase('error')
-      setErrorMessage(result.error || 'Failed to complete enrollment.')
+      setErrorMessage(err instanceof Error ? err.message : 'Scan capture error occurred.')
     }
   }
 
-  const handleClose = () => {
+  const handleReset = () => {
+    setCurrentStepIndex(0)
     setPhase('idle')
+    setCompletedAngles({})
     setLogs([])
     setErrorMessage('')
+    setResults([])
+  }
+
+  const handleClose = () => {
+    handleReset()
     onClose()
   }
 
@@ -62,142 +104,116 @@ export default function BiometricEnrollmentModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Biometric Credential Setup"
-      subtitle={`Enrolling ${memberName} • Futronic FS80H Scanner`}
+      title="Biometric Fingerprint Enrollment"
+      subtitle={`Enrolling ${memberName} • Futronic FS80H`}
       maxWidth="md"
     >
       <div className="flex flex-col gap-4">
-        {/* Finger Selection */}
-        {phase === 'idle' && (
-          <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200/70 rounded-xl text-xs">
-            <span className="font-medium text-zinc-700">Select Finger:</span>
-            <select
-              value={fingerPosition}
-              onChange={(e) => setFingerPosition(e.target.value)}
-              className="px-2.5 py-1 text-xs font-semibold bg-white border border-zinc-300 rounded-lg text-zinc-800 focus:outline-none"
-            >
-              <option value="right_index">Right Index Finger</option>
-              <option value="right_thumb">Right Thumb</option>
-              <option value="left_index">Left Index Finger</option>
-              <option value="left_thumb">Left Thumb</option>
-            </select>
+        {/* Right Index Finger Requirement Callout */}
+        <div className="flex items-start gap-3 p-3 bg-purple-50/80 border border-purple-200/80 rounded-2xl text-xs">
+          <div className="w-8 h-8 rounded-xl bg-[#7c007e] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+            <Hand size={16} />
           </div>
-        )}
+          <div>
+            <div className="font-bold text-zinc-900 text-xs">Use Only Your Right Index Finger</div>
+            <p className="text-[11px] text-zinc-600 mt-0.5 leading-relaxed">
+              To prevent kiosk confusion during check-in, all staff enroll their <strong>Right Index Finger</strong> (the pointer finger beside your right thumb).
+            </p>
+          </div>
+        </div>
 
-        <div className="bio-body">
+        {/* 3-Pass Angle Progress Bar */}
+        <AngleProgressBar
+          steps={SCAN_STEPS}
+          activeStep={currentStepIndex}
+          completedAngles={completedAngles}
+        />
+
+        {/* Main Sensor Guidance View */}
+        <div className="flex flex-col items-center justify-center p-6 bg-zinc-50 border border-zinc-200/70 rounded-2xl min-h-[160px]">
           {phase === 'success' ? (
-            <div className="bio-success py-4">
-              <CheckCircle size={52} className="text-emerald-500 mb-2" />
-              <h3 className="text-base font-bold text-zinc-900">Biometric Enrollment Successful</h3>
-              <p className="text-xs text-zinc-500 mt-1">
-                Template securely stored in Supabase Storage and registered in database.
+            <div className="text-center py-2">
+              <CheckCircle2 size={54} className="text-emerald-600 mx-auto mb-2" />
+              <h3 className="text-base font-bold text-zinc-900">3-Angle Capture Completed</h3>
+              <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                Center, left edge, and right edge templates are stored in Supabase Storage and registered in the database.
               </p>
             </div>
           ) : phase === 'error' ? (
-            <div className="text-center py-4">
+            <div className="text-center py-2">
               <AlertCircle size={48} className="text-rose-500 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-zinc-900">Enrollment Encountered An Issue</h3>
-              <p className="text-xs text-rose-600 mt-1 max-w-sm mx-auto">{errorMessage}</p>
+              <h3 className="text-base font-bold text-zinc-900">Scan Capture Error</h3>
+              <p className="text-xs text-rose-600 mt-1 max-w-sm">{errorMessage}</p>
             </div>
           ) : (
             <>
               <Fingerprint
-                size={72}
-                className={`bio-finger ${
-                  phase === 'scanning' ? 'animate-pulse text-violet-600' : 'text-zinc-400'
+                size={68}
+                className={`transition-all ${
+                  phase === 'scanning'
+                    ? 'text-[#7c007e] animate-pulse scale-110'
+                    : 'text-zinc-400'
                 }`}
               />
-              <p className="bio-instruct text-center text-xs">
-                {phase === 'scanning'
-                  ? 'Sensor is active. Place your finger firmly on the Futronic scanner glass...'
-                  : 'Place your finger on the optical sensor and click "Begin Scan".'}
-              </p>
-
-              <div className="mt-1">
-                <Badge
-                  variant={phase === 'scanning' ? 'info' : 'neutral'}
-                  showDot
-                  pulseDot={phase === 'scanning'}
-                >
-                  {phase === 'scanning' ? 'Capturing Fingerprint...' : 'Ready'}
-                </Badge>
+              <div className="text-center mt-3">
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-100/70 text-[#7c007e] border border-purple-200 mb-1">
+                  Pass {currentStepIndex + 1} of 3: {currentStep.label}
+                </span>
+                <p className="text-xs font-semibold text-zinc-800 max-w-xs mt-0.5">
+                  {phase === 'scanning'
+                    ? 'Capturing from optical sensor. Keep finger steady on scanner glass...'
+                    : currentStep.instruction}
+                </p>
               </div>
             </>
           )}
         </div>
 
-        {/* Step-by-Step Diagnostic Logs Feed */}
-        {logs.length > 0 && (
-          <div className="p-3 bg-zinc-950 text-zinc-200 rounded-xl font-mono text-[11px] border border-zinc-800 shadow-inner">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800 text-[11px] text-zinc-400">
-              <span className="flex items-center gap-1.5 font-sans font-medium">
-                <Terminal size={13} className="text-violet-400" />
-                Live Enrollment Diagnostics
-              </span>
-              <span className="text-[10px] text-zinc-500">Node Bridge + Supabase</span>
-            </div>
-            <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
-              {logs.map((log) => (
-                <div key={log.id} className="flex items-start gap-2">
-                  <span className="text-zinc-500 select-none">[{log.time}]</span>
-                  <span
-                    className={
-                      log.type === 'success'
-                        ? 'text-emerald-400 font-semibold'
-                        : log.type === 'error'
-                        ? 'text-rose-400 font-semibold'
-                        : log.type === 'warn'
-                        ? 'text-amber-400'
-                        : 'text-zinc-300'
-                    }
-                  >
-                    {log.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Diagnostic Logs */}
+        <EnrollmentDiagnosticsLogs logs={logs} />
 
-        {phase !== 'success' && (
-          <div className="flex items-start gap-2 p-2.5 bg-zinc-50 rounded-xl border border-zinc-200/60 text-[11px] text-zinc-500 leading-relaxed">
-            <Info size={15} className="shrink-0 mt-0.5 text-zinc-400" />
-            <span>
-              Irreversible cryptographic feature templates (ANSI-378 / ISO) are extracted. No raw raster images are stored.
-            </span>
+        {/* Footer Controls */}
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
+          <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+            <Info size={13} />
+            <span>3 passes ensure reliable matching from any angle.</span>
           </div>
-        )}
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-100">
-          {phase === 'success' ? (
-            <Button variant="primary" onClick={handleClose}>
-              Done
-            </Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                {phase === 'error' ? 'Close' : 'Cancel'}
+          <div className="flex items-center gap-2">
+            {phase === 'success' ? (
+              <Button variant="primary" onClick={handleClose}>
+                Finish
               </Button>
-              {phase === 'idle' && (
-                <Button
-                  variant="primary"
-                  leftIcon={<ScanLine size={16} />}
-                  onClick={handleBeginScan}
-                >
-                  Begin Scan
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={handleClose}>
+                  Cancel
                 </Button>
-              )}
-              {phase === 'error' && (
-                <Button
-                  variant="primary"
-                  leftIcon={<ScanLine size={16} />}
-                  onClick={handleBeginScan}
-                >
-                  Retry Scan
-                </Button>
-              )}
-            </>
-          )}
+                {phase === 'error' ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<ScanLine size={15} />}
+                    onClick={handleScanStep}
+                  >
+                    Retry Pass {currentStepIndex + 1}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    isLoading={phase === 'scanning'}
+                    leftIcon={<ScanLine size={15} />}
+                    onClick={handleScanStep}
+                  >
+                    {phase === 'scanning'
+                      ? 'Scanning...'
+                      : `Capture Pass ${currentStepIndex + 1} (${currentStep.label})`}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </Modal>
