@@ -1,4 +1,4 @@
-const { execFile } = require("child_process");
+const { execFile, exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -39,46 +39,79 @@ exports.capture = (id, count) => {
   });
 };
 
+/**
+ * Checks if the Futronic FS80H USB scanner is physically plugged in.
+ * Uses OS-level USB Plug-and-Play query (Windows PnP / Linux lsusb) so it
+ * detects the hardware instantly in the background without triggering an optical scan
+ * or requiring finger placement.
+ */
 exports.checkDevice = () => {
   return new Promise((resolve) => {
-    // Quick hardware probe using fcmb.exe
-    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 2500 }, (error, stdout, stderr) => {
-      const out = (stdout || "").trim();
-      const err = (stderr || "").trim();
-      const lines = out.split("\n").map(l => l.trim()).filter(Boolean);
+    const isWindows = process.platform === "win32";
 
-      // Clean up test minutiae file if created
-      try {
-        const testFile = path.join(EXEC_DIR, "probe_test.xyt");
-        if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
-      } catch {
-        // ignore
-      }
+    if (isWindows) {
+      // Futronic Tech Co. USB Vendor ID is 0BF8 (e.g., USB\VID_0BF8&PID_0030)
+      const psCommand = `powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.DeviceID -like '*VID_0BF8*' -or $_.Name -like '*Futronic*' -or $_.Manufacturer -like '*Futronic*' } | Select-Object -Property Name, Status, DeviceID | ConvertTo-Json"`;
 
-      // Detailed debug info from fcmb executable
-      console.log(`[Scanner Probe] stdout: "${out.replace(/\r?\n/g, ' | ')}"`);
-      if (err) console.log(`[Scanner Probe] stderr: "${err.replace(/\r?\n/g, ' | ')}"`);
+      exec(psCommand, { timeout: 3000 }, (err, stdout) => {
+        if (!err && stdout && stdout.trim()) {
+          try {
+            const parsed = JSON.parse(stdout.trim());
+            const item = Array.isArray(parsed) ? parsed[0] : parsed;
+            if (item && item.Name) {
+              return resolve({
+                connected: true,
+                model: item.Name || "Futronic FS80H USB Scanner",
+                status: "ready",
+                message: `Hardware detected: ${item.Name}`,
+                details: item,
+              });
+            }
+          } catch {
+            // Text match fallback
+            if (stdout.includes("0BF8") || stdout.toLowerCase().includes("futronic")) {
+              return resolve({
+                connected: true,
+                model: "Futronic FS80H USB Scanner",
+                status: "ready",
+                message: "Futronic USB Scanner detected on system",
+              });
+            }
+          }
+        }
 
-      // When disconnected: fcmb fails immediately on device initialization (cannot open device / stdout has <= 1 line).
-      // When connected: fcmb initializes the optical sensor (which blinks) and prompts "Please put your finger" (lines >= 2).
-      // Even if no finger is placed (timeout/try again), the hardware IS present.
-      const isUnplugged = 
-        lines.length < 2 || 
-        err.toLowerCase().includes("cannot open") || 
-        out.toLowerCase().includes("cannot open") ||
-        out.toLowerCase().includes("no scanner") ||
-        out.toLowerCase().includes("device not found");
+        // Secondary fallback on Windows: pnputil / wmic
+        exec('wmic path Win32_PnPEntity where "DeviceID like \'%0BF8%\'" get Name,Status /format:list', { timeout: 2000 }, (wmicErr, wmicOut) => {
+          if (!wmicErr && wmicOut && (wmicOut.includes("Name=") || wmicOut.toLowerCase().includes("futronic"))) {
+            return resolve({
+              connected: true,
+              model: "Futronic FS80H USB Scanner",
+              status: "ready",
+              message: "Futronic USB Scanner detected via WMI",
+            });
+          }
 
-      const isConnected = !isUnplugged;
-
-      resolve({
-        connected: isConnected,
-        model: "Futronic FS80H USB Scanner",
-        status: isConnected ? "ready" : "connect scanner",
-        message: isConnected ? "Futronic FS80H detected & optical sensor ready" : "Scanner disconnected (connect USB scanner)",
-        rawOutput: out || err,
+          // Scanner is not plugged in
+          resolve({
+            connected: false,
+            model: "Futronic FS80H USB Scanner",
+            status: "connect scanner",
+            message: "No Futronic USB scanner detected (unplugged)",
+          });
+        });
       });
-    });
+    } else {
+      // Linux / macOS: check lsusb for Vendor ID 0bf8
+      exec("lsusb", { timeout: 2000 }, (err, stdout) => {
+        const found = !err && stdout && (stdout.toLowerCase().includes("0bf8") || stdout.toLowerCase().includes("futronic"));
+        resolve({
+          connected: Boolean(found),
+          model: "Futronic FS80H USB Scanner",
+          status: found ? "ready" : "connect scanner",
+          message: found ? "Futronic FS80H USB scanner detected" : "No Futronic scanner found in lsusb",
+        });
+      });
+    }
   });
 };
 
