@@ -76,7 +76,13 @@ export default function StaffProfilePage() {
         </div>
       </main>
 
-      <BiometricEnrollmentModal open={enrollOpen} onClose={() => setEnrollOpen(false)} />
+      <BiometricEnrollmentModal
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        memberId={staffId}
+        memberName={displayName}
+        organizationId={workspaceId || 'default-org'}
+      />
 
       <footer className="profile-footer">
         <div className="profile-footer-inner">
