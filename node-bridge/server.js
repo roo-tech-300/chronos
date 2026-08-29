@@ -6,9 +6,9 @@ const fs = require("fs");
 const store = require("./src/store");
 
 const app = express();
-const START_PORT = Number(process.env.RESEARCHLAB_BRIDGE_PORT || 8080);
-const MAX_PORT = Number(process.env.RESEARCHLAB_BRIDGE_PORT_MAX || START_PORT + 20);
-const LOG_DIR = path.join(process.env.LOCALAPPDATA || process.env.TEMP || ".", "ResearchLabAttendance", "logs");
+const START_PORT = Number(process.env.CHRONOS_BRIDGE_PORT || process.env.RESEARCHLAB_BRIDGE_PORT || 8080);
+const MAX_PORT = Number(process.env.CHRONOS_BRIDGE_PORT_MAX || START_PORT + 20);
+const LOG_DIR = path.join(process.env.LOCALAPPDATA || process.env.TEMP || ".", "Chronos", "logs");
 const LOG_FILE = path.join(LOG_DIR, "bridge.log");
 
 function appendLog(line) {
@@ -194,7 +194,7 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     dataDir: store.DATA_DIR,
     firstRun: store.countManagers() === 0,
-    app: "Research Lab Attendance",
+    app: "Chronos Biometric Attendance Bridge",
   });
 });
 

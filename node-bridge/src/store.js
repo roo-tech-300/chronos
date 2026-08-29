@@ -6,43 +6,55 @@ const { DatabaseSync } = require("node:sqlite");
 const BRIDGE_ROOT = path.resolve(__dirname, "..");
 
 function resolveDataDir() {
-  if (process.env.RESEARCHLAB_DATA_DIR) {
-    return path.resolve(process.env.RESEARCHLAB_DATA_DIR);
+  if (process.env.CHRONOS_DATA_DIR) {
+    return path.resolve(process.env.CHRONOS_DATA_DIR);
   }
   const base =
     process.env.LOCALAPPDATA ||
     (process.env.APPDATA ? path.dirname(process.env.APPDATA) : BRIDGE_ROOT);
-  return path.join(base, "ResearchLabAttendance", "data");
+  return path.join(base, "Chronos", "data");
 }
 
 const DATA_DIR = resolveDataDir();
 const MINUT_DIR = path.join(DATA_DIR, "minut");
 const PHOTOS_DIR = path.join(DATA_DIR, "photos");
-const DB_PATH = path.join(DATA_DIR, "lab.db");
+const DB_PATH = path.join(DATA_DIR, "chronos.db");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(MINUT_DIR, { recursive: true });
 fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 
 function migrateLegacyTemplates() {
-  const legacyDir = path.join(BRIDGE_ROOT, ".db", "minut");
-  if (!fs.existsSync(legacyDir)) return;
+  // Check both legacy .db/minut and legacy ResearchLabAttendance paths
+  const legacyDirs = [
+    path.join(BRIDGE_ROOT, ".db", "minut"),
+    path.join(
+      process.env.LOCALAPPDATA || (process.env.APPDATA ? path.dirname(process.env.APPDATA) : BRIDGE_ROOT),
+      "ResearchLabAttendance",
+      "data",
+      "minut"
+    ),
+  ];
 
-  let migrated = 0;
-  try {
-    const files = fs.readdirSync(legacyDir).filter((f) => f.endsWith(".xyt"));
-    for (const file of files) {
-      const dest = path.join(MINUT_DIR, file);
-      if (!fs.existsSync(dest)) {
-        fs.copyFileSync(path.join(legacyDir, file), dest);
-        migrated++;
+  for (const legacyDir of legacyDirs) {
+    if (!fs.existsSync(legacyDir)) continue;
+
+    let migrated = 0;
+    try {
+      const files = fs.readdirSync(legacyDir).filter((f) => f.endsWith(".xyt"));
+      for (const file of files) {
+        const dest = path.join(MINUT_DIR, file);
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(path.join(legacyDir, file), dest);
+          migrated++;
+        }
       }
+    } catch (err) {
+      console.warn(`[Store] Template migration from ${legacyDir} failed: ${err.message}`);
     }
-  } catch (err) {
-    console.warn(`[Store] Template migration failed: ${err.message}`);
-  }
-  if (migrated > 0) {
-    console.log(`[Store] Migrated ${migrated} template(s) to ${MINUT_DIR}`);
+    if (migrated > 0) {
+      console.log(`[Store] Migrated ${migrated} template(s) from ${legacyDir} to ${MINUT_DIR}`);
+    }
   }
 }
 
@@ -54,7 +66,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS members (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'Student',
+    role TEXT NOT NULL DEFAULT 'Staff',
     member_id TEXT NOT NULL UNIQUE,
     photo TEXT,
     email TEXT,
@@ -86,7 +98,7 @@ db.exec(`
   );
 `);
 
-const ROLE_OPTIONS = ["Lab Manager", "Researcher", "Mentee", "Student"];
+const ROLE_OPTIONS = ["Administrator", "Staff", "Lecturer", "Researcher", "Student"];
 
 function nowISO() {
   return new Date().toISOString();
@@ -135,166 +147,138 @@ function createMember({ name, role, email, phone, photo }) {
   db.prepare(
     `INSERT INTO members (id, name, role, member_id, photo, email, phone, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, name, role, memberId, photo || null, email || null, phone || null, now, now);
+  ).run(id, name, role || "Staff", memberId, photo || null, email || null, phone || null, now, now);
   return getMemberById(id);
 }
 
-function toCamel(row) {
-  if (!row) return null;
-  const out = {};
-  for (const [key, value] of Object.entries(row)) {
-    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-    out[camel] = value;
-  }
-  return out;
-}
-
-function mapMember(row) {
-  return toCamel(row);
-}
-
-function mapAttendance(row) {
-  return toCamel(row);
-}
-
 function getMemberById(id) {
-  return mapMember(db.prepare("SELECT * FROM members WHERE id = ?").get(id));
+  const row = db.prepare("SELECT * FROM members WHERE id = ?").get(id);
+  return mapMember(row);
 }
 
 function getMemberByMemberId(memberId) {
-  return mapMember(db.prepare("SELECT * FROM members WHERE member_id = ?").get(memberId));
+  const row = db.prepare("SELECT * FROM members WHERE member_id = ?").get(memberId);
+  return mapMember(row);
 }
 
 function getMemberByEmail(email) {
-  return mapMember(db.prepare("SELECT * FROM members WHERE email = ?").get(email));
+  if (!email) return null;
+  const row = db.prepare("SELECT * FROM members WHERE LOWER(email) = LOWER(?)").get(email);
+  return mapMember(row);
 }
 
 function getMemberByAuthId(authId) {
-  return mapMember(db.prepare("SELECT * FROM members WHERE auth_id = ?").get(authId));
+  if (!authId) return null;
+  const row = db.prepare("SELECT * FROM members WHERE auth_id = ?").get(authId);
+  return mapMember(row);
 }
 
-function listMembers({ role, search, limit = 200, offset = 0 } = {}) {
-  const where = [];
-  const params = [];
-  if (role && role !== "All" && ROLE_OPTIONS.includes(role)) {
-    where.push("role = ?");
-    params.push(role);
-  }
-  if (search) {
-    where.push("(name LIKE ? OR member_id LIKE ? OR email LIKE ? OR phone LIKE ?)");
-    const like = `%${search}%`;
-    params.push(like, like, like, like);
-  }
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const rows = db
-    .prepare(`SELECT * FROM members ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
-    .all(...params, limit, offset);
-  const total = db
-    .prepare(`SELECT COUNT(*) AS c FROM members ${whereSql}`)
-    .get(...params).c;
-  return { members: rows.map(mapMember), total };
+function listMembers() {
+  const rows = db.prepare("SELECT * FROM members ORDER BY name COLLATE NOCASE ASC").all();
+  return rows.map(mapMember);
 }
 
 function updateMember(id, fields) {
-  const allowed = ["name", "role", "email", "phone", "photo", "auth_id", "password_hash"];
-  const keys = Object.keys(fields).filter((k) => allowed.includes(k) && fields[k] !== undefined);
-  if (keys.length === 0) return getMemberById(id);
-  const sets = keys.map((k) => `${k} = ?`).join(", ");
-  db.prepare(`UPDATE members SET ${sets}, updated_at = ? WHERE id = ?`).run(
-    ...keys.map((k) => fields[k]),
-    nowISO(),
-    id
-  );
+  const member = getMemberById(id);
+  if (!member) return null;
+  const updates = [];
+  const vals = [];
+  const allowed = ["name", "role", "member_id", "photo", "email", "phone", "auth_id", "password_hash"];
+  for (const [k, v] of Object.entries(fields)) {
+    if (allowed.includes(k)) {
+      updates.push(`${k} = ?`);
+      vals.push(v);
+    }
+  }
+  if (updates.length === 0) return member;
+  updates.push("updated_at = ?");
+  vals.push(nowISO());
+  vals.push(id);
+  db.prepare(`UPDATE members SET ${updates.join(", ")} WHERE id = ?`).run(...vals);
   return getMemberById(id);
 }
 
 function deleteMember(id) {
   db.prepare("DELETE FROM members WHERE id = ?").run(id);
-  db.prepare("DELETE FROM attendance WHERE member_id = ?").run(id);
-  db.prepare("DELETE FROM sessions WHERE auth_id = ?").run(id);
 }
 
 function countMembers() {
-  return db.prepare("SELECT COUNT(*) AS c FROM members").get().c;
+  const row = db.prepare("SELECT COUNT(*) AS c FROM members").get();
+  return row ? row.c : 0;
+}
+
+function countManagers() {
+  const row = db.prepare("SELECT COUNT(*) AS c FROM members WHERE role = 'Administrator' OR role = 'Lab Manager'").get();
+  return row ? row.c : 0;
+}
+
+function mapMember(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    name: r.name,
+    role: r.role,
+    memberId: r.member_id,
+    photo: r.photo,
+    email: r.email,
+    phone: r.phone,
+    authId: r.auth_id,
+    passwordHash: r.password_hash,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
 }
 
 function clock(memberId) {
-  const member = getMemberByMemberId(memberId) || getMemberById(memberId);
-  if (!member) return null;
   const date = todayStr();
-  const row = db.prepare("SELECT * FROM attendance WHERE member_id = ? AND date = ?").get(member.id, date);
-  const now = nowISO();
+  const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+  const row = db.prepare("SELECT * FROM attendance WHERE member_id = ? AND date = ?").get(memberId, date);
 
   if (!row) {
-    db.prepare("INSERT INTO attendance (member_id, date, check_in) VALUES (?, ?, ?)").run(
-      member.id,
-      date,
-      now
-    );
-    return { member, action: "in", checkIn: now, checkOut: null, date };
+    db.prepare("INSERT INTO attendance (member_id, date, check_in) VALUES (?, ?, ?)").run(memberId, date, time);
+    return { memberId, date, checkIn: time, checkOut: null, action: "in" };
+  } else if (!row.check_out) {
+    db.prepare("UPDATE attendance SET check_out = ? WHERE member_id = ? AND date = ?").run(time, memberId, date);
+    return { memberId, date, checkIn: row.check_in, checkOut: time, action: "out" };
+  } else {
+    db.prepare("UPDATE attendance SET check_out = ? WHERE member_id = ? AND date = ?").run(time, memberId, date);
+    return { memberId, date, checkIn: row.check_in, checkOut: time, action: "out" };
   }
-
-  if (!row.check_out) {
-    db.prepare("UPDATE attendance SET check_out = ? WHERE member_id = ? AND date = ?").run(
-      now,
-      member.id,
-      date
-    );
-    return { member, action: "out", checkIn: row.check_in, checkOut: now, date };
-  }
-
-  return { member, action: "done", checkIn: row.check_in, checkOut: row.check_out, date };
 }
 
 function getTodayAttendance() {
   const date = todayStr();
-  return db
-    .prepare(
-      `SELECT a.*, m.name AS member_name, m.role AS member_role, m.member_id AS member_code, m.photo AS member_photo
-       FROM attendance a JOIN members m ON m.id = a.member_id
-       WHERE a.date = ? ORDER BY a.check_in ASC`
-    )
-    .all(date)
-    .map(mapAttendance);
+  const rows = db.prepare("SELECT * FROM attendance WHERE date = ?").all(date);
+  return rows.map((r) => ({
+    memberId: r.member_id,
+    date: r.date,
+    checkIn: r.check_in,
+    checkOut: r.check_out,
+  }));
 }
 
 function getAttendanceForMember(memberId) {
-  return db
-    .prepare(
-      `SELECT a.* FROM attendance a WHERE a.member_id = ? ORDER BY a.date DESC LIMIT 500`
-    )
-    .all(memberId)
-    .map(mapAttendance);
+  const rows = db
+    .prepare("SELECT * FROM attendance WHERE member_id = ? ORDER BY date DESC LIMIT 30")
+    .all(memberId);
+  return rows.map((r) => ({
+    memberId: r.member_id,
+    date: r.date,
+    checkIn: r.check_in,
+    checkOut: r.check_out,
+  }));
 }
 
-function getAttendanceRange({ from, to, role, memberId } = {}) {
-  const where = [];
-  const params = [];
-  if (memberId) {
-    where.push("a.member_id = ?");
-    params.push(memberId);
-  }
-  if (role && role !== "All") {
-    where.push("m.role = ?");
-    params.push(role);
-  }
-  if (from) {
-    where.push("a.date >= ?");
-    params.push(from);
-  }
-  if (to) {
-    where.push("a.date <= ?");
-    params.push(to);
-  }
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  return db
-    .prepare(
-      `SELECT a.*, m.name AS member_name, m.role AS member_role, m.member_id AS member_code, m.photo AS member_photo
-       FROM attendance a JOIN members m ON m.id = a.member_id
-       ${whereSql} ORDER BY a.date DESC, a.check_in ASC LIMIT 2000`
-    )
-    .all(...params)
-    .map(mapAttendance);
+function getAttendanceRange(start, end) {
+  const rows = db
+    .prepare("SELECT * FROM attendance WHERE date >= ? AND date <= ? ORDER BY date DESC")
+    .all(start, end);
+  return rows.map((r) => ({
+    memberId: r.member_id,
+    date: r.date,
+    checkIn: r.check_in,
+    checkOut: r.check_out,
+  }));
 }
 
 function getSetting(key) {
@@ -303,47 +287,41 @@ function getSetting(key) {
 }
 
 function setSetting(key, value) {
-  db.prepare(
-    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-  ).run(key, value);
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(
+    key,
+    value
+  );
 }
 
 function getAllSettings() {
-  const rows = db.prepare("SELECT key, value FROM settings").all();
+  const rows = db.prepare("SELECT * FROM settings").all();
   const out = {};
-  for (const row of rows) out[row.key] = row.value;
+  for (const r of rows) out[r.key] = r.value;
   return out;
 }
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(String(password), salt, 64).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${hash}`;
 }
 
 function verifyPassword(password, stored) {
-  if (!stored) return false;
-  const [salt, hash] = String(stored).split(":");
-  if (!salt || !hash) return false;
-  const check = crypto.scryptSync(String(password), salt, 64).toString("hex");
-  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(check, "hex"));
+  if (!stored || !stored.includes(":")) return false;
+  const [salt, hash] = stored.split(":");
+  const test = crypto.scryptSync(password, salt, 64).toString("hex");
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(test, "hex"));
 }
 
-function countManagers() {
-  return db
-    .prepare("SELECT COUNT(*) AS c FROM members WHERE role = 'Lab Manager'")
-    .get().c;
-}
-
-function createSession(authId, ttlMs = 30 * 24 * 60 * 60 * 1000) {
+function createSession(authId) {
   const token = crypto.randomBytes(32).toString("hex");
   const now = Date.now();
-  db.prepare("DELETE FROM sessions WHERE auth_id = ?").run(authId);
+  const expires = now + 7 * 24 * 60 * 60 * 1000;
   db.prepare("INSERT INTO sessions (token, auth_id, created_at, expires_at) VALUES (?, ?, ?, ?)").run(
     token,
     authId,
     now,
-    now + ttlMs
+    expires
   );
   return token;
 }
