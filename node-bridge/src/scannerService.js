@@ -39,6 +39,23 @@ exports.capture = (id, count) => {
   });
 };
 
+exports.checkDevice = () => {
+  return new Promise((resolve) => {
+    // Quick hardware probe using fcmb.exe
+    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 2500 }, (error, stdout, stderr) => {
+      // If fcmb cannot find the USB optical device, stdout is missing lines or has fatal device code
+      const noScanner = stdout.split("\n")[2] === undefined || (stderr && stderr.toLowerCase().includes("device"));
+      const isConnected = !noScanner;
+      resolve({
+        connected: isConnected,
+        model: "Futronic FS80H USB Scanner",
+        status: isConnected ? "ready" : "connect scanner",
+        message: isConnected ? "Futronic FS80H detected & driver initialized" : "No Futronic USB scanner detected on station",
+      });
+    });
+  });
+};
+
 if (require.main === module) {
   const id = process.argv[2] || `scan_${Date.now()}`;
   const count = process.argv[3] || 1;

@@ -97,11 +97,17 @@ class FutronicBridgeService {
   }
 
   /**
-   * Queries the Node Bridge for stored templates & device availability
+   * Queries the Node Bridge for physical Futronic FS80H USB scanner state
    */
   async getScannerStatus(): Promise<ScannerHardwareStatus> {
-    const res = await this.requestWithTimeout<{ studentIds?: string[] }>(HARDWARE_CONFIG.statusPath)
-    if (!res.ok) {
+    const res = await this.requestWithTimeout<{
+      connected?: boolean
+      model?: string
+      status?: string
+      message?: string
+    }>(HARDWARE_CONFIG.statusPath)
+
+    if (!res.ok || !res.data) {
       return {
         isConnected: false,
         deviceModel: 'Futronic FS80H (Bridge Offline)',
@@ -109,13 +115,13 @@ class FutronicBridgeService {
       }
     }
 
-    const templateCount = res.data?.studentIds?.length ?? 0
-
+    const isConnected = Boolean(res.data.connected)
     return {
-      isConnected: true,
-      deviceModel: 'Futronic FS80H Optical Scanner',
+      isConnected,
+      deviceModel: res.data.model || 'Futronic FS80H USB Scanner',
       driverVersion: 'v4.2.0 (fcmb)',
-      serialNumber: `${templateCount} local template(s) loaded`,
+      serialNumber: isConnected ? 'USB Connected & Driver Ready' : 'Unplugged',
+      error: isConnected ? undefined : res.data.message || 'No physical USB scanner detected on station',
     }
   }
 

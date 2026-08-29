@@ -102,6 +102,23 @@ app.post("/api/scanner/identify", async (_req, res) => {
   }
 });
 
+// Query physical Futronic USB scanner hardware status
+app.get("/api/scanner/status", async (_req, res) => {
+  try {
+    const { checkDevice } = require("./src/scannerService");
+    const status = await checkDevice();
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.json({
+      success: false,
+      connected: false,
+      model: "Futronic FS80H",
+      status: "connect scanner",
+      message: err.message,
+    });
+  }
+});
+
 // List student IDs that have at least one template stored locally
 app.get("/api/scanner/templates", (_req, res) => {
   try {

@@ -33,7 +33,7 @@ export const HARDWARE_CONFIG: HardwareBridgeConfig = {
   port: BRIDGE_PORT,
   healthPath: '/api/health',
   capturePath: '/api/scanner/enroll',
-  statusPath: '/api/scanner/templates',
+  statusPath: '/api/scanner/status',
   timeoutMs: 3500,
   pollIntervalMs: 1500,
   autoResetDelayMs: 3000,
