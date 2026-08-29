@@ -7,6 +7,7 @@ import { useWorkspace } from './context/useWorkspace'
 import { useStaffProfile } from './hooks/useStaffProfile'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
+import { exportStaffAttendanceLogs } from './services/attendanceService'
 import BiometricEnrollmentModal from './BiometricEnrollmentModal'
 import AppNavbar from './components/layout/AppNavbar'
 import StaffOverviewCard from './components/profile/StaffOverviewCard'
@@ -79,7 +80,7 @@ export default function StaffProfilePage() {
               canEnroll={isTerminalDevice}
               isEnrolled={isEnrolled}
               onEnrollFingerprint={() => setEnrollOpen(true)}
-              onDownloadLog={() => {}}
+              onDownloadLog={() => exportStaffAttendanceLogs(staffId || displayStaffCode, displayName)}
             />
           </div>
         </div>

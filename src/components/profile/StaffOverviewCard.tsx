@@ -26,20 +26,13 @@ function getTerminalIcon(terminal: string): ReactNode {
   return TERMINAL_ICONS[terminal] ?? <Shield size={18} />
 }
 
-const DEFAULT_ACTIVITIES: ScanActivity[] = [
-  { terminal: 'Main Gate - Arrival', action: 'Biometric Entry', time: '08:12 AM' },
-  { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
-]
-
 export default function StaffOverviewCard({
-  activities = DEFAULT_ACTIVITIES,
+  activities = [],
   canEnroll = false,
   isEnrolled = false,
   onEnrollFingerprint,
   onDownloadLog,
 }: StaffOverviewCardProps) {
-  const displayActivities = activities.length > 0 ? activities : DEFAULT_ACTIVITIES
-
   return (
     <div className="bg-white rounded-xl border border-zinc-200 shadow-sm flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -80,27 +73,39 @@ export default function StaffOverviewCard({
           </Button>
         </div>
 
-        <div className="divide-y divide-zinc-100 border border-zinc-100 rounded-lg overflow-hidden flex-1 bg-white">
-          {displayActivities.map((act, index) => (
-            <div
-              key={`${act.terminal}-${act.time}-${index}`}
-              className="flex items-center justify-between p-4 hover:bg-zinc-50/80 transition-colors"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0">
-                  {getTerminalIcon(act.terminal)}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-zinc-900">{act.terminal}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{act.action}</p>
-                </div>
-              </div>
-              <span className="text-xs font-medium text-zinc-400 whitespace-nowrap tracking-wide">
-                {act.time}
-              </span>
+        {activities.length === 0 ? (
+          <div className="border border-dashed border-zinc-200 rounded-lg p-8 text-center flex-1 flex flex-col items-center justify-center bg-zinc-50/50">
+            <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center mb-2.5">
+              <History size={18} />
             </div>
-          ))}
-        </div>
+            <p className="text-sm font-semibold text-zinc-700">No Biometric Scans Logged Yet</p>
+            <p className="text-xs text-zinc-400 max-w-sm mt-1">
+              Scanning at any paired Chronos hardware terminal will automatically record attendance logs here in real time.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-zinc-100 border border-zinc-100 rounded-lg overflow-hidden flex-1 bg-white">
+            {activities.map((act, index) => (
+              <div
+                key={`${act.terminal}-${act.time}-${index}`}
+                className="flex items-center justify-between p-4 hover:bg-zinc-50/80 transition-colors"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0">
+                    {getTerminalIcon(act.terminal)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">{act.terminal}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{act.action}</p>
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-zinc-400 whitespace-nowrap tracking-wide">
+                  {act.time}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

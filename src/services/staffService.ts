@@ -3,6 +3,7 @@ import { rosterMembers } from '../dummy/roster-mock'
 import { getProfile, slugify, type StaffProfile } from '../dummy/profile-mock'
 import { resolveCurrentAuthIdentity, fetchMemberProfilesMap } from './identityResolver'
 import { checkBiometricEnrolled } from './biometricService'
+import { fetchStaffAttendanceHistory } from './attendanceService'
 import type { StaffMember, StaffQueryParams, PaginatedStaffResponse } from '../types/staff'
 
 interface RawMemberRow {
@@ -164,6 +165,9 @@ export async function fetchStaffProfile(
   // Query biometric template status from database
   const isEnrolled = await checkBiometricEnrolled(cleanId)
 
+  // Query live attendance history from attendance_logs
+  const realActivities = await fetchStaffAttendanceHistory(cleanId)
+
   const isDirectCurrent =
     Boolean(currentUserId && cleanId.toLowerCase() === currentUserId.toLowerCase()) ||
     Boolean(currentUserId && cleanId.toLowerCase() === `chr-${currentUserId.replace(/-/g, '').slice(0, 4).toLowerCase()}`) ||
@@ -173,6 +177,8 @@ export async function fetchStaffProfile(
 
   if (isDirectCurrent && currentUserName) {
     const directUserEnrolled = isEnrolled || (currentUserId ? await checkBiometricEnrolled(currentUserId) : false)
+    const directActivities = realActivities.length > 0 ? realActivities : (currentUserId ? await fetchStaffAttendanceHistory(currentUserId) : [])
+
     return {
       name: currentUserName,
       slug: slugify(currentUserName),
@@ -183,7 +189,7 @@ export async function fetchStaffProfile(
       uptimeReliability: '100%',
       accessLevel: '05',
       authProtocols: ['BIOMETRIC_OVERRIDE', 'MFA_ENABLED', 'PHYSICAL_KEY'],
-      activities: [
+      activities: directActivities.length > 0 ? directActivities : [
         { terminal: 'Main Gate - Arrival', action: 'Biometric Authenticated', time: '08:00 AM' },
         { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
       ],
@@ -240,6 +246,10 @@ export async function fetchStaffProfile(
       const memberBiometricEnrolled =
         isEnrolled || (member.user_id ? await checkBiometricEnrolled(member.user_id) : false)
 
+      const memberActivities = realActivities.length > 0 
+        ? realActivities 
+        : (member.user_id ? await fetchStaffAttendanceHistory(member.user_id) : [])
+
       return {
         name,
         slug: slugify(name),
@@ -250,7 +260,7 @@ export async function fetchStaffProfile(
         uptimeReliability: '99.8%',
         accessLevel: member.role === 'admin' ? '05' : '03',
         authProtocols: ['MFA_ENABLED', 'PHYSICAL_KEY', 'BIOMETRIC_OVERRIDE'],
-        activities: [
+        activities: memberActivities.length > 0 ? memberActivities : [
           { terminal: 'Main Gate - Arrival', action: 'Biometric Authenticated', time: '08:00 AM' },
           { terminal: 'Terminal 04 - East Wing', action: 'Workspace Synchronized', time: 'Just now' },
         ],
@@ -273,6 +283,7 @@ export async function fetchStaffProfile(
 
   return {
     ...fallback,
+    activities: realActivities.length > 0 ? realActivities : fallback.activities,
     isBiometricEnrolled: isEnrolled || fallback.isBiometricEnrolled,
   }
 }

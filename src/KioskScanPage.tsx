@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom'
 import { ShieldCheck, LogOut } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
+import { useKioskScan } from './hooks/useKioskScan'
 import { KioskHeader } from './components/kiosk/KioskHeader'
 import { KioskScanSensor } from './components/kiosk/KioskScanSensor'
 import { KioskSuccessCard } from './components/kiosk/KioskSuccessCard'
@@ -12,15 +13,8 @@ export default function KioskScanPage() {
   const navigate = useNavigate()
   const { terminal, isPaired, isLoading, unpairDevice } = useTerminalAuth()
   const { isWindowsApp, canBecomeTerminal, devBypassActive } = useTauriEnvironment()
+  const { scanStatus, lastScannedStaff, errorMessage, triggerScan } = useKioskScan(terminal)
 
-  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success'>('idle')
-  const [lastScannedStaff, setLastScannedStaff] = useState<{
-    name: string
-    id: string
-    time: string
-    dept: string
-    type: 'Check-In' | 'Check-Out'
-  } | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [unpairModalOpen, setUnpairModalOpen] = useState(false)
 
@@ -29,34 +23,6 @@ export default function KioskScanPage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
-
-  // Auto reset kiosk state 3.0 seconds after successful verification (Kiosk Rule #8)
-  useEffect(() => {
-    if (scanStatus === 'success') {
-      const resetTimer = setTimeout(() => {
-        setScanStatus('idle')
-        setLastScannedStaff(null)
-      }, 3000)
-      return () => clearTimeout(resetTimer)
-    }
-  }, [scanStatus])
-
-  // Simulated scan trigger for testing the hardware station
-  const handleSimulatedScan = (staffName: string, staffId: string, dept: string) => {
-    if (scanStatus === 'scanning') return
-    setScanStatus('scanning')
-
-    setTimeout(() => {
-      setLastScannedStaff({
-        name: staffName,
-        id: staffId,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        dept,
-        type: terminal?.mode === 'exit' ? 'Check-Out' : 'Check-In',
-      })
-      setScanStatus('success')
-    }, 800)
-  }
 
   // If loading local credentials
   if (isLoading) {
@@ -71,12 +37,10 @@ export default function KioskScanPage() {
   }
 
   // Strictly block any regular laptop/web browser that is NOT an authorized paired terminal
-  // Redirect back to dashboard instead of allowing kiosk entry
   if (!isPaired || !terminal || !canBecomeTerminal) {
     return <Navigate to="/dashboard" replace />
   }
 
-  // PAIRED KIOSK INTERFACE (CLEAN CHRONOS DESIGN SYSTEM)
   return (
     <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex flex-col justify-between p-6 sm:p-10 select-none font-sans">
       <KioskHeader
@@ -90,11 +54,23 @@ export default function KioskScanPage() {
       <main className="w-full max-w-lg mx-auto text-center my-auto py-6">
         {scanStatus === 'success' && lastScannedStaff ? (
           <KioskSuccessCard staff={lastScannedStaff} />
+        ) : scanStatus === 'error' ? (
+          <KioskSuccessCard
+            staff={{
+              name: 'Scan Failed',
+              id: 'ERR',
+              time: currentTime.toLocaleTimeString(),
+              dept: '',
+              type: 'Check-In',
+            }}
+            isError
+            errorMessage={errorMessage || 'Could not verify fingerprint.'}
+          />
         ) : (
           <KioskScanSensor
             currentTime={currentTime}
-            scanStatus={scanStatus}
-            onSimulatedScan={handleSimulatedScan}
+            scanStatus={scanStatus === 'scanning' ? 'scanning' : 'idle'}
+            onSimulatedScan={triggerScan}
           />
         )}
       </main>

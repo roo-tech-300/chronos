@@ -1,25 +1,44 @@
-import { CheckCircle2, Clock } from 'lucide-react'
-
-interface ScannedStaff {
-  name: string
-  id: string
-  time: string
-  dept: string
-  type: 'Check-In' | 'Check-Out'
-}
+import { CheckCircle2, AlertCircle, Clock } from 'lucide-react'
+import type { ScannedStaffResult } from '../../hooks/useKioskScan'
 
 interface KioskSuccessCardProps {
-  staff: ScannedStaff
+  staff: ScannedStaffResult
+  isError?: boolean
+  errorMessage?: string
 }
 
-export function KioskSuccessCard({ staff }: KioskSuccessCardProps) {
+export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessCardProps) {
+  if (isError) {
+    return (
+      <div className="bg-white border-2 border-red-500/80 rounded-3xl p-8 sm:p-10 shadow-xl shadow-red-500/10 animate-in zoom-in-95 duration-200 max-w-md mx-auto text-center">
+        <div className="w-20 h-20 rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <AlertCircle size={44} />
+        </div>
+        <span className="inline-block px-3.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-extrabold uppercase tracking-wider mb-2">
+          Verification Error
+        </span>
+        <h2 className="text-xl font-extrabold text-zinc-900 tracking-tight">Scan Unsuccessful</h2>
+        <p className="text-xs text-red-600 mt-2 font-medium">{errorMessage || 'Please try scanning your finger again.'}</p>
+        <p className="text-[11px] text-zinc-400 mt-4 font-medium">Resetting station in 3.0 seconds...</p>
+      </div>
+    )
+  }
+
+  const isCheckIn = staff.type === 'Check-In'
+
   return (
     <div className="bg-white border-2 border-emerald-500/80 rounded-3xl p-8 sm:p-10 shadow-xl shadow-emerald-500/10 animate-in zoom-in-95 duration-200 max-w-md mx-auto text-center">
       <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
         <CheckCircle2 size={44} />
       </div>
 
-      <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold uppercase tracking-wider mb-2">
+      <span
+        className={`inline-block px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider mb-2 border ${
+          isCheckIn
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-amber-50 text-amber-700 border-amber-200'
+        }`}
+      >
         {staff.type} Confirmed
       </span>
 
@@ -34,9 +53,7 @@ export function KioskSuccessCard({ staff }: KioskSuccessCardProps) {
         <span>Verified at {staff.time}</span>
       </div>
 
-      <p className="text-[11px] text-zinc-400 mt-2 font-medium">
-        Resetting station in 3.0 seconds...
-      </p>
+      <p className="text-[11px] text-zinc-400 mt-2 font-medium">Resetting station in 3.0 seconds...</p>
     </div>
   )
 }

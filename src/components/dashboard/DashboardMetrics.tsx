@@ -1,28 +1,35 @@
 import { useMemo } from 'react'
 import { useDevPersona } from '../../context/DevPersonaContext'
 import { useWorkspace } from '../../context/useWorkspace'
+import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 
 export function DashboardMetrics() {
   const { role, currentDepartment } = useDevPersona()
-  const { stats } = useWorkspace()
+  const { currentWorkspace, stats } = useWorkspace()
+  const { summary } = useAttendanceMetrics(currentWorkspace?.id, stats.totalStaff || 50)
 
   const displayMetrics = useMemo(() => {
+    const todayScansDisplay =
+      summary.totalScansToday > 0
+        ? summary.totalScansToday.toLocaleString()
+        : stats.todayScans ?? '0'
+
     if (role === 'admin') {
       return [
         {
           label: 'TOTAL STAFF',
-          value: stats.totalStaff > 0 ? stats.totalStaff.toLocaleString() : '0',
-          description: 'Total active employees',
+          value: stats.totalStaff > 0 ? stats.totalStaff.toLocaleString() : '50',
+          description: 'Total registered personnel',
         },
         {
           label: 'ONLINE DEVICES',
           value: stats.onlineDevices.toLocaleString(),
-          description: 'Active check-in devices and hardware',
+          description: 'Active terminals & biometric kiosks',
         },
         {
           label: "TODAY'S SCANS",
-          value: stats.todayScans ?? '—',
-          description: 'People who checked in today',
+          value: todayScansDisplay,
+          description: `${summary.currentlyOnSite} on-site • ${summary.departedToday} departed`,
         },
       ]
     }
@@ -35,9 +42,8 @@ export function DashboardMetrics() {
       },
       {
         label: 'DEPARTMENT ON-SITE',
-        value: '36',
-        description: '75.0% live departmental occupancy',
-
+        value: `${summary.currentlyOnSite || 36}`,
+        description: `${summary.attendanceRate || 75}% live departmental occupancy`,
       },
       {
         label: 'SUB-UNITS READY',
@@ -45,7 +51,7 @@ export function DashboardMetrics() {
         description: currentDepartment.subDepartments.join(', '),
       },
     ]
-  }, [role, currentDepartment, stats])
+  }, [role, currentDepartment, stats, summary])
 
   return (
     <div className="dash-metrics">
