@@ -42,9 +42,10 @@ exports.capture = (id, count) => {
 exports.checkDevice = () => {
   return new Promise((resolve) => {
     // Quick hardware probe using fcmb.exe
-    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 3000 }, (error, stdout, stderr) => {
+    execFile(FCMB_EXE, ["./", "probe_test"], { cwd: EXEC_DIR, timeout: 2500 }, (error, stdout, stderr) => {
       const out = (stdout || "").trim();
       const err = (stderr || "").trim();
+      const lines = out.split("\n").map(l => l.trim()).filter(Boolean);
 
       // Clean up test minutiae file if created
       try {
@@ -54,23 +55,28 @@ exports.checkDevice = () => {
         // ignore
       }
 
-      // Check fcmb output for disconnected hardware indicators:
-      // When disconnected: stdout is empty or missing line 2, or stderr contains error/device/fail, or error code
-      const hasDeviceError = Boolean(
-        error ||
-        out.split("\n").length < 3 ||
-        err.toLowerCase().includes("device") ||
-        err.toLowerCase().includes("cannot") ||
-        out.toLowerCase().includes("failed") ||
-        out.toLowerCase().includes("cannot open")
-      );
+      // Detailed debug info from fcmb executable
+      console.log(`[Scanner Probe] stdout: "${out.replace(/\r?\n/g, ' | ')}"`);
+      if (err) console.log(`[Scanner Probe] stderr: "${err.replace(/\r?\n/g, ' | ')}"`);
 
-      const isConnected = !hasDeviceError;
+      // When disconnected: fcmb fails immediately on device initialization (cannot open device / stdout has <= 1 line).
+      // When connected: fcmb initializes the optical sensor (which blinks) and prompts "Please put your finger" (lines >= 2).
+      // Even if no finger is placed (timeout/try again), the hardware IS present.
+      const isUnplugged = 
+        lines.length < 2 || 
+        err.toLowerCase().includes("cannot open") || 
+        out.toLowerCase().includes("cannot open") ||
+        out.toLowerCase().includes("no scanner") ||
+        out.toLowerCase().includes("device not found");
+
+      const isConnected = !isUnplugged;
+
       resolve({
         connected: isConnected,
         model: "Futronic FS80H USB Scanner",
         status: isConnected ? "ready" : "connect scanner",
-        message: isConnected ? "Futronic FS80H detected & driver ready" : "Scanner disconnected (connect USB scanner)",
+        message: isConnected ? "Futronic FS80H detected & optical sensor ready" : "Scanner disconnected (connect USB scanner)",
+        rawOutput: out || err,
       });
     });
   });
