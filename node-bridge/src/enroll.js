@@ -1,6 +1,8 @@
 const { capture } = require("./scannerService");
-
+const { MINUT_DIR } = require("./store");
 const readline = require("readline");
+const fs = require("fs");
+
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
 function ask(question) {
@@ -10,8 +12,8 @@ function ask(question) {
 async function enroll() {
   const name = process.argv[2];
   if (!name) {
-    console.log("Usage: node src/enroll.js <finger_name>");
-    console.log("Example: node src/enroll.js right_index");
+    console.log("Usage: node src/enroll.js <member_id_or_name>");
+    console.log("Example: node src/enroll.js 2f158922-80a3-4722-b7c6-c7ec97d70ca0");
     process.exit(1);
   }
 
@@ -21,7 +23,7 @@ async function enroll() {
     { label: "Tilt finger slightly RIGHT",       suffix: "tilted_right" },
   ];
 
-  console.log(`\nEnrolling: ${name}\n`);
+  console.log(`\nEnrolling: ${name}\nTarget Directory: ${MINUT_DIR}\n`);
 
   for (const angle of angles) {
     await ask(`Press Enter when ready to scan — ${angle.label}`);
@@ -39,17 +41,15 @@ async function enroll() {
         console.log(`  Still failed: ${retryResult.status}. Moving on.\n`);
         continue;
       }
-      console.log(`  Saved: ${fileId}.xyt\n`);
+      console.log(`  Saved: ${fileId}.xyt -> ${MINUT_DIR}\n`);
     } else {
-      console.log(`  Saved: ${fileId}.xyt\n`);
+      console.log(`  Saved: ${fileId}.xyt -> ${MINUT_DIR}\n`);
     }
   }
 
   rl.close();
-  console.log("Enrollment complete. Files in .db/minut/:");
-  const fs = require("fs");
-  const path = require("path");
-  const files = fs.readdirSync(path.resolve("./.db/minut"))
+  console.log(`Enrollment complete. Files in ${MINUT_DIR}:`);
+  const files = fs.readdirSync(MINUT_DIR)
     .filter(f => f.startsWith(name) && f.endsWith(".xyt"));
   files.forEach(f => console.log(`  ${f}`));
 }

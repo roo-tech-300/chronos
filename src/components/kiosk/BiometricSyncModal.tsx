@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { RefreshCw, CheckCircle2, AlertCircle, X, Database, HardDrive, ArrowDownToLine } from 'lucide-react'
+import { RefreshCw, CheckCircle2, AlertCircle, X, HardDrive, ArrowDownToLine, FolderOpen } from 'lucide-react'
 import { syncBiometricTemplates, getLocalBridgeTemplates, type BiometricSyncResult } from '../../services/biometricSyncService'
 
 interface BiometricSyncModalProps {
@@ -12,6 +12,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
   const [isSyncing, setIsSyncing] = useState(false)
   const [progressText, setProgressText] = useState('')
   const [localFileCount, setLocalFileCount] = useState<number | null>(null)
+  const [dataDirectory, setDataDirectory] = useState<string>('')
   const [bridgeOnline, setBridgeOnline] = useState(true)
   const [lastResult, setLastResult] = useState<BiometricSyncResult | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
@@ -23,6 +24,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
         if (isMounted) {
           setBridgeOnline(res.online)
           setLocalFileCount(res.files.length)
+          if (res.dataDir) setDataDirectory(res.dataDir)
         }
       })
     }
@@ -63,6 +65,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
       const updatedBridge = await getLocalBridgeTemplates()
       setBridgeOnline(updatedBridge.online)
       setLocalFileCount(updatedBridge.files.length)
+      if (updatedBridge.dataDir) setDataDirectory(updatedBridge.dataDir)
     } catch (err) {
       setLastResult({
         success: false,
@@ -84,7 +87,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
     <div className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div
         ref={modalRef}
-        className="bg-white border border-zinc-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-150 text-left"
+        className="bg-white border border-zinc-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in zoom-in-95 duration-150 text-left"
       >
         <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
@@ -93,7 +96,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
             </div>
             <div>
               <h2 className="text-base font-bold text-zinc-900">Sync Biometric Templates</h2>
-              <p className="text-xs text-zinc-500">Download missing minutiae (.xyt) to local kiosk</p>
+              <p className="text-xs text-zinc-500">Download missing minutiae (.xyt) from cloud database to local storage</p>
             </div>
           </div>
           <button
@@ -107,11 +110,21 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
         </div>
 
         <div className="my-5 space-y-4">
+          <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200/80">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
+              <FolderOpen size={13} className="text-[#7c007e]" />
+              <span className="font-semibold">Local Storage Directory</span>
+            </div>
+            <p className="text-xs font-mono font-medium text-zinc-800 break-all select-all">
+              {dataDirectory ? `${dataDirectory}\\minut` : '%LOCALAPPDATA%\\Chronos\\data\\minut'}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200/80">
               <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
                 <HardDrive size={13} className="text-[#7c007e]" />
-                <span className="font-semibold">Local Minutiae Files</span>
+                <span className="font-semibold">Minutiae Files</span>
               </div>
               <p className="text-lg font-bold text-zinc-900">
                 {localFileCount !== null ? `${localFileCount} files` : 'Checking...'}
@@ -119,11 +132,11 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
             </div>
             <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100">
               <div className="flex items-center gap-1.5 text-xs text-purple-900 mb-1">
-                <Database size={13} className="text-[#7c007e]" />
-                <span className="font-semibold">Bridge Status</span>
+                <span className={`w-2 h-2 rounded-full ${bridgeOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className="font-semibold">Node Bridge</span>
               </div>
               <p className={`text-sm font-bold ${bridgeOnline ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {bridgeOnline ? '127.0.0.1:8080 Active' : 'Bridge Offline'}
+                {bridgeOnline ? '127.0.0.1:8080' : 'Bridge Offline'}
               </p>
             </div>
           </div>
