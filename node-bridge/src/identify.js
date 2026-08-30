@@ -79,10 +79,23 @@ function matchProbe() {
         return resolve(null);
       }
       const matchedFile = path.basename(lines[idx]);
-      const studentId = matchedFile
-        .replace(/_(straight|tilted_left|tilted_right|primary|left_roll|right_roll|center|left_edge|right_edge)(_\d+)?\.xyt$/i, '')
-        .replace(/\.xyt$/i, '');
-      resolve({ file: matchedFile, id: studentId, studentId, score: maxScore });
+      // Accurately extract the member UUID: handles filenames like "2f158922-80a3-4722-b7c6-c7ec97d70ca0_left_roll.xyt"
+      let memberId = '';
+      const baseNoExt = matchedFile.replace(/\.xyt$/i, '');
+      const lastUnderscoreIndex = baseNoExt.lastIndexOf('_');
+      
+      // Check if filename matches standard UUID format (36 chars) or prefix
+      const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+      if (uuidMatch) {
+        memberId = uuidMatch[1];
+      } else if (lastUnderscoreIndex !== -1) {
+        memberId = baseNoExt.substring(0, lastUnderscoreIndex);
+      } else {
+        memberId = baseNoExt;
+      }
+      
+      console.log(`[Identify] Matched file: "${matchedFile}" -> Extracted memberId: "${memberId}" (Score: ${maxScore})`);
+      resolve({ file: matchedFile, id: memberId, studentId: memberId, memberId, score: maxScore });
     });
   });
 }

@@ -126,6 +126,7 @@ export async function resolveStaffByMemberId(
     console.error('[IdentityResolver] Exception resolving workspace member:', err)
   }
 
-  // Not found in workspace_members
+  // Not found in workspace_members table
+  console.log(`member id: ${memberId} not found in table`)
   return null
 }
