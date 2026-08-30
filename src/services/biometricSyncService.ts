@@ -46,6 +46,12 @@ export async function getLocalBridgeTemplates(): Promise<{
   }
 }
 
+interface DiscoveredTemplate {
+  memberId: string
+  storagePath: string
+  targetFilename: string
+}
+
 /**
  * Downloads missing biometric minutiae templates (.xyt) from Supabase Storage
  * and writes them directly into the local Node Bridge template directory (.db/minut or AppData).
@@ -57,10 +63,13 @@ export async function syncBiometricTemplates(
   const supabase = getSupabase()
   const { httpUrl } = getResolvedBridgeUrls()
 
+  console.log('[BiometricSync] Starting sync with organizationId:', organizationId)
+
   // 1. Check Local Bridge Gallery
   onProgress?.('Checking local scanner gallery...', 0, 1)
   const localBridge = await getLocalBridgeTemplates()
   if (!localBridge.online) {
+    console.warn('[BiometricSync] Node bridge is offline')
     return {
       success: false,
       totalCloudTemplates: 0,
@@ -73,29 +82,113 @@ export async function syncBiometricTemplates(
   }
 
   const localFilesSet = new Set(localBridge.files.map((f) => f.toLowerCase()))
+  console.log(`[BiometricSync] Local gallery has ${localFilesSet.size} template(s):`, localBridge.files)
 
-  // 2. Fetch Enrolled Templates from Supabase
-  onProgress?.('Querying database biometric templates...', 0, 1)
-  let query = supabase.from('biometric_templates').select('id, organization_id, member_id, storage_path, template_hash')
-  if (organizationId && organizationId !== '00000000-0000-0000-0000-000000000000') {
-    query = query.eq('organization_id', organizationId)
-  }
+  const discoveredMap = new Map<string, DiscoveredTemplate>()
 
-  const { data: cloudRecords, error: dbError } = await query
-  if (dbError) {
-    return {
-      success: false,
-      totalCloudTemplates: 0,
-      alreadySyncedCount: localFilesSet.size,
-      newlySyncedCount: 0,
-      failedCount: 0,
-      message: `Database query failed: ${dbError.message}`,
-      error: dbError.message,
+  // 2. Query biometric_templates database table
+  onProgress?.('Querying database for biometric templates...', 0, 1)
+  try {
+    let dbQuery = supabase
+      .from('biometric_templates')
+      .select('id, organization_id, member_id, storage_path, template_hash')
+
+    if (organizationId && organizationId !== '00000000-0000-0000-0000-000000000000') {
+      dbQuery = dbQuery.eq('organization_id', organizationId)
     }
+
+    const { data: dbRecords, error: dbError } = await dbQuery
+    let records = dbRecords || []
+
+    // If no records found with org filter, fallback to all records
+    if ((!records || records.length === 0) && organizationId) {
+      console.log('[BiometricSync] No templates found with org filter. Querying all biometric_templates records...')
+      const { data: fallbackRecords } = await supabase
+        .from('biometric_templates')
+        .select('id, organization_id, member_id, storage_path, template_hash')
+      if (fallbackRecords && fallbackRecords.length > 0) {
+        records = fallbackRecords
+      }
+    }
+
+    if (dbError) {
+      console.warn('[BiometricSync] Database query warning:', dbError.message)
+    }
+
+    records.forEach((row) => {
+      const memberId = (row.member_id || '').trim()
+      const storagePath = (row.storage_path || '').trim()
+      if (memberId && storagePath) {
+        const parts = storagePath.split('/')
+        const originalFilename = parts[parts.length - 1]
+        const targetFilename = originalFilename.includes(memberId)
+          ? originalFilename
+          : `${memberId}_straight.xyt`
+        discoveredMap.set(targetFilename.toLowerCase(), {
+          memberId,
+          storagePath,
+          targetFilename,
+        })
+      }
+    })
+    console.log(`[BiometricSync] Found ${discoveredMap.size} template(s) in biometric_templates table`)
+  } catch (err) {
+    console.warn('[BiometricSync] Error querying biometric_templates table:', err)
   }
 
-  const templates = cloudRecords || []
-  const total = templates.length
+  // 3. Discover files directly from Supabase Storage 'biometrics' bucket
+  onProgress?.('Scanning Supabase Storage bucket...', 0, 1)
+  try {
+    const bucketsToCheck = ['biometrics', 'templates', 'minutiae']
+    for (const bucket of bucketsToCheck) {
+      try {
+        const { data: rootFiles } = await supabase.storage.from(bucket).list('', { limit: 100 })
+        if (rootFiles && rootFiles.length > 0) {
+          for (const item of rootFiles) {
+            if (item.name.endsWith('.xyt')) {
+              const baseNoExt = item.name.replace(/\.xyt$/i, '')
+              const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/)
+              const memberId = uuidMatch ? uuidMatch[1] : baseNoExt.split('_')[0]
+              discoveredMap.set(item.name.toLowerCase(), {
+                memberId,
+                storagePath: item.name,
+                targetFilename: item.name,
+              })
+            } else if (!item.id && !item.name.includes('.')) {
+              // Folder in storage
+              try {
+                const { data: subFiles } = await supabase.storage.from(bucket).list(item.name, { limit: 50 })
+                if (subFiles) {
+                  for (const sub of subFiles) {
+                    if (sub.name.endsWith('.xyt')) {
+                      const baseNoExt = sub.name.replace(/\.xyt$/i, '')
+                      const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/)
+                      const memberId = uuidMatch ? uuidMatch[1] : item.name.includes('-') ? item.name : sub.name.split('_')[0]
+                      discoveredMap.set(sub.name.toLowerCase(), {
+                        memberId,
+                        storagePath: `${item.name}/${sub.name}`,
+                        targetFilename: sub.name,
+                      })
+                    }
+                  }
+                }
+              } catch {
+                // Continue subfolder scan
+              }
+            }
+          }
+        }
+      } catch {
+        // Bucket not accessible or does not exist
+      }
+    }
+  } catch (err) {
+    console.warn('[BiometricSync] Error listing storage buckets:', err)
+  }
+
+  const allTemplates = Array.from(discoveredMap.values())
+  const total = allTemplates.length
+  console.log(`[BiometricSync] Total cloud biometric templates discovered: ${total}`)
 
   if (total === 0) {
     return {
@@ -104,7 +197,7 @@ export async function syncBiometricTemplates(
       alreadySyncedCount: localFilesSet.size,
       newlySyncedCount: 0,
       failedCount: 0,
-      message: 'No enrolled biometric records found in cloud database for this workspace.',
+      message: 'No enrolled biometric records found in cloud database or storage.',
     }
   }
 
@@ -112,76 +205,85 @@ export async function syncBiometricTemplates(
   let alreadySynced = 0
   let failed = 0
 
-  // 3. Process each record
+  // 4. Download missing templates
   for (let i = 0; i < total; i++) {
-    const row = templates[i]
-    const memberId = row.member_id
-    const storagePath = row.storage_path
+    const item = allTemplates[i]
+    onProgress?.(`Syncing template ${i + 1}/${total}: ${item.targetFilename}`, i + 1, total)
 
-    onProgress?.(`Processing template ${i + 1}/${total}...`, i + 1, total)
-
-    if (!storagePath) {
-      failed++
-      continue
-    }
-
-    // Determine target local filename (e.g., "<member_id>_straight.xyt")
-    const pathParts = storagePath.split('/')
-    const originalFilename = pathParts[pathParts.length - 1]
-    const localTargetFilename = originalFilename.includes(memberId)
-      ? originalFilename
-      : `${memberId}_straight.xyt`
-
-    // Check if already present locally
-    if (localFilesSet.has(localTargetFilename.toLowerCase())) {
+    if (localFilesSet.has(item.targetFilename.toLowerCase())) {
       alreadySynced++
       continue
     }
 
-    // Download from Supabase Storage
+    console.log(`[BiometricSync] Downloading missing template: ${item.storagePath} -> ${item.targetFilename}`)
+
+    let textContent = ''
+
+    // Try Download Method A: Supabase SDK download
     try {
       const { data: fileBlob, error: downloadError } = await supabase.storage
         .from('biometrics')
-        .download(storagePath)
+        .download(item.storagePath)
 
-      if (downloadError || !fileBlob) {
-        console.warn(`[Sync] Could not download storage file ${storagePath}:`, downloadError?.message)
-        failed++
-        continue
+      if (!downloadError && fileBlob) {
+        textContent = await fileBlob.text()
       }
+    } catch {
+      // Try next method
+    }
 
-      const textContent = await fileBlob.text()
-      if (!textContent || textContent.trim().length === 0) {
-        failed++
-        continue
+    // Try Download Method B: Public URL fetch if SDK download didn't return text
+    if (!textContent || textContent.trim().length === 0) {
+      try {
+        const { data: pubData } = supabase.storage.from('biometrics').getPublicUrl(item.storagePath)
+        if (pubData?.publicUrl) {
+          const fetchRes = await fetch(pubData.publicUrl)
+          if (fetchRes.ok) {
+            textContent = await fetchRes.text()
+          }
+        }
+      } catch {
+        // Continue
       }
+    }
 
-      // Send to local Node Bridge
+    if (!textContent || textContent.trim().length === 0) {
+      console.warn(`[BiometricSync] Failed to download content for ${item.storagePath}`)
+      failed++
+      continue
+    }
+
+    // Send downloaded template to Node Bridge
+    try {
       const syncRes = await fetch(`${httpUrl}/api/scanner/sync-template`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          memberId,
-          fileName: localTargetFilename,
+          memberId: item.memberId,
+          fileName: item.targetFilename,
           template: textContent,
         }),
       })
 
       if (syncRes.ok) {
+        console.log(`[BiometricSync] Saved to local gallery: ${item.targetFilename}`)
         newlySynced++
-        localFilesSet.add(localTargetFilename.toLowerCase())
+        localFilesSet.add(item.targetFilename.toLowerCase())
       } else {
+        console.warn(`[BiometricSync] Bridge rejected template ${item.targetFilename}: status ${syncRes.status}`)
         failed++
       }
     } catch (err) {
-      console.warn(`[Sync] Error syncing template for ${memberId}:`, err)
+      console.warn(`[BiometricSync] Error posting template to bridge:`, err)
       failed++
     }
   }
 
   const message = newlySynced > 0
-    ? `Successfully synced ${newlySynced} new template(s) from database. Total in local gallery: ${localFilesSet.size}.`
-    : `All ${total} database template(s) are already synchronized with local storage.`
+    ? `Successfully downloaded ${newlySynced} new template(s). Total in local gallery: ${localFilesSet.size}.`
+    : `All ${total} template(s) are already synchronized with local storage.`
+
+  console.log('[BiometricSync] Sync completed result:', { total, newlySynced, alreadySynced, failed })
 
   return {
     success: true,
