@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { futronicBridge } from '../services/futronicBridge'
 import { logAttendanceScan } from '../services/attendanceService'
-import { getSupabase } from '../lib/supabase'
+import { resolveStaffByMemberId } from '../services/identityResolver'
 import type { TerminalDevice, NodeBridgeMatch } from '../types/terminal'
 import type { AttendanceDirection } from '../types/attendance'
 
@@ -35,32 +35,6 @@ export function useKioskScan(terminal: TerminalDevice | null) {
     }
   }, [scanStatus])
 
-  // Resolve staff metadata strictly for the matched user identified by Node Bridge
-  const fetchProfileForNodeMatch = async (match: NodeBridgeMatch) => {
-    const supabase = getSupabase()
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, department, role')
-        .eq('id', match.id)
-        .maybeSingle()
-
-      if (profile) {
-        return {
-          name: profile.full_name || match.name || 'Staff Member',
-          dept: profile.department || match.department || 'Academic Staff',
-        }
-      }
-    } catch {
-      // Offline fallback
-    }
-
-    return {
-      name: match.name || 'Staff Member',
-      dept: match.department || 'Academic Staff',
-    }
-  }
-
   // Handle a user match identified by Node Bridge
   const handleNodeBridgeMatch = useCallback(
     async (match: NodeBridgeMatch) => {
@@ -75,12 +49,20 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         const explicitDirection: AttendanceDirection | undefined =
           terminal?.mode === 'entry' ? 'in' : terminal?.mode === 'exit' ? 'out' : undefined
 
-        const profile = await fetchProfileForNodeMatch(match)
+        // Validate if memberId exists in database
+        const memberIdToLookup = match.id || ''
+        const resolved = await resolveStaffByMemberId(memberIdToLookup)
+
+        if (!resolved || !resolved.name) {
+          setErrorMessage('User is not a member of this organisation.')
+          setScanStatus('error')
+          return
+        }
 
         const result = await logAttendanceScan({
-          memberId: match.id,
-          staffName: profile.name,
-          department: profile.dept,
+          memberId: resolved.memberId,
+          staffName: resolved.name,
+          department: resolved.department,
           terminalId,
           organizationId: orgId,
           explicitDirection,
@@ -96,10 +78,10 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         })
 
         setLastScannedStaff({
-          name: profile.name,
-          id: match.id,
+          name: resolved.name,
+          id: resolved.memberId,
           time: timeStr,
-          dept: profile.dept,
+          dept: resolved.department,
           type: resolvedDirection === 'in' ? 'Check-In' : 'Check-Out',
           statusMessage: result.message,
           dbSaved: result.dbSaved,

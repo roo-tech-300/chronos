@@ -7,6 +7,7 @@ export interface ScanActivity {
 }
 
 export interface StaffProfile {
+  id?: string
   name: string
   slug: string
   staffId: string

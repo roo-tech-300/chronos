@@ -251,6 +251,7 @@ export async function fetchStaffProfile(
         : (member.user_id ? await fetchStaffAttendanceHistory(member.user_id) : [])
 
       return {
+        id: member.id,
         name,
         slug: slugify(name),
         staffId: staffCode,

@@ -46,6 +46,8 @@ export interface ScannerHardwareStatus {
 
 export interface NodeBridgeMatch {
   id: string
+  studentId?: string
+  memberId?: string
   name?: string
   department?: string
   role?: string

@@ -166,7 +166,7 @@ class FutronicBridgeService {
     // Node bridge says matched user found
     if (res.data.match) {
       const matchObj: NodeBridgeMatch = {
-        id: res.data.match.id,
+        id: res.data.match.id || res.data.match.studentId || res.data.match.memberId || '',
         name: res.data.match.name,
         department: res.data.match.department,
         role: res.data.match.role,

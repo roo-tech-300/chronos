@@ -33,17 +33,30 @@ export async function fetchRecentLiveScans(
 
     if (error || !data || data.length === 0) return []
 
-    // Fetch profiles for member IDs
+    // Fetch workspace_members for member IDs (workspace_members.id)
     const memberIds = Array.from(new Set(data.map((r) => r.member_id).filter(Boolean)))
-    const { data: profiles } = await supabase
-      .from('profiles')
+    const { data: wmList } = await supabase
+      .from('workspace_members')
       .select('id, full_name')
       .in('id', memberIds)
 
     const profileMap = new Map<string, string>()
-    profiles?.forEach((p) => {
-      if (p.id) profileMap.set(p.id, p.full_name || 'Staff Member')
+    wmList?.forEach((w) => {
+      if (w.id && w.full_name) profileMap.set(w.id, w.full_name)
     })
+
+    // If any remain unresolved, check profiles
+    const unresolvedIds = memberIds.filter((id) => !profileMap.has(id))
+    if (unresolvedIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', unresolvedIds)
+
+      profiles?.forEach((p) => {
+        if (p.id && p.full_name) profileMap.set(p.id, p.full_name)
+      })
+    }
 
     return data.map((row) => {
       const name = profileMap.get(row.member_id) || 'Staff Member'
@@ -151,17 +164,29 @@ export async function exportWorkspaceAttendanceLogs(
       .eq('organization_id', orgUUID)
       .order('scan_timestamp', { ascending: false })
 
-    // Fetch profiles map
+    // Fetch workspace_members map
     const memberIds = Array.from(new Set(data?.map((r) => r.member_id).filter(Boolean) || []))
-    const { data: profiles } = await supabase
-      .from('profiles')
+    const { data: wmList } = await supabase
+      .from('workspace_members')
       .select('id, full_name')
       .in('id', memberIds)
 
     const profileMap = new Map<string, string>()
-    profiles?.forEach((p) => {
-      if (p.id) profileMap.set(p.id, p.full_name || 'Staff Member')
+    wmList?.forEach((w) => {
+      if (w.id && w.full_name) profileMap.set(w.id, w.full_name)
     })
+
+    const unresolvedIds = memberIds.filter((id) => !profileMap.has(id))
+    if (unresolvedIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', unresolvedIds)
+
+      profiles?.forEach((p) => {
+        if (p.id && p.full_name) profileMap.set(p.id, p.full_name)
+      })
+    }
 
     const rows = (data && data.length > 0)
       ? data.map((row) => ({

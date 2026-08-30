@@ -79,8 +79,10 @@ function matchProbe() {
         return resolve(null);
       }
       const matchedFile = path.basename(lines[idx]);
-      const studentId = matchedFile.replace(/_(straight|tilted_left|tilted_right)\.xyt$/, '');
-      resolve({ file: matchedFile, studentId, score: maxScore });
+      const studentId = matchedFile
+        .replace(/_(straight|tilted_left|tilted_right|primary|left_roll|right_roll|center|left_edge|right_edge)(_\d+)?\.xyt$/i, '')
+        .replace(/\.xyt$/i, '');
+      resolve({ file: matchedFile, id: studentId, studentId, score: maxScore });
     });
   });
 }
