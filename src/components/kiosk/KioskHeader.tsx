@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Fingerprint, Laptop, Wifi, Cpu, Database } from 'lucide-react'
+import { Fingerprint, Laptop, Wifi, Cpu, ArrowDownToLine } from 'lucide-react'
 import type { TerminalDevice } from '../../types/terminal'
-import { DatabaseSyncHelpModal } from './DatabaseSyncHelpModal'
+import { BiometricSyncModal } from './BiometricSyncModal'
 
 interface KioskHeaderProps {
   terminal: TerminalDevice
@@ -16,7 +16,7 @@ export function KioskHeader({
   devBypassActive,
   onOpenOptions,
 }: KioskHeaderProps) {
-  const [dbModalOpen, setDbModalOpen] = useState(false)
+  const [syncModalOpen, setSyncModalOpen] = useState(false)
 
   return (
     <>
@@ -37,15 +37,15 @@ export function KioskHeader({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Database Setup Button */}
+          {/* Manual Template Sync Button */}
           <button
             type="button"
-            onClick={() => setDbModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-700 shadow-2xs transition-colors cursor-pointer"
-            title="Supabase Database Persistence Status"
+            onClick={() => setSyncModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50/50 border border-zinc-200 hover:border-purple-200 text-xs font-semibold text-zinc-700 hover:text-[#7c007e] shadow-2xs transition-colors cursor-pointer"
+            title="Download latest enrolled biometric templates from database"
           >
-            <Database size={13} className="text-[#7c007e]" />
-            <span className="hidden sm:inline">Database RLS</span>
+            <ArrowDownToLine size={13} className="text-[#7c007e]" />
+            <span className="hidden sm:inline">Sync Templates</span>
           </button>
 
           {/* Runtime Environment Badge */}
@@ -71,9 +71,10 @@ export function KioskHeader({
         </div>
       </header>
 
-      <DatabaseSyncHelpModal
-        isOpen={dbModalOpen}
-        onClose={() => setDbModalOpen(false)}
+      <BiometricSyncModal
+        isOpen={syncModalOpen}
+        organizationId={terminal.workspaceId}
+        onClose={() => setSyncModalOpen(false)}
       />
     </>
   )

@@ -119,23 +119,26 @@ app.get("/api/scanner/status", async (_req, res) => {
   }
 });
 
-// List student IDs that have at least one template stored locally
+// List member IDs and files that have templates stored locally
 app.get("/api/scanner/templates", (_req, res) => {
   try {
     const ENROLL_DIR = store.MINUT_DIR;
     if (!fs.existsSync(ENROLL_DIR)) {
-      return res.json({ studentIds: [] });
+      return res.json({ studentIds: [], memberIds: [], files: [] });
     }
 
-    const files = fs.readdirSync(ENROLL_DIR);
-    const studentIds = [...new Set(
-      files
-        .filter(f => f.endsWith('.xyt'))
-        .map(f => f.replace(/_(straight|tilted_left|tilted_right)\.xyt$/, ''))
-        .filter(Boolean)
+    const files = fs.readdirSync(ENROLL_DIR).filter(f => f.endsWith('.xyt'));
+    const memberIds = [...new Set(
+      files.map(f => {
+        const baseNoExt = f.replace(/\.xyt$/i, '');
+        const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+        if (uuidMatch) return uuidMatch[1];
+        const lastUnderscore = baseNoExt.lastIndexOf('_');
+        return lastUnderscore !== -1 ? baseNoExt.substring(0, lastUnderscore) : baseNoExt;
+      }).filter(Boolean)
     )];
 
-    res.json({ studentIds });
+    res.json({ studentIds: memberIds, memberIds, files, count: files.length });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -169,20 +172,41 @@ app.delete("/api/scanner/templates/:studentId", (req, res) => {
 
 // Save a template locally (synced from database)
 app.post("/api/scanner/sync-template", (req, res) => {
-  console.log(`[Bridge] Received sync-template request for student: ${req.body.studentId}`);
   try {
-    const { studentId, angle, template } = req.body;
-    if (!studentId || !angle || !template) {
-      return res.json({ success: false, message: "Missing studentId, angle or template" });
-    }
-
     const ENROLL_DIR = store.MINUT_DIR;
     if (!fs.existsSync(ENROLL_DIR)) fs.mkdirSync(ENROLL_DIR, { recursive: true });
 
-    const filePath = path.join(ENROLL_DIR, `${studentId}_${angle}.xyt`);
-    fs.writeFileSync(filePath, template, "utf8");
+    // Support batch syncing
+    if (Array.isArray(req.body.templates)) {
+      let saved = 0;
+      for (const item of req.body.templates) {
+        const id = item.memberId || item.studentId || item.id;
+        const angle = item.angle || 'straight';
+        const content = item.template || item.content;
+        const filename = item.fileName || `${id}_${angle}.xyt`;
+        if (content && (id || item.fileName)) {
+          fs.writeFileSync(path.join(ENROLL_DIR, filename), content, "utf8");
+          saved++;
+        }
+      }
+      console.log(`[Bridge] Batch synced ${saved} template(s) into local gallery`);
+      return res.json({ success: true, count: saved, message: `Synced ${saved} template(s)` });
+    }
 
-    res.json({ success: true, message: "Template synced locally" });
+    const { studentId, memberId, id, angle, template, fileName } = req.body;
+    const targetId = memberId || studentId || id;
+    const targetAngle = angle || 'straight';
+    const targetFile = fileName || `${targetId}_${targetAngle}.xyt`;
+
+    if (!template || (!targetId && !fileName)) {
+      return res.json({ success: false, message: "Missing memberId, angle or template" });
+    }
+
+    const filePath = path.join(ENROLL_DIR, targetFile);
+    fs.writeFileSync(filePath, template, "utf8");
+    console.log(`[Bridge] Saved local template: ${targetFile}`);
+
+    res.json({ success: true, file: targetFile, message: "Template synced locally" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
