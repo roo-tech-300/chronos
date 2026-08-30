@@ -17,6 +17,7 @@ import { AuthProvider } from './context/AuthContext'
 import { DevPersonaProvider, useDevPersona } from './context/DevPersonaContext'
 import { WorkspaceProvider } from './context/WorkspaceContext'
 import DevPersonaSwitcher from './components/common/DevPersonaSwitcher'
+import GlobalScanNotificationToast from './components/common/GlobalScanNotificationToast'
 
 // Staff members (non-leadership) are routed straight to their Daily Workspace;
 // department heads & admins keep the Dashboard as their primary landing page.
@@ -68,6 +69,7 @@ function App() {
             <Route path="/terminal/pair" element={<TerminalPairPage />} />
             <Route path="/scan" element={<KioskScanPage />} />
           </Routes>
+          <GlobalScanNotificationToast />
           <DevPersonaSwitcher />
         </WorkspaceProvider>
       </DevPersonaProvider>

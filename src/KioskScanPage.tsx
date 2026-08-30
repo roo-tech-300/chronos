@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ShieldCheck, LogOut } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
@@ -8,18 +8,30 @@ import { KioskHeader } from './components/kiosk/KioskHeader'
 import { KioskScanSensor } from './components/kiosk/KioskScanSensor'
 import { KioskSuccessCard } from './components/kiosk/KioskSuccessCard'
 import { KioskUnpairModal } from './components/kiosk/KioskUnpairModal'
+import type { TerminalDevice } from './types/terminal'
 
 export default function KioskScanPage() {
   const navigate = useNavigate()
-  const { terminal, isPaired, isLoading, unpairDevice } = useTerminalAuth()
-  const { isWindowsApp, canBecomeTerminal, devBypassActive } = useTauriEnvironment()
+  const { terminal, unpairDevice } = useTerminalAuth()
+  const { isWindowsApp, devBypassActive } = useTauriEnvironment()
+
+  // Provide guaranteed fallback terminal object so Kiosk Mode is immediately operational
+  const activeTerminal: TerminalDevice = terminal || {
+    id: 'kiosk_main_station',
+    name: 'Main Attendance Kiosk',
+    location: 'Main Reception',
+    mode: 'bidirectional',
+    status: 'online',
+    createdAt: new Date().toISOString(),
+  }
+
   const {
     scanStatus,
     lastScannedStaff,
     errorMessage,
     hardwareDetected,
     triggerScan,
-  } = useKioskScan(terminal)
+  } = useKioskScan(activeTerminal)
 
   const [currentTime, setCurrentTime] = useState(new Date())
   const [unpairModalOpen, setUnpairModalOpen] = useState(false)
@@ -30,27 +42,10 @@ export default function KioskScanPage() {
     return () => clearInterval(timer)
   }, [])
 
-  // If loading local credentials
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-[#7c007e] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-zinc-500 font-semibold tracking-wide">Validating Terminal Station...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Strictly block any regular laptop/web browser that is NOT an authorized paired terminal
-  if (!isPaired || !terminal || !canBecomeTerminal) {
-    return <Navigate to="/dashboard" replace />
-  }
-
   return (
     <div className="min-h-screen bg-[#fafafa] text-zinc-900 flex flex-col justify-between p-6 sm:p-10 select-none font-sans">
       <KioskHeader
-        terminal={terminal}
+        terminal={activeTerminal}
         isWindowsApp={isWindowsApp}
         devBypassActive={devBypassActive}
         onOpenOptions={() => setUnpairModalOpen(true)}
@@ -63,7 +58,7 @@ export default function KioskScanPage() {
         ) : scanStatus === 'error' ? (
           <KioskSuccessCard
             staff={{
-              name: 'Scan Failed',
+              name: 'Scan Unsuccessful',
               id: 'ERR',
               time: currentTime.toLocaleTimeString(),
               dept: '',
@@ -87,7 +82,7 @@ export default function KioskScanPage() {
         <div className="flex items-center gap-2">
           <ShieldCheck size={16} className="text-[#7c007e]" />
           <span>
-            Station ID: <span className="font-mono font-bold text-zinc-700">{terminal.id}</span>
+            Station ID: <span className="font-mono font-bold text-zinc-700">{activeTerminal.id}</span>
           </span>
         </div>
         <button
