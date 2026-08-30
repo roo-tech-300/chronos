@@ -38,8 +38,6 @@ export function useKioskScan(terminal: TerminalDevice | null) {
   // Handle a user match identified by Node Bridge
   const handleNodeBridgeMatch = useCallback(
     async (match: NodeBridgeMatch) => {
-      if (isProcessingRef.current) return
-      isProcessingRef.current = true
       setScanStatus('scanning')
       setErrorMessage(null)
 
@@ -50,12 +48,13 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           terminal?.mode === 'entry' ? 'in' : terminal?.mode === 'exit' ? 'out' : undefined
 
         // Validate if memberId exists in database
-        const memberIdToLookup = match.id || ''
+        const memberIdToLookup = match.id || match.studentId || match.memberId || ''
         const resolved = await resolveStaffByMemberId(memberIdToLookup)
 
         if (!resolved || !resolved.name) {
           setErrorMessage('User is not a member of this organisation.')
           setScanStatus('error')
+          isProcessingRef.current = false
           return
         }
 
@@ -91,6 +90,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         console.error('[Kiosk] Attendance log error:', err)
         setErrorMessage(err instanceof Error ? err.message : 'Failed to record attendance.')
         setScanStatus('error')
+        isProcessingRef.current = false
       }
     },
     [terminal]
@@ -102,11 +102,13 @@ export function useKioskScan(terminal: TerminalDevice | null) {
 
     const unsubscribeScan = futronicBridge.onScanEvent(async (payload) => {
       if (isProcessingRef.current) return
+      isProcessingRef.current = true
 
       // Node bridge explicitly reported no match or error
       if (payload.matched === false || payload.status === 'error' || payload.error) {
         setErrorMessage(payload.error || payload.message || 'No matching user found on Node Bridge.')
         setScanStatus('error')
+        isProcessingRef.current = false
         return
       }
 
@@ -119,6 +121,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       // Node bridge sent unmatched capture
       setErrorMessage('Unrecognized Fingerprint: Node Bridge did not match any enrolled user.')
       setScanStatus('error')
+      isProcessingRef.current = false
     })
 
     const unsubscribeStatus = futronicBridge.onStatusEvent((status) => {
@@ -135,6 +138,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
   // Trigger optical scanner identification via Node Bridge
   const triggerOpticalScan = useCallback(async () => {
     if (isProcessingRef.current) return
+    isProcessingRef.current = true
 
     setScanStatus('scanning')
     setErrorMessage(null)
@@ -146,6 +150,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       if (!res.success && !res.matched) {
         setErrorMessage(res.error || 'Node bridge: Failed to capture fingerprint.')
         setScanStatus('error')
+        isProcessingRef.current = false
         return
       }
 
@@ -158,9 +163,11 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       // Node bridge explicitly found no match
       setErrorMessage(res.error || 'No matching enrolled user found on Node Bridge.')
       setScanStatus('error')
+      isProcessingRef.current = false
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Node bridge is unreachable on 127.0.0.1:8080.')
       setScanStatus('error')
+      isProcessingRef.current = false
     }
   }, [handleNodeBridgeMatch])
 
