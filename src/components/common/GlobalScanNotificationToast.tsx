@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, AlertCircle, Clock, X } from 'lucide-react'
+import { AlertCircle, Clock, X } from 'lucide-react'
+import { getInitials } from '../../dummy/roster-mock'
 import { futronicBridge } from '../../services/futronicBridge'
 import { resolveStaffByMemberId } from '../../services/identityResolver'
 import { logAttendanceScan } from '../../services/attendanceService'
@@ -10,6 +11,7 @@ export default function GlobalScanNotificationToast() {
     id: string
     name: string
     dept: string
+    role?: string
     time: string
     direction: 'Check-In' | 'Check-Out'
     score?: number
@@ -33,6 +35,7 @@ export default function GlobalScanNotificationToast() {
         const resolved = await resolveStaffByMemberId(memberIdToLookup)
         const staffName = resolved?.name || match.name || 'Enrolled Staff Member'
         const dept = resolved?.department || match.department || 'Academic Staff'
+        const role = resolved?.role || match.role || 'Staff'
 
         try {
           const logRes = await logAttendanceScan({
@@ -50,6 +53,7 @@ export default function GlobalScanNotificationToast() {
             id: memberIdToLookup,
             name: staffName,
             dept,
+            role,
             time: timeStr,
             direction,
             score: match.confidence || match.score || 98,
@@ -59,6 +63,7 @@ export default function GlobalScanNotificationToast() {
             id: memberIdToLookup,
             name: staffName,
             dept,
+            role,
             time: timeStr,
             direction: 'Check-In',
             score: match.confidence || match.score || 98,
@@ -94,6 +99,8 @@ export default function GlobalScanNotificationToast() {
 
   if (!activeToast) return null
 
+  const initials = getInitials(activeToast.name || 'SM')
+
   return (
     <aside
       aria-label="Scan notification"
@@ -105,11 +112,13 @@ export default function GlobalScanNotificationToast() {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              activeToast.isError ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 font-black font-mono text-sm tracking-wider border shadow-sm ${
+              activeToast.isError
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-purple-50 text-[#7c007e] border-purple-200 ring-2 ring-purple-50'
             }`}
           >
-            {activeToast.isError ? <AlertCircle size={22} /> : <CheckCircle2 size={22} />}
+            {activeToast.isError ? <AlertCircle size={22} /> : initials}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -122,13 +131,18 @@ export default function GlobalScanNotificationToast() {
               >
                 {activeToast.isError ? 'Scan Error' : `${activeToast.direction} Confirmed`}
               </span>
+              {activeToast.role && !activeToast.isError && (
+                <span className="text-[10px] font-semibold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200">
+                  {activeToast.role}
+                </span>
+              )}
               {activeToast.score && !activeToast.isError && (
                 <span className="text-[10px] font-mono text-zinc-500 font-bold">
                   Score: {activeToast.score}
                 </span>
               )}
             </div>
-            <h4 className="text-sm font-bold text-zinc-900 mt-1 leading-snug">
+            <h4 className="text-base font-extrabold text-zinc-900 mt-1 leading-snug">
               {activeToast.name}
             </h4>
             {activeToast.isError ? (

@@ -1,4 +1,5 @@
-import { CheckCircle2, AlertCircle, Clock, Database, CloudOff } from 'lucide-react'
+import { AlertCircle, Clock, Database, CloudOff } from 'lucide-react'
+import { getInitials } from '../../dummy/roster-mock'
 import type { ScannedStaffResult } from '../../hooks/useKioskScan'
 
 interface KioskSuccessCardProps {
@@ -25,21 +26,15 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
   }
 
   const isCheckIn = staff.type === 'Check-In'
+  const initials = getInitials(staff.name || 'Staff Member')
 
   return (
     <div className="bg-white border-2 border-emerald-500/80 rounded-3xl p-8 sm:p-10 shadow-xl shadow-emerald-500/10 animate-in zoom-in-95 duration-200 max-w-md mx-auto text-center">
+      {/* Avatar Initials Badge */}
       <div className="relative w-20 h-20 mx-auto mb-4">
-        {staff.avatarUrl ? (
-          <img
-            src={staff.avatarUrl}
-            alt={staff.name}
-            className="w-20 h-20 rounded-full object-cover border-2 border-emerald-500 shadow-sm"
-          />
-        ) : (
-          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-sm">
-            <CheckCircle2 size={44} />
-          </div>
-        )}
+        <div className="w-20 h-20 rounded-full bg-purple-50 text-[#7c007e] border-2 border-purple-200/80 flex items-center justify-center font-black text-2xl font-mono tracking-wider shadow-sm ring-4 ring-purple-50/60">
+          {initials}
+        </div>
       </div>
 
       <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
@@ -73,7 +68,8 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
         )}
       </div>
 
-      <h2 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">{staff.name}</h2>
+      {/* Prominent User Name */}
+      <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">{staff.name}</h2>
 
       <p className="text-xs font-mono text-zinc-500 mt-1.5 font-medium">
         ID: {staff.id} • {staff.dept}
