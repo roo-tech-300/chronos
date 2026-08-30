@@ -1,72 +1,73 @@
-import { getSupabase } from '../lib/supabase'
 import { futronicBridge } from './futronicBridge'
-import type {
-  ScanAngle,
-  EnrollmentStepLog,
-  AngleScanResult,
-  FinalizeEnrollmentParams,
-} from '../types/biometric'
-
-export type { EnrollmentStepLog, AngleScanResult, ScanAngle }
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const DEFAULT_ORG_UUID = '00000000-0000-0000-0000-000000000000'
-
-export function sanitizeUUID(val?: string): string {
-  if (!val) return DEFAULT_ORG_UUID
-  if (UUID_REGEX.test(val)) return val
-  return DEFAULT_ORG_UUID
-}
-
-function sha256(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash |= 0
-  }
-  return Math.abs(hash).toString(16).padStart(64, '0')
-}
+import { getSupabase } from '../lib/supabase'
+import type { ScanAngle, AngleScanResult, FinalizeEnrollmentParams } from '../types/biometric'
 
 export interface SingleAngleCaptureParams {
   memberId: string
-  organizationId?: string
+  organizationId: string
   staffName: string
   angle: ScanAngle
   passNumber: number
-  onLog?: (log: EnrollmentStepLog) => void
+  onLog?: (log: { id: string; time: string; text: string; type: 'info' | 'success' | 'warn' | 'error' }) => void
+}
+
+export function sanitizeUUID(id?: string): string {
+  if (!id) return '00000000-0000-0000-0000-000000000000'
+  const clean = id.trim().toLowerCase()
+  const match = clean.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+  return match ? clean : '00000000-0000-0000-0000-000000000000'
 }
 
 /**
- * Checks whether a staff member already has an enrolled fingerprint template in the database.
+ * Validates and sanitizes XYT minutiae template text.
+ * Strictly filters each line so only valid integer lines (X Y Theta [Quality]) remain.
  */
-export async function checkBiometricEnrolled(memberId?: string): Promise<boolean> {
+export function cleanXytMinutiaeText(raw: string): string {
+  if (!raw || typeof raw !== 'string') return ''
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  const valid: string[] = []
+  for (const line of lines) {
+    if (line.startsWith('#')) continue
+    const tokens = line.split(/\s+/).filter(Boolean)
+    if ((tokens.length === 3 || tokens.length === 4) && tokens.every(t => /^-?\d+$/.test(t))) {
+      valid.push(tokens.join(' '))
+    }
+  }
+  return valid.join('\n') + (valid.length > 0 ? '\n' : '')
+}
+
+/**
+ * Alias for captureAngleAndUpload for backward compatibility
+ */
+export async function captureAndUploadAngle(params: SingleAngleCaptureParams): Promise<AngleScanResult> {
+  return captureAngleAndUpload(params)
+}
+
+/**
+ * Checks if a member has completed biometric enrollment
+ */
+export async function checkBiometricEnrolled(memberId: string): Promise<boolean> {
   if (!memberId) return false
   try {
     const supabase = getSupabase()
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('biometric_templates')
       .select('id')
       .eq('member_id', memberId)
       .limit(1)
 
-    if (error) {
-      console.warn('Biometric status check error:', error.message)
-      return false
-    }
     return Boolean(data && data.length > 0)
-  } catch (err) {
-    console.warn('Biometric query exception:', err)
+  } catch {
     return false
   }
 }
 
 /**
- * Captures a single scan angle from the hardware scanner and uploads the template
- * file directly to the Supabase Storage bucket (biometrics).
- * Does NOT create a database record yet to ensure atomic single-row persistence.
+ * APPROACH B:
+ * Captures 1 angle via the Node Bridge, sanitizes the XYT minutiae, and uploads it
+ * into Supabase Storage under `biometrics/{orgUUID}/{memberId}/right_index_{angle}_{timestamp}.xyt`.
  */
-export async function captureAndUploadAngle(
+export async function captureAngleAndUpload(
   params: SingleAngleCaptureParams
 ): Promise<AngleScanResult> {
   const { memberId, organizationId, staffName, angle, passNumber, onLog } = params
@@ -82,9 +83,10 @@ export async function captureAndUploadAngle(
 
   emitLog(`Starting Pass ${passNumber}/3 (${angle.replace('_', ' ').toUpperCase()}) for ${staffName}...`, 'info')
 
+  const bridgeAngle = angle === 'center' ? 'straight' : angle === 'left_edge' ? 'tilted_left' : 'tilted_right'
   const captureRes = await futronicBridge.triggerCapture({
     id: memberId,
-    angle: angle === 'center' ? 'primary' : angle === 'left_edge' ? 'left_roll' : 'right_roll',
+    angle: bridgeAngle,
   })
 
   if (!captureRes.success || !captureRes.payload) {
@@ -95,19 +97,22 @@ export async function captureAndUploadAngle(
   const quality = captureRes.payload.qualityScore || 95
   emitLog(`Pass ${passNumber} captured! Optical quality: ${quality}%`, 'success')
 
-  const templateData = captureRes.payload.templateHash || `tpl_${memberId}_${angle}_${Date.now()}`
-  const templateHash = sha256(templateData)
+  const rawTemplate = captureRes.payload.rawTemplate || ''
+  const cleanedTemplate = cleanXytMinutiaeText(rawTemplate)
+  const templateToUpload = cleanedTemplate || rawTemplate
+
+  const templateHash = captureRes.payload.templateHash || `tpl_${memberId}_${angle}_${Date.now()}`
   const timestamp = Date.now()
   const storagePath = `${orgUUID}/${memberId}/right_index_${angle}_${timestamp}.xyt`
 
   emitLog(`Uploading angle template to Supabase Storage (${storagePath})...`, 'info')
   const supabase = getSupabase()
-  const templateBlob = new Blob([templateData], { type: 'application/octet-stream' })
+  const templateBlob = new Blob([templateToUpload], { type: 'text/plain' })
 
   const { error: uploadError } = await supabase.storage
     .from('biometrics')
     .upload(storagePath, templateBlob, {
-      contentType: 'application/octet-stream',
+      contentType: 'text/plain',
       upsert: true,
     })
 
@@ -142,37 +147,43 @@ export async function finalizeEnrollment(params: FinalizeEnrollmentParams): Prom
     }
   }
 
-  emitLog(`All 3 angle passes captured! Writing single master record for ${staffName}...`, 'info')
+  emitLog(`Saving biometric profile to database for ${staffName}...`, 'info')
 
   const centerPass = passes.find((p) => p.angle === 'center') || passes[0]
-  const avgQuality = Math.round(
-    passes.reduce((sum, p) => sum + (p.qualityScore || 90), 0) / (passes.length || 1)
-  )
-
   const supabase = getSupabase()
 
-  // First delete any previous right_index record for clean upsert
+  // Remove existing biometric template rows for this member
   await supabase
     .from('biometric_templates')
     .delete()
     .eq('member_id', memberId)
-    .eq('finger_position', 'right_index')
 
-  const { error: dbError } = await supabase.from('biometric_templates').insert({
-    organization_id: orgUUID,
-    member_id: memberId,
-    finger_position: 'right_index',
-    template_format: 'ANSI_378',
-    template_hash: centerPass.templateHash,
-    storage_path: centerPass.storagePath,
-    quality_score: avgQuality,
-    device_model: 'Futronic FS80H (3-Angle Composite)',
-  })
+  // Insert master row
+  const { error: insertError } = await supabase
+    .from('biometric_templates')
+    .insert({
+      organization_id: orgUUID,
+      member_id: memberId,
+      template_hash: centerPass.templateHash,
+      storage_path: centerPass.storagePath,
+      finger_position: 'Right Index',
+      quality_score: centerPass.qualityScore || 95,
+      created_at: new Date().toISOString(),
+    })
 
-  if (dbError) {
-    emitLog(`Database insert error: ${dbError.message}`, 'error')
-    throw new Error(`Database error: ${dbError.message}`)
+  if (insertError) {
+    emitLog(`Database error: ${insertError.message}`, 'error')
+    throw new Error(`Failed to save template to database: ${insertError.message}`)
   }
 
-  emitLog(`Single biometric template row created in database for ${staffName}!`, 'success')
+  // Update member record to mark biometric enrollment as complete
+  await supabase
+    .from('members')
+    .update({
+      biometrics_enrolled: true,
+      biometrics_enrolled_at: new Date().toISOString(),
+    })
+    .eq('id', memberId)
+
+  emitLog(`Biometric enrollment successfully recorded for ${staffName}!`, 'success')
 }

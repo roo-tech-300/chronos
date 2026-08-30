@@ -10,6 +10,38 @@ const FCMB_EXE = path.join(EXEC_DIR, "fcmb.exe");
 
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
+/**
+ * Sanitizes and cleans an XYT template file so that NIST bozorth3.exe never errors.
+ * NIST XYT format requires every line to be 3 or 4 space-separated integers: X Y Theta [Quality]
+ */
+function sanitizeXytFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const raw = fs.readFileSync(filePath, "utf8");
+    if (!raw || !raw.trim()) return false;
+
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const validLines = [];
+
+    for (const line of lines) {
+      if (line.startsWith("#")) continue;
+      const tokens = line.split(/\s+/).filter(Boolean);
+      if ((tokens.length === 3 || tokens.length === 4) && tokens.every(t => /^-?\d+$/.test(t))) {
+        validLines.push(tokens.join(" "));
+      }
+    }
+
+    if (validLines.length === 0) return false;
+    fs.writeFileSync(filePath, validLines.join("\n") + "\n", "utf8");
+    return true;
+  } catch (err) {
+    console.warn(`[Scanner] Error sanitizing XYT ${filePath}:`, err.message);
+    return false;
+  }
+}
+
+exports.sanitizeXytFile = sanitizeXytFile;
+
 exports.capture = (id, count) => {
   return new Promise((resolve) => {
     const fileId = count ? `${id}${count}` : id;
@@ -25,8 +57,11 @@ exports.capture = (id, count) => {
         const currentPath = path.join(EXEC_DIR, `${fileId}.xyt`);
         const newPath = path.join(OUTPUT_DIR, `${fileId}.xyt`);
         if (fs.existsSync(currentPath)) {
+          // Immediately sanitize the captured file before moving
+          sanitizeXytFile(currentPath);
           if (fs.existsSync(newPath)) fs.unlinkSync(newPath);
           fs.renameSync(currentPath, newPath);
+          sanitizeXytFile(newPath);
         }
         resolve({ error: false, status: "success", filePath: newPath, fileId });
       } else {
@@ -50,7 +85,6 @@ exports.checkDevice = () => {
     const isWindows = process.platform === "win32";
 
     if (isWindows) {
-      // Futronic Tech Co. USB Vendor ID is 0BF8 (e.g., USB\VID_0BF8&PID_0030)
       const psCommand = `powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.DeviceID -like '*VID_0BF8*' -or $_.Name -like '*Futronic*' -or $_.Manufacturer -like '*Futronic*' } | Select-Object -Property Name, Status, DeviceID | ConvertTo-Json"`;
 
       exec(psCommand, { timeout: 3000 }, (err, stdout) => {
@@ -68,7 +102,6 @@ exports.checkDevice = () => {
               });
             }
           } catch {
-            // Text match fallback
             if (stdout.includes("0BF8") || stdout.toLowerCase().includes("futronic")) {
               return resolve({
                 connected: true,
@@ -80,7 +113,6 @@ exports.checkDevice = () => {
           }
         }
 
-        // Secondary fallback on Windows: pnputil / wmic
         exec('wmic path Win32_PnPEntity where "DeviceID like \'%0BF8%\'" get Name,Status /format:list', { timeout: 2000 }, (wmicErr, wmicOut) => {
           if (!wmicErr && wmicOut && (wmicOut.includes("Name=") || wmicOut.toLowerCase().includes("futronic"))) {
             return resolve({
@@ -91,7 +123,6 @@ exports.checkDevice = () => {
             });
           }
 
-          // Scanner is not plugged in
           resolve({
             connected: false,
             model: "Futronic FS80H USB Scanner",
@@ -101,7 +132,6 @@ exports.checkDevice = () => {
         });
       });
     } else {
-      // Linux / macOS: check lsusb for Vendor ID 0bf8
       exec("lsusb", { timeout: 2000 }, (err, stdout) => {
         const found = !err && stdout && (stdout.toLowerCase().includes("0bf8") || stdout.toLowerCase().includes("futronic"));
         resolve({

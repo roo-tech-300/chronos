@@ -60,6 +60,7 @@ export interface BiometricCapturePayload {
   matched?: boolean
   match?: NodeBridgeMatch
   templateHash?: string
+  rawTemplate?: string
   qualityScore?: number
   scannerModel?: string
   capturedAt?: string

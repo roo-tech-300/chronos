@@ -68,7 +68,7 @@ export default function BiometricEnrollmentModal({
         staffName: memberName,
         angle: currentStep.angle,
         passNumber: currentStepIndex + 1,
-        onLog: (newLog) => setLogs((prev) => [...prev, newLog]),
+        onLog: (newLog: EnrollmentStepLog) => setLogs((prev) => [...prev, newLog]),
       })
 
       const updatedPasses = [...accumulatedPasses, passResult]
@@ -86,7 +86,7 @@ export default function BiometricEnrollmentModal({
           organizationId: validOrgId,
           staffName: memberName,
           passes: updatedPasses,
-          onLog: (newLog) => setLogs((prev) => [...prev, newLog]),
+          onLog: (newLog: EnrollmentStepLog) => setLogs((prev) => [...prev, newLog]),
         })
 
         setPhase('success')

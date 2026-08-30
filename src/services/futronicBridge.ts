@@ -1,78 +1,87 @@
-import { HARDWARE_CONFIG, getResolvedBridgeUrls } from '../config/hardware'
+import { HARDWARE_CONFIG, getResolvedBridgeUrls, getHardwareBridgePort } from '../config/hardware'
 import type { ScannerHardwareStatus, BiometricCapturePayload, NodeBridgeMatch } from '../types/terminal'
 
-export interface RawScannerStatusResponse {
-  connected?: boolean
-  isConnected?: boolean
-  deviceModel?: string
-  model?: string
-  serialNumber?: string
-  driverVersion?: string
+export interface BridgeHealthResponse {
+  isOnline: boolean
+  appName?: string
+  dataDir?: string
+  minutDir?: string
+  port?: number
   error?: string
-}
-
-export interface NodeBridgeIdentifyResponse {
-  success: boolean
-  matched?: boolean
-  match?: NodeBridgeMatch
-  message?: string
-  error?: string
-  template?: string
-  score?: number
 }
 
 class FutronicBridgeService {
-  private activeWs: WebSocket | null = null
-  private eventListeners: Set<(payload: BiometricCapturePayload) => void> = new Set()
-  private statusListeners: Set<(status: ScannerHardwareStatus) => void> = new Set()
-  private isListeningToWs = false
+  private socket: WebSocket | null = null
+  private scanListeners: ((payload: BiometricCapturePayload) => void)[] = []
+  private statusListeners: ((status: ScannerHardwareStatus) => void)[] = []
+  private isConnectingWs = false
 
   private async requestWithTimeout<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<{ data: T | null; error: string | null; ok: boolean }> {
-    const { httpUrl } = getResolvedBridgeUrls()
-    const url = `${httpUrl}${endpoint}`
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), HARDWARE_CONFIG.timeoutMs)
+    path: string,
+    options: RequestInit = {},
+    timeoutMs: number = HARDWARE_CONFIG.timeoutMs
+  ): Promise<{ ok: boolean; status: number; data?: T; error?: string }> {
+    const port = getHardwareBridgePort()
+    const portsToTry = [port, 8080, 8081, 8082, 8083, 8084, 8085]
+    const uniquePorts = [...new Set(portsToTry)]
 
-    try {
-      const res = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(options.headers || {}),
-        },
-      })
-      clearTimeout(timer)
+    for (const p of uniquePorts) {
+      const url = `http://127.0.0.1:${p}${path.startsWith('/') ? path : `/${path}`}`
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
 
-      if (!res.ok) {
-        return { data: null, error: `Node bridge HTTP ${res.status}`, ok: false }
-      }
+      try {
+        const res = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...(options.headers || {}),
+          },
+        })
 
-      const json = await res.json()
-      return { data: json as T, error: null, ok: true }
-    } catch (err: unknown) {
-      clearTimeout(timer)
-      const msg = err instanceof Error ? err.message : 'Node bridge unreachable'
-      return { data: null, error: msg, ok: false }
-    }
-  }
+        clearTimeout(timer)
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '')
+          return { ok: false, status: res.status, error: errText || `HTTP ${res.status}` }
+        }
 
-  async checkBridgeHealth(): Promise<{ isOnline: boolean; appName?: string; error?: string }> {
-    const res = await this.requestWithTimeout<{ ok?: boolean; app?: string }>(HARDWARE_CONFIG.healthPath)
-    if (!res.ok || !res.data) {
-      return {
-        isOnline: false,
-        error: res.error || 'Cannot connect to Futronic Node Bridge on 127.0.0.1:8080',
+        const data = (await res.json()) as T
+        return { ok: true, status: res.status, data }
+      } catch (err: unknown) {
+        clearTimeout(timer)
+        if (err instanceof Error && err.name === 'AbortError') {
+          return { ok: false, status: 0, error: 'Hardware capture request timed out.' }
+        }
       }
     }
 
     return {
-      isOnline: true,
-      appName: res.data.app || 'Futronic Fingerprint Scanner Bridge',
+      ok: false,
+      status: 0,
+      error: `Cannot reach Node Bridge on 127.0.0.1:${port}. Make sure node-bridge/server.js is running.`,
+    }
+  }
+
+  async checkBridgeHealth(): Promise<BridgeHealthResponse> {
+    const res = await this.requestWithTimeout<{ status?: string; app?: string; dataDir?: string; minutDir?: string }>(
+      '/api/health',
+      {},
+      1500
+    )
+    if (res.ok && res.data) {
+      return {
+        isOnline: true,
+        appName: res.data.app || 'Chronos Node Bridge',
+        dataDir: res.data.dataDir,
+        minutDir: res.data.minutDir,
+        port: getHardwareBridgePort(),
+      }
+    }
+    return {
+      isOnline: false,
+      error: res.error || 'Bridge is offline',
     }
   }
 
@@ -82,7 +91,7 @@ class FutronicBridgeService {
       model?: string
       status?: string
       message?: string
-    }>(HARDWARE_CONFIG.statusPath)
+    }>(HARDWARE_CONFIG.statusPath, {}, 2000)
 
     if (res.ok && res.data) {
       const isConnected = Boolean(res.data.connected)
@@ -103,8 +112,7 @@ class FutronicBridgeService {
   }
 
   /**
-   * Triggers 1:N Identification via Node Bridge (/api/scanner/identify or /api/scanner/capture).
-   * Relies 100% on Node Bridge's identification result.
+   * Triggers single-angle enrollment capture or 1:N Identification
    */
   async triggerCapture(options?: { id?: string; angle?: string }): Promise<{
     success: boolean
@@ -114,13 +122,13 @@ class FutronicBridgeService {
     payload?: BiometricCapturePayload
   }> {
     if (options?.id && options?.angle) {
-      // Enrollment capture
       const res = await this.requestWithTimeout<{ success: boolean; template?: string; message?: string }>(
         '/api/scanner/enroll',
         {
           method: 'POST',
           body: JSON.stringify({ id: options.id, angle: options.angle }),
-        }
+        },
+        12000
       )
 
       if (!res.ok || !res.data || !res.data.success || !res.data.template) {
@@ -132,6 +140,7 @@ class FutronicBridgeService {
 
       const payload: BiometricCapturePayload = {
         templateHash: res.data.template.slice(0, 64),
+        rawTemplate: res.data.template,
         qualityScore: 95,
         scannerModel: 'Futronic FS80H',
         capturedAt: new Date().toISOString(),
@@ -139,13 +148,15 @@ class FutronicBridgeService {
       return { success: true, payload }
     }
 
-    // 1:N Identification Request to Node Bridge
-    const res = await this.requestWithTimeout<NodeBridgeIdentifyResponse>(
-      '/api/scanner/identify',
-      {
-        method: 'POST',
-      }
-    )
+    // 1:N Identification
+    const res = await this.requestWithTimeout<{
+      success: boolean
+      matched?: boolean
+      match?: NodeBridgeMatch
+      score?: number
+      message?: string
+      error?: string
+    }>('/api/scanner/identify', { method: 'POST' }, 12000)
 
     if (!res.ok || !res.data) {
       return {
@@ -154,23 +165,21 @@ class FutronicBridgeService {
       }
     }
 
-    // Node bridge explicitly says no match or error
     if (!res.data.success || res.data.matched === false) {
       return {
         success: false,
         matched: false,
-        error: res.data.message || res.data.error || 'No matching user found on Node Bridge.',
+        error: res.data.message || res.data.error || 'No matching fingerprint found.',
       }
     }
 
-    // Node bridge says matched user found
     if (res.data.match) {
       const matchObj: NodeBridgeMatch = {
         id: res.data.match.id || res.data.match.studentId || res.data.match.memberId || '',
         name: res.data.match.name,
         department: res.data.match.department,
         role: res.data.match.role,
-        confidence: res.data.match.confidence || res.data.score || 98,
+        confidence: res.data.match.confidence || res.data.match.score || res.data.score || 98,
       }
 
       const payload: BiometricCapturePayload = {
@@ -181,7 +190,6 @@ class FutronicBridgeService {
         capturedAt: new Date().toISOString(),
       }
 
-      this.notifyEventListeners(payload)
       return {
         success: true,
         matched: true,
@@ -192,114 +200,73 @@ class FutronicBridgeService {
 
     return {
       success: false,
-      matched: false,
-      error: 'Node bridge returned an empty match.',
+      error: 'Unrecognized response format from Node Bridge.',
     }
   }
 
-  connectWebSocket(): void {
-    if (this.isListeningToWs && this.activeWs && this.activeWs.readyState === WebSocket.OPEN) {
-      return
-    }
+  connectWebSocket() {
+    if (this.socket || this.isConnectingWs) return
+    this.isConnectingWs = true
 
-    const { wsUrl } = getResolvedBridgeUrls()
     try {
-      const ws = new WebSocket(wsUrl)
-      this.activeWs = ws
-      this.isListeningToWs = true
+      const { wsUrl } = getResolvedBridgeUrls()
+      this.socket = new WebSocket(wsUrl)
 
-      ws.onmessage = (event) => {
+      this.socket.onopen = () => {
+        this.isConnectingWs = false
+      }
+
+      this.socket.onmessage = (event) => {
         try {
           const parsed = JSON.parse(event.data)
-
-          // 1. Direct identify/scan match event from Node Bridge
-          if (parsed.event === 'identify_result' || parsed.event === 'scan_completed' || parsed.matched !== undefined) {
-            const isMatch = Boolean(parsed.matched && (parsed.match || parsed.user))
-            const rawMatch = parsed.match || parsed.user
-
-            const match: NodeBridgeMatch | undefined = isMatch && rawMatch ? {
-              id: rawMatch.id || rawMatch.memberId || rawMatch.studentId,
-              name: rawMatch.name || rawMatch.fullName,
-              department: rawMatch.department || rawMatch.dept,
-              role: rawMatch.role,
-              confidence: rawMatch.confidence || rawMatch.score || parsed.score || 98,
-            } : undefined
-
-            const payload: BiometricCapturePayload = {
-              event: parsed.event,
-              matched: isMatch,
-              match,
-              status: parsed.status,
-              error: parsed.error || parsed.message,
-              qualityScore: parsed.qualityScore || parsed.score || 90,
-              scannerModel: parsed.scannerModel || 'Futronic FS80H',
-              capturedAt: parsed.capturedAt || new Date().toISOString(),
-            }
-            this.notifyEventListeners(payload)
-          } else if (parsed.event === 'device_status') {
-            const status: ScannerHardwareStatus = {
-              isConnected: parsed.isConnected ?? true,
-              deviceModel: parsed.deviceModel || 'Futronic FS80H',
-              serialNumber: parsed.serialNumber,
-              driverVersion: parsed.driverVersion,
-            }
-            this.notifyStatusListeners(status)
+          if (parsed.event === 'SCAN' && parsed.payload) {
+            this.scanListeners.forEach((l) => l(parsed.payload))
+          } else if (parsed.event === 'STATUS' && parsed.payload) {
+            this.statusListeners.forEach((l) => l(parsed.payload))
           }
         } catch {
-          // Ignore invalid JSON from websocket
+          // Ignore non-json ws events
         }
       }
 
-      ws.onclose = () => {
-        this.isListeningToWs = false
-        this.activeWs = null
+      this.socket.onclose = () => {
+        this.socket = null
+        this.isConnectingWs = false
       }
 
-      ws.onerror = () => {
-        this.isListeningToWs = false
-        this.activeWs?.close()
+      this.socket.onerror = () => {
+        this.socket = null
+        this.isConnectingWs = false
       }
     } catch {
-      this.isListeningToWs = false
+      this.isConnectingWs = false
     }
   }
 
-  disconnectWebSocket(): void {
-    if (this.activeWs) {
-      this.activeWs.close()
-      this.activeWs = null
+  disconnectWebSocket() {
+    if (this.socket) {
+      try {
+        this.socket.close()
+      } catch {
+        console.debug('[FutronicBridge] Socket close handled')
+      }
+      this.socket = null
     }
-    this.isListeningToWs = false
+    this.isConnectingWs = false
   }
 
-  onScanEvent(cb: (payload: BiometricCapturePayload) => void): () => void {
-    this.eventListeners.add(cb)
-    return () => this.eventListeners.delete(cb)
+  onScanEvent(listener: (payload: BiometricCapturePayload) => void): () => void {
+    this.scanListeners.push(listener)
+    return () => {
+      this.scanListeners = this.scanListeners.filter((l) => l !== listener)
+    }
   }
 
-  onStatusEvent(cb: (status: ScannerHardwareStatus) => void): () => void {
-    this.statusListeners.add(cb)
-    return () => this.statusListeners.delete(cb)
-  }
-
-  private notifyEventListeners(payload: BiometricCapturePayload) {
-    this.eventListeners.forEach((listener) => {
-      try {
-        listener(payload)
-      } catch (err) {
-        console.error('[FutronicBridge] Listener error:', err)
-      }
-    })
-  }
-
-  private notifyStatusListeners(status: ScannerHardwareStatus) {
-    this.statusListeners.forEach((listener) => {
-      try {
-        listener(status)
-      } catch (err) {
-        console.error('[FutronicBridge] Status listener error:', err)
-      }
-    })
+  onStatusEvent(listener: (status: ScannerHardwareStatus) => void): () => void {
+    this.statusListeners.push(listener)
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener)
+    }
   }
 }
 
