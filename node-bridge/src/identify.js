@@ -163,7 +163,31 @@ function matchProbe() {
       }
       
       console.log(`[Identify] Matched file: "${matchedFile}" -> Extracted memberId: "${memberId}" (Score: ${maxScore})`);
-      resolve({ file: matchedFile, id: memberId, studentId: memberId, memberId, score: maxScore });
+      
+      let localName = undefined;
+      let localDept = undefined;
+      let localRole = undefined;
+      try {
+        const store = require("./store");
+        const localMem = store.getMember(memberId) || (store.getMemberByMemberId ? store.getMemberByMemberId(memberId) : null);
+        if (localMem) {
+          localName = localMem.name;
+          localDept = localMem.department || 'Academic Staff';
+          localRole = localMem.role || 'Staff';
+        }
+      } catch (_) {}
+
+      resolve({
+        file: matchedFile,
+        id: memberId,
+        studentId: memberId,
+        memberId,
+        score: maxScore,
+        confidence: maxScore,
+        name: localName,
+        department: localDept,
+        role: localRole,
+      });
     });
   });
 }

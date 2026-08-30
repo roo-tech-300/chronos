@@ -10,6 +10,8 @@ export interface ScannedStaffResult {
   id: string
   time: string
   dept: string
+  role?: string
+  avatarUrl?: string
   type: 'Check-In' | 'Check-Out'
   statusMessage?: string
   dbSaved?: boolean
@@ -81,6 +83,8 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           id: resolved.memberId,
           time: timeStr,
           dept: resolved.department,
+          role: resolved.role,
+          avatarUrl: resolved.avatarUrl,
           type: resolvedDirection === 'in' ? 'Check-In' : 'Check-Out',
           statusMessage: result.message,
           dbSaved: result.dbSaved,

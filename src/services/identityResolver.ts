@@ -1,11 +1,13 @@
-// Pure business logic: Resolving staff identity from workspace_members, members, or fallback roster
+// Pure business logic: Resolving staff identity from workspace_members -> profiles
 import { getSupabase } from '../lib/supabase'
 import { rosterMembers } from '../dummy/roster-mock'
 
 export interface ResolvedStaffIdentity {
   found: boolean
   memberId: string
+  userId?: string
   name: string
+  email?: string
   department: string
   role?: string
   avatarUrl?: string
@@ -41,15 +43,15 @@ export async function resolveCurrentAuthIdentity(): Promise<{
 
 export async function fetchMemberProfilesMap(
   userIds: string[]
-): Promise<Record<string, { full_name?: string; email?: string; avatar_url?: string }>> {
-  const profileMap: Record<string, { full_name?: string; email?: string; avatar_url?: string }> = {}
+): Promise<Record<string, { full_name?: string; email?: string; avatar_url?: string; department?: string; role?: string }>> {
+  const profileMap: Record<string, { full_name?: string; email?: string; avatar_url?: string; department?: string; role?: string }> = {}
   if (!userIds || userIds.length === 0) return profileMap
 
   const supabase = getSupabase()
   try {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name, email, avatar_url')
+      .select('id, full_name, email, avatar_url, department, role')
       .in('id', userIds)
 
     if (profiles) {
@@ -59,6 +61,8 @@ export async function fetchMemberProfilesMap(
             full_name: p.full_name,
             email: p.email,
             avatar_url: p.avatar_url,
+            department: p.department,
+            role: p.role,
           }
         }
       })
@@ -70,8 +74,8 @@ export async function fetchMemberProfilesMap(
 }
 
 /**
- * Resolves a scanned memberId against database tables (workspace_members, members)
- * and falls back to local roster records if needed.
+ * Resolves a scanned memberId against workspace_members, gets the user_id,
+ * and fetches the user profile from profiles table to display full name, department, avatar, and role.
  */
 export async function resolveStaffByMemberId(
   rawMemberId: string
@@ -82,42 +86,78 @@ export async function resolveStaffByMemberId(
   const supabase = getSupabase()
 
   try {
-    // 1. Try workspace_members by its primary key ID (UUID)
-    const { data: wm } = await supabase
+    // 1. Fetch workspace_members record by id or user_id
+    const { data: wm, error: wmError } = await supabase
       .from('workspace_members')
-      .select('id, user_id, full_name, department, role, avatar_url')
-      .eq('id', memberId)
+      .select('id, user_id, role, workspace_id')
+      .or(`id.eq.${memberId},user_id.eq.${memberId}`)
       .maybeSingle()
 
-    if (wm) {
-      let resolvedName = wm.full_name
-      let resolvedAvatar = wm.avatar_url
+    if (!wmError && wm) {
+      let resolvedName = ''
+      let resolvedEmail = ''
+      let resolvedAvatar: string | undefined
+      let resolvedDept = 'Academic Staff'
+      let resolvedRole = wm.role === 'admin' ? 'Administrator' : wm.role === 'editor' ? 'Editor' : 'Staff'
 
-      if (!resolvedName && wm.user_id) {
+      // 2. Fetch User details from profiles using workspace_members.user_id
+      if (wm.user_id) {
         try {
-          const { data: prof } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, avatar_url')
+            .select('id, full_name, email, avatar_url, department, role')
             .eq('id', wm.user_id)
             .maybeSingle()
-          if (prof?.full_name) resolvedName = prof.full_name
-          if (prof?.avatar_url && !resolvedAvatar) resolvedAvatar = prof.avatar_url
-        } catch {
-          // Non-fatal
+
+          if (profile) {
+            resolvedName = profile.full_name || profile.email?.split('@')[0] || ''
+            resolvedEmail = profile.email || ''
+            resolvedAvatar = profile.avatar_url
+            if (profile.department) resolvedDept = profile.department
+            if (profile.role) resolvedRole = profile.role
+          }
+        } catch (profErr) {
+          console.warn('[IdentityResolver] Could not load profile for user_id:', wm.user_id, profErr)
         }
+      }
+
+      if (!resolvedName) {
+        resolvedName = wm.user_id ? `Staff Member (${wm.user_id.slice(0, 8)})` : `Staff Member (${wm.id.slice(0, 8)})`
       }
 
       return {
         found: true,
         memberId: wm.id,
-        name: resolvedName || 'Staff Member',
-        department: wm.department || 'Academic Staff',
-        role: wm.role || 'Staff',
+        userId: wm.user_id,
+        name: resolvedName,
+        email: resolvedEmail,
+        department: resolvedDept,
+        role: resolvedRole,
         avatarUrl: resolvedAvatar,
       }
     }
 
-    // 2. Try members table by id or member_id
+    // 3. Fallback check profiles directly if memberId is a profile user ID
+    const { data: directProfile } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, avatar_url, department, role')
+      .eq('id', memberId)
+      .maybeSingle()
+
+    if (directProfile) {
+      return {
+        found: true,
+        memberId: directProfile.id,
+        userId: directProfile.id,
+        name: directProfile.full_name || directProfile.email?.split('@')[0] || 'Staff Member',
+        email: directProfile.email,
+        department: directProfile.department || 'Academic Staff',
+        role: directProfile.role || 'Staff',
+        avatarUrl: directProfile.avatar_url,
+      }
+    }
+
+    // 4. Fallback check members table
     const { data: mem } = await supabase
       .from('members')
       .select('id, name, full_name, role, department, avatar_url, photo')
@@ -138,29 +178,31 @@ export async function resolveStaffByMemberId(
     console.error('[IdentityResolver] Exception resolving workspace member:', err)
   }
 
-  // 3. Fallback check against local roster mock if matching ID
-  const rosterMatch = rosterMembers.find((r) => r.id === memberId || r.name.toLowerCase() === memberId.toLowerCase())
+  // 5. Check local mock dataset
+  const rosterMatch = rosterMembers.find(
+    (r) => r.id === memberId || r.name.toLowerCase() === memberId.toLowerCase()
+  )
   if (rosterMatch) {
     return {
       found: true,
       memberId: rosterMatch.id,
       name: rosterMatch.name,
+      email: rosterMatch.email,
       department: 'Academic Staff',
       role: rosterMatch.role,
     }
   }
 
-  // If a valid UUID or ID was identified by hardware matching, treat as valid staff member
+  // If valid format but no profile row yet, display formatted member badge
   if (memberId.length > 3) {
     return {
       found: true,
       memberId,
-      name: 'Enrolled Staff Member',
+      name: `Staff Member (${memberId.slice(0, 8)})`,
       department: 'Academic Staff',
       role: 'Staff',
     }
   }
 
-  console.log(`[IdentityResolver] Member ID: ${memberId} could not be resolved.`)
   return null
 }

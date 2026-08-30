@@ -1,10 +1,7 @@
 import { getSupabase } from '../lib/supabase'
 import { sanitizeUUID } from './biometricService'
 import { downloadCsv } from '../utils/csvExport'
-import type {
-  AttendanceDirection,
-  AttendanceSummary,
-} from '../types/attendance'
+import type { AttendanceDirection, AttendanceSummary } from '../types/attendance'
 import type { ScanActivity } from '../dummy/profile-mock'
 
 export interface LiveScanFeedItem {
@@ -14,6 +11,47 @@ export interface LiveScanFeedItem {
   time: string
   initials: string
   direction: AttendanceDirection
+}
+
+async function resolveMemberNameMap(memberIds: string[]): Promise<Map<string, string>> {
+  const profileMap = new Map<string, string>()
+  if (!memberIds.length) return profileMap
+
+  const supabase = getSupabase()
+  try {
+    const { data: wmList } = await supabase
+      .from('workspace_members')
+      .select('id, user_id')
+      .in('id', memberIds)
+
+    const userIds = wmList?.map((w) => w.user_id).filter(Boolean) as string[] || []
+    const idsToFetch = Array.from(new Set([...userIds, ...memberIds]))
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', idsToFetch)
+
+    const pLookup = new Map<string, string>()
+    profiles?.forEach((p) => {
+      if (p.id) pLookup.set(p.id, p.full_name || p.email?.split('@')[0] || 'Staff Member')
+    })
+
+    wmList?.forEach((w) => {
+      const name = (w.user_id ? pLookup.get(w.user_id) : undefined) || pLookup.get(w.id)
+      if (name) profileMap.set(w.id, name)
+    })
+
+    memberIds.forEach((id) => {
+      if (!profileMap.has(id) && pLookup.has(id)) {
+        profileMap.set(id, pLookup.get(id)!)
+      }
+    })
+  } catch (err) {
+    console.warn('[AttendanceReporting] Could not resolve member profiles:', err)
+  }
+
+  return profileMap
 }
 
 export async function fetchRecentLiveScans(
@@ -33,33 +71,11 @@ export async function fetchRecentLiveScans(
 
     if (error || !data || data.length === 0) return []
 
-    // Fetch workspace_members for member IDs (workspace_members.id)
     const memberIds = Array.from(new Set(data.map((r) => r.member_id).filter(Boolean)))
-    const { data: wmList } = await supabase
-      .from('workspace_members')
-      .select('id, full_name')
-      .in('id', memberIds)
-
-    const profileMap = new Map<string, string>()
-    wmList?.forEach((w) => {
-      if (w.id && w.full_name) profileMap.set(w.id, w.full_name)
-    })
-
-    // If any remain unresolved, check profiles
-    const unresolvedIds = memberIds.filter((id) => !profileMap.has(id))
-    if (unresolvedIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', unresolvedIds)
-
-      profiles?.forEach((p) => {
-        if (p.id && p.full_name) profileMap.set(p.id, p.full_name)
-      })
-    }
+    const profileMap = await resolveMemberNameMap(memberIds)
 
     return data.map((row) => {
-      const name = profileMap.get(row.member_id) || 'Staff Member'
+      const name = profileMap.get(row.member_id) || `Staff (${row.member_id.slice(0, 8)})`
       const initials = name
         .split(' ')
         .map((n: string) => n[0])
@@ -136,13 +152,7 @@ export async function exportStaffAttendanceLogs(memberId: string, staffName: str
           'Confidence': `${row.confidence_score}%`,
           'Status': row.status,
         }))
-      : [
-          {
-            'Staff ID': memberId,
-            'Staff Name': staffName,
-            'Notice': 'No biometric attendance records logged yet.',
-          },
-        ]
+      : [{ 'Staff ID': memberId, 'Staff Name': staffName, 'Notice': 'No records logged.' }]
 
     const safeName = staffName.toLowerCase().replace(/[^a-z0-9]/g, '_')
     downloadCsv(`attendance_log_${safeName}_${Date.now()}.csv`, rows)
@@ -164,29 +174,8 @@ export async function exportWorkspaceAttendanceLogs(
       .eq('organization_id', orgUUID)
       .order('scan_timestamp', { ascending: false })
 
-    // Fetch workspace_members map
     const memberIds = Array.from(new Set(data?.map((r) => r.member_id).filter(Boolean) || []))
-    const { data: wmList } = await supabase
-      .from('workspace_members')
-      .select('id, full_name')
-      .in('id', memberIds)
-
-    const profileMap = new Map<string, string>()
-    wmList?.forEach((w) => {
-      if (w.id && w.full_name) profileMap.set(w.id, w.full_name)
-    })
-
-    const unresolvedIds = memberIds.filter((id) => !profileMap.has(id))
-    if (unresolvedIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', unresolvedIds)
-
-      profiles?.forEach((p) => {
-        if (p.id && p.full_name) profileMap.set(p.id, p.full_name)
-      })
-    }
+    const profileMap = await resolveMemberNameMap(memberIds)
 
     const rows = (data && data.length > 0)
       ? data.map((row) => ({
@@ -200,12 +189,7 @@ export async function exportWorkspaceAttendanceLogs(
           'Confidence': `${row.confidence_score}%`,
           'Status': row.status,
         }))
-      : [
-          {
-            'Workspace': workspaceName,
-            'Notice': 'No attendance scans recorded for this workspace today.',
-          },
-        ]
+      : [{ 'Workspace': workspaceName, 'Notice': 'No scans recorded.' }]
 
     const safeName = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '_')
     downloadCsv(`attendance_report_${safeName}_${Date.now()}.csv`, rows)

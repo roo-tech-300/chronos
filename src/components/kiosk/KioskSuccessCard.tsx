@@ -28,11 +28,21 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
 
   return (
     <div className="bg-white border-2 border-emerald-500/80 rounded-3xl p-8 sm:p-10 shadow-xl shadow-emerald-500/10 animate-in zoom-in-95 duration-200 max-w-md mx-auto text-center">
-      <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
-        <CheckCircle2 size={44} />
+      <div className="relative w-20 h-20 mx-auto mb-4">
+        {staff.avatarUrl ? (
+          <img
+            src={staff.avatarUrl}
+            alt={staff.name}
+            className="w-20 h-20 rounded-full object-cover border-2 border-emerald-500 shadow-sm"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-sm">
+            <CheckCircle2 size={44} />
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-center gap-2 mb-2">
+      <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
         <span
           className={`inline-block px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border ${
             isCheckIn
@@ -42,6 +52,12 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
         >
           {staff.type} Confirmed
         </span>
+
+        {staff.role && (
+          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+            {staff.role}
+          </span>
+        )}
 
         {staff.dbSaved !== undefined && (
           <span

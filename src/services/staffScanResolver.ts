@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase'
 
 export interface ResolvedStaffResult {
   memberId: string
+  userId?: string
   staffName: string
   department: string
   role: string
@@ -10,7 +11,7 @@ export interface ResolvedStaffResult {
 
 /**
  * Resolves a scanned fingerprint template hash or member ID to the actual enrolled staff member.
- * Strictly queries Supabase database. Returns null if not enrolled / not found.
+ * Checks workspace_members -> profiles first, then fallback to direct profiles.
  */
 export async function resolveStaffFromScan(
   identifierOrHash?: string
@@ -30,6 +31,9 @@ export async function resolveStaffFromScan(
       .select('member_id, template_hash, quality_score')
       .limit(200)
 
+    let targetMemberId = searchTarget
+    let quality = 98
+
     if (!error && templateRows && templateRows.length > 0) {
       const matched = templateRows.find(
         (t) =>
@@ -40,43 +44,65 @@ export async function resolveStaffFromScan(
       )
 
       if (matched && matched.member_id) {
-        const quality = matched.quality_score || 96
-
-        // Query profiles table for real user info
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id, full_name, department, role')
-          .eq('id', matched.member_id)
-          .maybeSingle()
-
-        return {
-          memberId: matched.member_id,
-          staffName: profile?.full_name || 'Enrolled Staff Member',
-          department: profile?.department || 'Staff Member',
-          role: profile?.role || 'Staff',
-          confidenceScore: quality,
-        }
+        targetMemberId = matched.member_id
+        quality = matched.quality_score || 96
       }
     }
 
-    // 2. Check if searchTarget matches a profile ID directly
+    // 2. Query workspace_members by targetMemberId
+    const { data: wm } = await supabase
+      .from('workspace_members')
+      .select('id, user_id, role, workspace_id')
+      .or(`id.eq.${targetMemberId},user_id.eq.${targetMemberId}`)
+      .maybeSingle()
+
+    if (wm) {
+      let resolvedName = ''
+      let resolvedDept = 'Academic Staff'
+      let resolvedRole = wm.role === 'admin' ? 'Administrator' : wm.role === 'editor' ? 'Editor' : 'Staff'
+
+      if (wm.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, full_name, department, role')
+          .eq('id', wm.user_id)
+          .maybeSingle()
+
+        if (profile) {
+          resolvedName = profile.full_name || ''
+          if (profile.department) resolvedDept = profile.department
+          if (profile.role) resolvedRole = profile.role
+        }
+      }
+
+      return {
+        memberId: wm.id,
+        userId: wm.user_id,
+        staffName: resolvedName || `Staff Member (${wm.id.slice(0, 8)})`,
+        department: resolvedDept,
+        role: resolvedRole,
+        confidenceScore: quality,
+      }
+    }
+
+    // 3. Check profiles table directly
     const { data: directProfile } = await supabase
       .from('profiles')
       .select('id, full_name, department, role')
-      .eq('id', searchTarget)
+      .eq('id', targetMemberId)
       .maybeSingle()
 
     if (directProfile) {
       return {
         memberId: directProfile.id,
+        userId: directProfile.id,
         staffName: directProfile.full_name || 'Staff Member',
-        department: directProfile.department || 'Staff Member',
+        department: directProfile.department || 'Academic Staff',
         role: directProfile.role || 'Staff',
-        confidenceScore: 98,
+        confidenceScore: quality,
       }
     }
 
-    // No matching fingerprint enrolled in database
     return null
   } catch (err) {
     console.error('[StaffScanResolver] Database query error during biometric match:', err)
