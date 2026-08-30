@@ -168,6 +168,16 @@ function matchProbe() {
   });
 }
 
+const identifyListeners = [];
+
+function onIdentifyResult(fn) {
+  if (typeof fn === 'function') identifyListeners.push(fn);
+  return () => {
+    const idx = identifyListeners.indexOf(fn);
+    if (idx !== -1) identifyListeners.splice(idx, 1);
+  };
+}
+
 async function identify() {
   const probeId = `probe_${Date.now()}`;
   if (!fs.existsSync(ENROLL_DIR)) {
@@ -193,10 +203,15 @@ async function identify() {
     try { fs.unlinkSync(PROBE_PATH); } catch {}
   }
 
+  // Notify registered bridge listeners
+  identifyListeners.forEach(listener => {
+    try { listener(result); } catch (_) {}
+  });
+
   return result;
 }
 
-module.exports = { identify, buildGalleryList, isValidAndCleanXytFile };
+module.exports = { identify, buildGalleryList, isValidAndCleanXytFile, onIdentifyResult };
 
 if (require.main === module) {
   identify().catch(err => {

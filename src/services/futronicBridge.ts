@@ -1,4 +1,4 @@
-import { HARDWARE_CONFIG, getResolvedBridgeUrls, getHardwareBridgePort } from '../config/hardware'
+import { HARDWARE_CONFIG, getHardwareBridgePort } from '../config/hardware'
 import type { ScannerHardwareStatus, BiometricCapturePayload, NodeBridgeMatch } from '../types/terminal'
 
 export interface BridgeHealthResponse {
@@ -11,10 +11,12 @@ export interface BridgeHealthResponse {
 }
 
 class FutronicBridgeService {
-  private socket: WebSocket | null = null
   private scanListeners: ((payload: BiometricCapturePayload) => void)[] = []
   private statusListeners: ((status: ScannerHardwareStatus) => void)[] = []
-  private isConnectingWs = false
+  private eventSource: EventSource | null = null
+  private pollIntervalId: ReturnType<typeof setInterval> | null = null
+  private lastProcessedTimestamp: number = Date.now() - 3000
+  private isListening = false
 
   private async requestWithTimeout<T>(
     path: string,
@@ -190,6 +192,9 @@ class FutronicBridgeService {
         capturedAt: new Date().toISOString(),
       }
 
+      // Also trigger local event broadcast
+      this.dispatchScan(payload)
+
       return {
         success: true,
         matched: true,
@@ -204,55 +209,106 @@ class FutronicBridgeService {
     }
   }
 
+  private dispatchScan(payload: BiometricCapturePayload) {
+    this.scanListeners.forEach((l) => {
+      try {
+        l(payload)
+      } catch (err) {
+        console.error('[FutronicBridge] Listener error:', err)
+      }
+    })
+  }
+
+  /**
+   * Starts listening to live scans via Server-Sent Events (SSE) and fast fallback polling
+   */
   connectWebSocket() {
-    if (this.socket || this.isConnectingWs) return
-    this.isConnectingWs = true
+    if (this.isListening) return
+    this.isListening = true
+
+    const port = getHardwareBridgePort()
+    const sseUrl = `http://127.0.0.1:${port}/api/events`
 
     try {
-      const { wsUrl } = getResolvedBridgeUrls()
-      this.socket = new WebSocket(wsUrl)
-
-      this.socket.onopen = () => {
-        this.isConnectingWs = false
-      }
-
-      this.socket.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data)
-          if (parsed.event === 'SCAN' && parsed.payload) {
-            this.scanListeners.forEach((l) => l(parsed.payload))
-          } else if (parsed.event === 'STATUS' && parsed.payload) {
-            this.statusListeners.forEach((l) => l(parsed.payload))
+      if (typeof EventSource !== 'undefined') {
+        this.eventSource = new EventSource(sseUrl)
+        this.eventSource.onmessage = (event) => {
+          try {
+            const parsed = JSON.parse(event.data)
+            if (parsed.event === 'SCAN' && parsed.payload) {
+              this.dispatchScan(parsed.payload)
+            }
+          } catch {
+            // Ignore non-json sse
           }
-        } catch {
-          // Ignore non-json ws events
+        }
+        this.eventSource.onerror = () => {
+          // SSE reconnects automatically or fallback polling catches scans
         }
       }
-
-      this.socket.onclose = () => {
-        this.socket = null
-        this.isConnectingWs = false
-      }
-
-      this.socket.onerror = () => {
-        this.socket = null
-        this.isConnectingWs = false
-      }
     } catch {
-      this.isConnectingWs = false
+      // Non-fatal
     }
+
+    // High-frequency polling on /api/scanner/latest-scan for 100% reliable scan delivery
+    this.pollIntervalId = setInterval(async () => {
+      try {
+        const res = await this.requestWithTimeout<{
+          success: boolean
+          timestamp?: number
+          latestScan?: {
+            timestamp: number
+            matched: boolean
+            match?: NodeBridgeMatch
+            error?: string
+          }
+        }>('/api/scanner/latest-scan', {}, 1000)
+
+        if (res.ok && res.data?.latestScan) {
+          const scan = res.data.latestScan
+          if (scan.timestamp && scan.timestamp > this.lastProcessedTimestamp) {
+            this.lastProcessedTimestamp = scan.timestamp
+            const matchObj = scan.match
+              ? {
+                  id: scan.match.id || scan.match.studentId || scan.match.memberId || '',
+                  name: scan.match.name,
+                  department: scan.match.department,
+                  role: scan.match.role,
+                  confidence: scan.match.confidence || scan.match.score || 98,
+                }
+              : undefined
+
+            const payload: BiometricCapturePayload = {
+              matched: scan.matched,
+              match: matchObj,
+              qualityScore: matchObj?.confidence || 95,
+              scannerModel: 'Futronic FS80H',
+              capturedAt: new Date(scan.timestamp).toISOString(),
+              error: scan.error,
+            }
+            this.dispatchScan(payload)
+          }
+        }
+      } catch {
+        // Suppress poll errors
+      }
+    }, 1200)
   }
 
   disconnectWebSocket() {
-    if (this.socket) {
+    if (this.eventSource) {
       try {
-        this.socket.close()
+        this.eventSource.close()
       } catch {
-        console.debug('[FutronicBridge] Socket close handled')
+        console.debug('[FutronicBridge] EventSource close handled')
       }
-      this.socket = null
+      this.eventSource = null
     }
-    this.isConnectingWs = false
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId)
+      this.pollIntervalId = null
+    }
+    this.isListening = false
   }
 
   onScanEvent(listener: (payload: BiometricCapturePayload) => void): () => void {

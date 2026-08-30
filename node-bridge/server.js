@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { identify } = require("./src/identify");
+const { identify, onIdentifyResult } = require("./src/identify");
 const fs = require("fs");
 const store = require("./src/store");
 
@@ -10,6 +10,7 @@ const START_PORT = Number(process.env.CHRONOS_BRIDGE_PORT || process.env.RESEARC
 const MAX_PORT = Number(process.env.CHRONOS_BRIDGE_PORT_MAX || START_PORT + 20);
 const LOG_DIR = path.join(process.env.LOCALAPPDATA || process.env.TEMP || ".", "Chronos", "logs");
 const LOG_FILE = path.join(LOG_DIR, "bridge.log");
+const LATEST_SCAN_FILE = path.join(store.DATA_DIR, "latest_scan.json");
 
 function appendLog(line) {
   try {
@@ -17,6 +18,10 @@ function appendLog(line) {
     fs.appendFileSync(LOG_FILE, `${line}\n`, "utf8");
   } catch (_) {}
 }
+
+// In-memory log buffer (viewable at /api/logs)
+const logBuffer = [];
+const originalLog = console.log;
 
 function write(level, args) {
   const line = `[${new Date().toISOString()}] [${level}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')}`;
@@ -26,9 +31,6 @@ function write(level, args) {
   originalLog.apply(console, args);
 }
 
-// In-memory log buffer (viewable at /api/logs)
-const logBuffer = [];
-const originalLog = console.log;
 console.log = (...args) => write("INFO", args);
 console.warn = (...args) => write("WARN", args);
 console.error = (...args) => write("ERROR", args);
@@ -36,8 +38,82 @@ console.error = (...args) => write("ERROR", args);
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+// Server-Sent Events clients
+const sseClients = new Set();
+let latestScan = null;
+let latestScanTimestamp = 0;
+
+function broadcastScanResult(matchResult, error = null) {
+  const timestamp = Date.now();
+  latestScan = {
+    timestamp,
+    matched: Boolean(matchResult),
+    match: matchResult || null,
+    error: error ? (error.message || String(error)) : null,
+  };
+  latestScanTimestamp = timestamp;
+
+  // Persist to local JSON file
+  try {
+    if (!fs.existsSync(store.DATA_DIR)) fs.mkdirSync(store.DATA_DIR, { recursive: true });
+    fs.writeFileSync(LATEST_SCAN_FILE, JSON.stringify(latestScan, null, 2), "utf8");
+  } catch (_) {}
+
+  // Broadcast to all connected SSE clients
+  const ssePayload = JSON.stringify({
+    event: "SCAN",
+    payload: {
+      matched: Boolean(matchResult),
+      match: matchResult || null,
+      error: error ? (error.message || String(error)) : null,
+      qualityScore: matchResult ? (matchResult.score || 95) : 0,
+      scannerModel: "Futronic FS80H",
+      capturedAt: new Date().toISOString(),
+    },
+  });
+
+  for (const client of sseClients) {
+    try {
+      client.write(`data: ${ssePayload}\n\n`);
+    } catch (_) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// Hook into identify results from any caller (CLI or API)
+onIdentifyResult((result) => {
+  broadcastScanResult(result);
+});
+
 // App REST API (members, attendance, auth, media, settings)
 app.use(require("./src/api"));
+
+// SSE Realtime Event Stream for live browser UI feedback
+app.get("/api/events", (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+  });
+
+  res.write(`data: ${JSON.stringify({ event: "CONNECTED", status: "ready" })}\n\n`);
+  sseClients.add(res);
+
+  req.on("close", () => {
+    sseClients.delete(res);
+  });
+});
+
+// Realtime latest scan polling endpoint
+app.get("/api/scanner/latest-scan", (_req, res) => {
+  res.json({
+    success: true,
+    latestScan,
+    timestamp: latestScanTimestamp,
+  });
+});
 
 // Serve logs as a simple HTML page for viewing in the browser
 app.get("/api/logs", (_req, res) => {
@@ -64,7 +140,6 @@ ${logBuffer.map(line => `<div class="line">${line.replace(/&/g,'&amp;').replace(
 });
 
 // Capture one angle of a fingerprint enrollment
-// Matches the single-step capture in enroll.js lines 28-29
 app.post("/api/scanner/enroll", async (req, res) => {
   try {
     const { id, angle } = req.body || {};
@@ -81,7 +156,6 @@ app.post("/api/scanner/enroll", async (req, res) => {
     }
 
     const template = fs.readFileSync(result.filePath, "utf8");
-
     res.json({ success: true, template, fileId: result.fileId });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -93,11 +167,14 @@ app.post("/api/scanner/identify", async (_req, res) => {
   try {
     const result = await identify();
     if (result) {
+      broadcastScanResult(result);
       res.json({ success: true, match: result });
     } else {
+      broadcastScanResult(null, "No matching fingerprint found");
       res.json({ success: false, message: "No match found" });
     }
   } catch (err) {
+    broadcastScanResult(null, err.message);
     res.json({ success: false, message: err.message });
   }
 });
