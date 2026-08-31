@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase'
+import { fetchUserIdentity, formatRole } from './identityResolver'
 
 export interface ResolvedStaffResult {
   memberId: string
@@ -10,11 +11,12 @@ export interface ResolvedStaffResult {
 }
 
 /**
- * Resolves a scanned fingerprint template hash or member ID to the actual enrolled staff member.
- * Checks workspace_members -> profiles first, then fallback to direct profiles.
+ * Resolves a scanned fingerprint template hash or member ID to the enrolled staff member.
+ * Queries workspace_members -> fetches user identity from Auth/profiles.
  */
 export async function resolveStaffFromScan(
-  identifierOrHash?: string
+  identifierOrHash?: string,
+  workspaceId?: string
 ): Promise<ResolvedStaffResult | null> {
   const supabase = getSupabase()
 
@@ -50,62 +52,50 @@ export async function resolveStaffFromScan(
     }
 
     // 2. Query workspace_members by targetMemberId
-    const { data: wm } = await supabase
+    let wmQuery = supabase
       .from('workspace_members')
-      .select('id, user_id, role, workspace_id')
+      .select('id, user_id, role, department, workspace_id')
+
+    if (workspaceId && workspaceId !== '00000000-0000-0000-0000-000000000000') {
+      wmQuery = wmQuery.eq('workspace_id', workspaceId)
+    }
+
+    const { data: wm } = await wmQuery
       .or(`id.eq.${targetMemberId},user_id.eq.${targetMemberId}`)
       .maybeSingle()
 
     if (wm) {
-      let resolvedName = ''
-      let resolvedDept = 'Academic Staff'
-      let resolvedRole = wm.role === 'admin' ? 'Administrator' : wm.role === 'editor' ? 'Editor' : 'Staff'
-
-      if (wm.user_id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id, full_name, department, role')
-          .eq('id', wm.user_id)
-          .maybeSingle()
-
-        if (profile) {
-          resolvedName = profile.full_name || ''
-          if (profile.department) resolvedDept = profile.department
-          if (profile.role) resolvedRole = profile.role
-        }
-      }
+      const userMeta = wm.user_id ? await fetchUserIdentity(wm.user_id) : {}
+      const resolvedName = userMeta.name || `Member (${wm.id.slice(0, 8)})`
+      const resolvedDept = wm.department || userMeta.department || 'Academic Staff'
+      const resolvedRole = formatRole(wm.role)
 
       return {
         memberId: wm.id,
         userId: wm.user_id,
-        staffName: resolvedName || `Staff Member (${wm.id.slice(0, 8)})`,
+        staffName: resolvedName,
         department: resolvedDept,
         role: resolvedRole,
         confidenceScore: quality,
       }
     }
 
-    // 3. Check profiles table directly
-    const { data: directProfile } = await supabase
-      .from('profiles')
-      .select('id, full_name, department, role')
-      .eq('id', targetMemberId)
-      .maybeSingle()
-
-    if (directProfile) {
+    // 3. Fallback check by profile ID
+    const directUser = await fetchUserIdentity(targetMemberId)
+    if (directUser.name) {
       return {
-        memberId: directProfile.id,
-        userId: directProfile.id,
-        staffName: directProfile.full_name || 'Staff Member',
-        department: directProfile.department || 'Academic Staff',
-        role: directProfile.role || 'Staff',
+        memberId: targetMemberId,
+        userId: targetMemberId,
+        staffName: directUser.name,
+        department: directUser.department || 'Academic Staff',
+        role: 'Staff Member',
         confidenceScore: quality,
       }
     }
 
     return null
   } catch (err) {
-    console.error('[StaffScanResolver] Database query error during biometric match:', err)
+    console.error('[StaffScanResolver] Biometric match error:', err)
     return null
   }
 }
@@ -113,26 +103,37 @@ export async function resolveStaffFromScan(
 /**
  * Fetches all registered staff members with enrolled biometrics from Supabase.
  */
-export async function fetchEnrolledStaffList(): Promise<
-  Array<{ id: string; name: string; department: string; role: string }>
-> {
+export async function fetchEnrolledStaffList(
+  workspaceId?: string
+): Promise<Array<{ id: string; name: string; department: string; role: string }>> {
   const supabase = getSupabase()
   try {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, department, role')
-      .limit(100)
+    let query = supabase
+      .from('workspace_members')
+      .select('id, user_id, role, department, workspace_id')
 
-    if (profiles && profiles.length > 0) {
-      return profiles.map((p) => ({
-        id: p.id,
-        name: p.full_name || 'Staff Member',
-        department: p.department || 'Staff',
-        role: p.role || 'Staff',
-      }))
+    if (workspaceId) {
+      query = query.eq('workspace_id', workspaceId)
+    }
+
+    const { data: wmList } = await query.limit(100)
+
+    if (wmList && wmList.length > 0) {
+      const results = await Promise.all(
+        wmList.map(async (wm) => {
+          const userMeta = wm.user_id ? await fetchUserIdentity(wm.user_id) : {}
+          return {
+            id: wm.id,
+            name: userMeta.name || `Staff (${wm.id.slice(0, 8)})`,
+            department: wm.department || userMeta.department || 'Staff',
+            role: formatRole(wm.role),
+          }
+        })
+      )
+      return results
     }
   } catch {
-    // Database unreachable
+    // Non-fatal
   }
   return []
 }

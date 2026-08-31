@@ -24,17 +24,25 @@ async function resolveMemberNameMap(memberIds: string[]): Promise<Map<string, st
       .select('id, user_id')
       .in('id', memberIds)
 
-    const userIds = wmList?.map((w) => w.user_id).filter(Boolean) as string[] || []
+    const userIds = (wmList?.map((w) => w.user_id).filter(Boolean) as string[]) || []
     const idsToFetch = Array.from(new Set([...userIds, ...memberIds]))
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name, email')
+      .select('*')
       .in('id', idsToFetch)
 
     const pLookup = new Map<string, string>()
     profiles?.forEach((p) => {
-      if (p.id) pLookup.set(p.id, p.full_name || p.email?.split('@')[0] || 'Staff Member')
+      if (p.id) {
+        const name =
+          p.full_name ||
+          p.name ||
+          p.display_name ||
+          (p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : '') ||
+          (p.email ? p.email.split('@')[0] : '')
+        if (name) pLookup.set(p.id, name)
+      }
     })
 
     wmList?.forEach((w) => {

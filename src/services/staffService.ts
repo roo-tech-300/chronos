@@ -9,6 +9,7 @@ import type { StaffMember, StaffQueryParams, PaginatedStaffResponse } from '../t
 interface RawMemberRow {
   id: string
   role?: string
+  department?: string
   created_at?: string
   user_id?: string
   full_name?: string
@@ -30,7 +31,7 @@ export async function fetchPaginatedStaff(
   try {
     let query = supabase
       .from('workspace_members')
-      .select('id, role, created_at, user_id', { count: 'exact' })
+      .select('id, role, department, created_at, user_id', { count: 'exact' })
 
     if (workspaceId) {
       query = query.eq('workspace_id', workspaceId)

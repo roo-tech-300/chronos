@@ -49,12 +49,12 @@ export function useKioskScan(terminal: TerminalDevice | null) {
         const explicitDirection: AttendanceDirection | undefined =
           terminal?.mode === 'entry' ? 'in' : terminal?.mode === 'exit' ? 'out' : undefined
 
-        // Validate if memberId exists in database
+        // Validate if memberId exists in database and belongs to this workspace
         const memberIdToLookup = match.id || match.studentId || match.memberId || ''
-        const resolved = await resolveStaffByMemberId(memberIdToLookup)
+        const resolved = await resolveStaffByMemberId(memberIdToLookup, orgId)
 
-        if (!resolved || !resolved.name) {
-          setErrorMessage('User is not a member of this organisation.')
+        if (!resolved || !resolved.isMemberOfWorkspace || !resolved.name) {
+          setErrorMessage(resolved?.error || 'User is not a member of this workspace.')
           setScanStatus('error')
           isProcessingRef.current = false
           return

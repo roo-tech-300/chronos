@@ -33,9 +33,23 @@ export default function GlobalScanNotificationToast() {
         const match = payload.match
         const memberIdToLookup = match.id || match.studentId || match.memberId || ''
         const resolved = await resolveStaffByMemberId(memberIdToLookup)
-        const staffName = resolved?.name || match.name || 'Enrolled Staff Member'
-        const dept = resolved?.department || match.department || 'Academic Staff'
-        const role = resolved?.role || match.role || 'Staff'
+
+        if (!resolved || !resolved.isMemberOfWorkspace || !resolved.name) {
+          setActiveToast({
+            id: memberIdToLookup,
+            name: resolved?.name || 'Unauthorized Member',
+            dept: resolved?.department || '',
+            time: timeStr,
+            direction: 'Check-In',
+            isError: true,
+            errorMessage: resolved?.error || 'User is not a member of this workspace.',
+          })
+          return
+        }
+
+        const staffName = resolved.name
+        const dept = resolved.department || 'Academic Staff'
+        const role = resolved.role || 'Staff'
 
         try {
           const logRes = await logAttendanceScan({
