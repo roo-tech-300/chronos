@@ -162,9 +162,9 @@ export default function GlobalScanNotificationToast() {
             {activeToast.isError ? (
               <p className="text-xs text-red-600 mt-0.5">{activeToast.errorMessage}</p>
             ) : (
-              <p className="text-xs text-zinc-500 mt-0.5 font-medium">
-                {activeToast.dept} • ID: {activeToast.id}
-              </p>
+              activeToast.dept && (
+                <p className="text-xs text-zinc-500 mt-0.5 font-medium">{activeToast.dept}</p>
+              )
             )}
             <div className="flex items-center gap-1 text-[11px] text-zinc-400 mt-2 font-mono">
               <Clock size={11} />

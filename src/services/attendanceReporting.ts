@@ -72,7 +72,7 @@ export async function fetchRecentLiveScans(
 
     const { data, error } = await supabase
       .from('attendance_logs')
-      .select('id, member_id, terminal_id, direction, scan_timestamp')
+      .select('id, member_id, staff_name, terminal_id, direction, scan_timestamp')
       .eq('organization_id', orgUUID)
       .order('scan_timestamp', { ascending: false })
       .limit(limit)
@@ -83,7 +83,8 @@ export async function fetchRecentLiveScans(
     const profileMap = await resolveMemberNameMap(memberIds)
 
     return data.map((row) => {
-      const name = profileMap.get(row.member_id) || `Staff (${row.member_id.slice(0, 8)})`
+      const name =
+        profileMap.get(row.member_id) || row.staff_name?.trim() || 'Staff Member'
       const initials = name
         .split(' ')
         .map((n: string) => n[0])
@@ -189,7 +190,7 @@ export async function exportWorkspaceAttendanceLogs(
       ? data.map((row) => ({
           'Log ID': row.id,
           'Staff ID': row.member_id,
-          'Staff Name': profileMap.get(row.member_id) || 'Staff Member',
+          'Staff Name': row.staff_name?.trim() || profileMap.get(row.member_id) || 'Staff Member',
           'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
           'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
           'Terminal Station': row.terminal_id,

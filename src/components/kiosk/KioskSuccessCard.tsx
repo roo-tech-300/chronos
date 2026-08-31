@@ -30,11 +30,19 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
 
   return (
     <div className="bg-white border-2 border-emerald-500/80 rounded-3xl p-8 sm:p-10 shadow-xl shadow-emerald-500/10 animate-in zoom-in-95 duration-200 max-w-md mx-auto text-center">
-      {/* Avatar Initials Badge */}
+      {/* Avatar Badge - photo when the auth profile provides one, initials otherwise */}
       <div className="relative w-20 h-20 mx-auto mb-4">
-        <div className="w-20 h-20 rounded-full bg-purple-50 text-[#7c007e] border-2 border-purple-200/80 flex items-center justify-center font-black text-2xl font-mono tracking-wider shadow-sm ring-4 ring-purple-50/60">
-          {initials}
-        </div>
+        {staff.avatarUrl ? (
+          <img
+            src={staff.avatarUrl}
+            alt={staff.name}
+            className="w-20 h-20 rounded-full object-cover border-2 border-purple-200/80 shadow-sm ring-4 ring-purple-50/60"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-full bg-purple-50 text-[#7c007e] border-2 border-purple-200/80 flex items-center justify-center font-black text-2xl font-mono tracking-wider shadow-sm ring-4 ring-purple-50/60">
+            {initials}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
@@ -71,9 +79,9 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
       {/* Prominent User Name */}
       <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">{staff.name}</h2>
 
-      <p className="text-xs font-mono text-zinc-500 mt-1.5 font-medium">
-        ID: {staff.id} • {staff.dept}
-      </p>
+      {staff.dept && (
+        <p className="text-xs font-mono text-zinc-500 mt-1.5 font-medium">{staff.dept}</p>
+      )}
 
       <div className="mt-5 pt-4 border-t border-zinc-100 flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-mono font-bold">
         <Clock size={14} />

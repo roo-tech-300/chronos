@@ -29,3 +29,10 @@ src-tauri/gen/schemas/
 *.sln
 *.sw?
 opencode.json
+
+# Node Bridge runtime artifacts (local SQLite db + scanner captures)
+# IMPORTANT: node-bridge/.exec/bmp/ holds raw fingerprint bitmap images.
+# Per biometric privacy policy these must NEVER be committed.
+node-bridge/.db/
+node-bridge/.exec/
+node-bridge/.env
