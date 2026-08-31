@@ -13,7 +13,7 @@ export interface LiveScanFeedItem {
   direction: AttendanceDirection
 }
 
-async function resolveMemberNameMap(memberIds: string[]): Promise<Map<string, string>> {
+export async function resolveMemberNameMap(memberIds: string[]): Promise<Map<string, string>> {
   const profileMap = new Map<string, string>()
   if (!memberIds.length) return profileMap
 

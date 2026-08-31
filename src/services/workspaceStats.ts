@@ -35,7 +35,10 @@ export async function getWorkspaceStats(workspaceId: string): Promise<WorkspaceD
       }
     }
 
-    const [staffCountRes, kioskCountRes] = await Promise.all([
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+
+    const [staffCountRes, kioskCountRes, scansCountRes] = await Promise.all([
       // Fast COUNT(*) via Supabase exact head query
       supabase
         .from('workspace_members')
@@ -46,16 +49,23 @@ export async function getWorkspaceStats(workspaceId: string): Promise<WorkspaceD
         .from('kiosks')
         .select('*', { count: 'exact', head: true })
         .eq('workspace_id', resolvedId),
+      // Fast COUNT(*) for today's scans in this workspace
+      supabase
+        .from('attendance_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', resolvedId)
+        .gte('scan_timestamp', startOfDay.toISOString()),
     ])
 
     const totalStaff = staffCountRes.count ?? 0
     const onlineDevices = kioskCountRes.count ?? 0
+    const todayScans = (scansCountRes.count ?? 0).toLocaleString()
 
     return {
       totalStaff,
       onlineDevices,
-      todayScans: null, // Left as blank/null as database does not store scans yet
-      occupancyRate: totalStaff > 0 ? 75 : 0,
+      todayScans,
+      occupancyRate: totalStaff > 0 ? Math.min(100, Math.round(((scansCountRes.count ?? 0) / totalStaff) * 100)) : 0,
     }
   } catch {
     return {

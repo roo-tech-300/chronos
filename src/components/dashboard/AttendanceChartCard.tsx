@@ -1,22 +1,20 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
 import { Tabs } from '../ui'
-import { chartHeights, chartLabels } from '../../dummy/staff-mock'
 import { useDevPersona } from '../../context/DevPersonaContext'
 import { useWorkspace } from '../../context/useWorkspace'
 import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
-
-const tooltipValues = [
-  '1,284', '2,441', '1,204', '5,087', '4,211', '2,108',
-  '3,845', '2,923', '6,018', '1,798', '1,044', '3,442'
-]
+import { useAttendanceVolume } from '../../hooks/useAttendanceVolume'
+import type { AttendancePeriod } from '../../types/attendance'
 
 export function AttendanceChartCard() {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, accentColor } = useWorkspace()
   const { exportReport } = useAttendanceMetrics(currentWorkspace?.id)
-  const [chartPeriod, setChartPeriod] = useState('Week')
+  const [chartPeriod, setChartPeriod] = useState<AttendancePeriod>('Week')
   const [isExporting, setIsExporting] = useState(false)
+
+  const { volumeData } = useAttendanceVolume(currentWorkspace?.id, chartPeriod)
 
   const handleExport = async () => {
     setIsExporting(true)
@@ -27,16 +25,20 @@ export function AttendanceChartCard() {
     }
   }
 
+  const title =
+    role === 'admin'
+      ? 'Daily Attendance Volume'
+      : `${currentDepartment.name} Attendance Volume`
+
   return (
     <div className="dash-card dash-chart-card">
       <div className="dash-section-header">
         <div>
-          <h2>
-            {role === 'admin'
-              ? 'Daily Attendance Volume'
-              : `${currentDepartment.name} Attendance Volume`}
-          </h2>
-          <p>Last 14 days aggregated by day {role === 'hod' ? '• Department Scope' : ''}</p>
+          <h2>{title}</h2>
+          <p>
+            {volumeData.periodDescription}
+            {role === 'hod' ? ' • Department Scope' : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -52,32 +54,36 @@ export function AttendanceChartCard() {
           <Tabs
             tabs={['Day', 'Week', 'Month']}
             activeTab={chartPeriod}
-            onChange={setChartPeriod}
+            onChange={(t) => setChartPeriod(t as AttendancePeriod)}
             variant="segmented"
           />
         </div>
       </div>
+
       <div className="dash-chart-body">
         <div className="dash-chart-bars">
-          {chartHeights.map((h, i) => {
-            const isPeak = h > 80
+          {volumeData.points.map((p, i) => {
+            const isPeak = p.isPeak
             return (
               <div
-                key={i}
-                className="dash-chart-bar group"
+                key={`${p.label}-${i}`}
+                className={`dash-chart-bar group ${isPeak ? 'peak' : 'normal'}`}
                 style={{
-                  height: `${h}%`,
-                  backgroundColor: isPeak ? `${accentColor}40` : `${accentColor}18`,
+                  height: `${Math.max(6, p.percentage)}%`,
+                  backgroundColor: isPeak ? `${accentColor}55` : `${accentColor}20`,
                 }}
               >
-                <span className="tooltip">{tooltipValues[i]}</span>
+                <span className="tooltip">
+                  {p.fullLabel ? `${p.fullLabel}: ` : ''}
+                  {p.count.toLocaleString()} {p.count === 1 ? 'scan' : 'scans'}
+                </span>
               </div>
             )
           })}
         </div>
         <div className="dash-chart-labels">
-          {chartLabels.map((d) => (
-            <span key={d}>{d}</span>
+          {volumeData.points.map((p, i) => (
+            <span key={`${p.label}-${i}`}>{p.label}</span>
           ))}
         </div>
       </div>

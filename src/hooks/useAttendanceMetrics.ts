@@ -1,32 +1,37 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  fetchTodaySummary,
   fetchRecentLiveScans,
   exportWorkspaceAttendanceLogs,
 } from '../services/attendanceReporting'
-import type { AttendanceSummary } from '../types/attendance'
+import { fetchLiveHeadcount, type LiveHeadcountResult } from '../services/liveHeadcountService'
+import type { AttendanceSummary, OnSiteMember } from '../types/attendance'
 import type { LiveScanFeedItem } from '../services/attendanceReporting'
 
+const DEFAULT_SUMMARY: AttendanceSummary = {
+  totalExpected: 50,
+  currentlyOnSite: 0,
+  departedToday: 0,
+  totalScansToday: 0,
+  attendanceRate: 0,
+}
+
 export function useAttendanceMetrics(workspaceId?: string, totalStaffCount = 50) {
-  // 1. Fetch real-time attendance summary every 8 seconds
+  // 1. Fetch real-time live headcount and on-site staff from database
   const {
-    data: summary = {
-      totalExpected: totalStaffCount,
-      currentlyOnSite: 0,
-      departedToday: 0,
-      totalScansToday: 0,
-      attendanceRate: 0,
+    data: headcountData = {
+      summary: { ...DEFAULT_SUMMARY, totalExpected: totalStaffCount },
+      onSiteMembers: [] as OnSiteMember[],
     },
-    isLoading: isSummaryLoading,
+    isLoading: isHeadcountLoading,
     refetch: refetchSummary,
-  } = useQuery<AttendanceSummary>({
-    queryKey: ['attendanceSummary', workspaceId, totalStaffCount],
-    queryFn: () => fetchTodaySummary(workspaceId, totalStaffCount),
-    refetchInterval: 8000,
-    staleTime: 4000,
+  } = useQuery<LiveHeadcountResult>({
+    queryKey: ['liveHeadcount', workspaceId, totalStaffCount],
+    queryFn: () => fetchLiveHeadcount(workspaceId, totalStaffCount),
+    refetchInterval: 5000,
+    staleTime: 2500,
   })
 
-  // 2. Fetch live recent scan stream every 5 seconds
+  // 2. Fetch live recent scan stream
   const {
     data: liveScans = [],
     isLoading: isLiveScansLoading,
@@ -43,11 +48,13 @@ export function useAttendanceMetrics(workspaceId?: string, totalStaffCount = 50)
   }
 
   return {
-    summary,
+    summary: headcountData.summary,
+    onSiteMembers: headcountData.onSiteMembers,
     liveScans,
-    isLoading: isSummaryLoading || isLiveScansLoading,
+    isLoading: isHeadcountLoading || isLiveScansLoading,
     refetchSummary,
     refetchLiveScans,
     exportReport,
   }
 }
+

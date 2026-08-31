@@ -6,19 +6,16 @@ import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 export function DashboardMetrics() {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, stats } = useWorkspace()
-  const { summary } = useAttendanceMetrics(currentWorkspace?.id, stats.totalStaff || 50)
+  const { summary } = useAttendanceMetrics(currentWorkspace?.id, stats.totalStaff || 1)
 
   const displayMetrics = useMemo(() => {
-    const todayScansDisplay =
-      summary.totalScansToday > 0
-        ? summary.totalScansToday.toLocaleString()
-        : stats.todayScans ?? '0'
+    const todayScansDisplay = summary.totalScansToday.toLocaleString()
 
     if (role === 'admin') {
       return [
         {
           label: 'TOTAL STAFF',
-          value: stats.totalStaff > 0 ? stats.totalStaff.toLocaleString() : '50',
+          value: stats.totalStaff.toLocaleString(),
           description: 'Total registered personnel',
         },
         {
@@ -37,13 +34,13 @@ export function DashboardMetrics() {
     return [
       {
         label: 'DEPT HEADCOUNT',
-        value: '48',
-        description: `Active personnel in ${currentDepartment.name}`,
+        value: stats.totalStaff.toLocaleString(),
+        description: `Registered in ${currentDepartment.name}`,
       },
       {
         label: 'DEPARTMENT ON-SITE',
-        value: `${summary.currentlyOnSite || 36}`,
-        description: `${summary.attendanceRate || 75}% live departmental occupancy`,
+        value: `${summary.currentlyOnSite}`,
+        description: `${summary.attendanceRate}% live departmental occupancy`,
       },
       {
         label: 'SUB-UNITS READY',
@@ -60,7 +57,7 @@ export function DashboardMetrics() {
           <div className="dash-metric-top">
             <span className="dash-metric-label">{m.label}</span>
           </div>
-          <div className="dash-metric-value" style={{ color: m.value !== '—' ? '#191c1d' : '#9ca3af' }}>
+          <div className="dash-metric-value" style={{ color: '#191c1d' }}>
             {m.value}
           </div>
           <div className="dash-metric-desc">{m.description}</div>
