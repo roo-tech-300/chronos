@@ -221,6 +221,31 @@ app.get("/api/scanner/templates", (_req, res) => {
   }
 });
 
+// Delete all templates from local gallery (used by force-sync)
+app.delete("/api/scanner/templates", (_req, res) => {
+  try {
+    const ENROLL_DIR = store.MINUT_DIR;
+    if (!fs.existsSync(ENROLL_DIR)) {
+      return res.json({ success: true, deleted: 0 });
+    }
+
+    const files = fs.readdirSync(ENROLL_DIR);
+    let deleted = 0;
+
+    for (const file of files) {
+      if (file.endsWith('.xyt')) {
+        fs.unlinkSync(path.join(ENROLL_DIR, file));
+        deleted++;
+      }
+    }
+
+    console.log(`[Bridge] Force-sync: Purged ${deleted} template(s) from local gallery`);
+    res.json({ success: true, deleted });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Delete all templates for a given student/lecturer ID
 app.delete("/api/scanner/templates/:studentId", (req, res) => {
   try {

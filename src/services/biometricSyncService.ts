@@ -1,81 +1,70 @@
-import { getSupabase } from '../lib/supabase'
-import { getResolvedBridgeUrls } from '../config/hardware'
+import {
+  getLocalBridgeTemplates,
+  purgeLocalBridgeTemplates,
+} from './biometricSyncBridge'
+import {
+  fetchCloudTemplatesSummary,
+  computeBiometricDifferential,
+} from './biometricSyncDifferential'
+import { syncSingleTemplate } from './biometricSyncDownloader'
+import type {
+  BiometricSyncResult,
+  BiometricDifferential,
+  SyncProgressCallback,
+} from '../types/biometricSync'
 
-export interface SyncProgressCallback {
-  (message: string, current: number, total: number): void
-}
+export { getLocalBridgeTemplates, purgeLocalBridgeTemplates, fetchCloudTemplatesSummary }
+export type { BiometricSyncResult, BiometricDifferential, SyncProgressCallback }
 
-export interface BiometricSyncResult {
-  success: boolean
-  totalCloudTemplates: number
-  alreadySyncedCount: number
-  newlySyncedCount: number
-  failedCount: number
-  dataDir?: string
-  message: string
-  error?: string
-}
-
-export async function getLocalBridgeTemplates(): Promise<{
-  online: boolean
-  files: string[]
-  memberIds: string[]
-  dataDir?: string
-  error?: string
-}> {
-  const { httpUrl } = getResolvedBridgeUrls()
-  try {
-    const healthRes = await fetch(`${httpUrl}/api/health`).catch(() => null)
-    const healthData = healthRes && healthRes.ok ? await healthRes.json() : null
-
-    const res = await fetch(`${httpUrl}/api/scanner/templates`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    })
-    if (!res.ok) {
-      return { online: false, files: [], memberIds: [], error: `Bridge returned status ${res.status}` }
-    }
-    const data = await res.json()
+/**
+ * Fast, lightweight check for Kiosk navigation.
+ * Compares Cloud metadata (counts, filenames) with Local Bridge without downloading files.
+ */
+export async function checkBiometricSyncStatus(
+  workspaceId?: string
+): Promise<{ bridgeOnline: boolean; differential: BiometricDifferential; dataDir?: string }> {
+  const localBridge = await getLocalBridgeTemplates()
+  if (!localBridge.online) {
     return {
-      online: true,
-      files: Array.isArray(data.files) ? data.files : [],
-      memberIds: Array.isArray(data.memberIds) ? data.memberIds : Array.isArray(data.studentIds) ? data.studentIds : [],
-      dataDir: healthData?.dataDir || '',
+      bridgeOnline: false,
+      dataDir: localBridge.dataDir,
+      differential: {
+        inSync: false,
+        diffCount: 0,
+        cloudTotal: 0,
+        localTotal: 0,
+        missingTemplates: [],
+        extraLocalFiles: [],
+      },
     }
-  } catch (err) {
-    return {
-      online: false,
-      files: [],
-      memberIds: [],
-      error: err instanceof Error ? err.message : 'Cannot connect to Node Bridge on 127.0.0.1:8080',
-    }
+  }
+
+  const cloudSummary = await fetchCloudTemplatesSummary(workspaceId)
+  const differential = computeBiometricDifferential(cloudSummary, localBridge.files)
+
+  return {
+    bridgeOnline: true,
+    dataDir: localBridge.dataDir,
+    differential,
   }
 }
 
-interface DiscoveredTemplate {
-  memberId: string
-  storagePath: string
-  targetFilename: string
-}
-
 /**
- * Downloads missing biometric minutiae templates (.xyt) from Supabase Storage
- * and writes them directly into %LOCALAPPDATA%\Chronos\data\minut (dynamic across all PCs).
+ * Synchronizes templates with the cloud database (the source of truth).
+ * If force=true: Purges local gallery first, then re-downloads everything from the database.
+ * If force=false: Delta sync - checks difference, skips if up to date, downloads only missing.
  */
 export async function syncBiometricTemplates(
-  organizationId?: string,
-  onProgress?: SyncProgressCallback
+  workspaceId?: string,
+  onProgress?: SyncProgressCallback,
+  force = false
 ): Promise<BiometricSyncResult> {
-  const supabase = getSupabase()
-  const { httpUrl } = getResolvedBridgeUrls()
+  console.log(`[BiometricSync] Starting ${force ? 'FORCE ' : ''}sync for workspace:`, workspaceId)
 
-  console.log('[BiometricSync] Starting sync for organization:', organizationId)
-
-  // 1. Check Local Bridge Gallery
+  // 1. Check Local Bridge
   onProgress?.('Connecting to local scanner bridge...', 0, 1)
   const localBridge = await getLocalBridgeTemplates()
   if (!localBridge.online) {
-    console.warn('[BiometricSync] Node bridge is offline')
     return {
       success: false,
       totalCloudTemplates: 0,
@@ -87,234 +76,102 @@ export async function syncBiometricTemplates(
     }
   }
 
-  const localFilesSet = new Set(localBridge.files.map((f) => f.toLowerCase()))
-  console.log(`[BiometricSync] Local gallery path: ${localBridge.dataDir || 'AppData/Local/Chronos/data/minut'}, files found: ${localFilesSet.size}`)
+  let purgedCount = 0
 
-  const discoveredMap = new Map<string, DiscoveredTemplate>()
+  // 2. Handle Force Sync: Delete local gallery completely
+  if (force) {
+    onProgress?.('Purging local template cache for full fresh sync...', 0, 1)
+    const purgeRes = await purgeLocalBridgeTemplates()
+    purgedCount = purgeRes.deleted
+    console.log(`[BiometricSync] Force sync purged ${purgedCount} local file(s)`)
+  }
 
-  // 2. Query database table: biometric_templates
+  // 3. Fetch Cloud Templates Summary
   onProgress?.('Fetching biometric templates from database...', 0, 1)
-  try {
-    const { data: dbRecords, error: dbError } = await supabase
-      .from('biometric_templates')
-      .select('id, member_id, storage_path, template_hash, finger_position')
+  const cloudSummary = await fetchCloudTemplatesSummary(workspaceId)
+  const totalCloud = cloudSummary.totalCount
 
-    if (dbError) {
-      console.warn('[BiometricSync] Database query note:', dbError.message)
-    }
-
-    if (dbRecords && dbRecords.length > 0) {
-      for (const row of dbRecords) {
-        const memberId = (row.member_id || '').trim()
-        const storagePath = (row.storage_path || '').trim()
-        if (!memberId) continue
-
-        if (storagePath) {
-          const parts = storagePath.split('/')
-          const originalFilename = parts[parts.length - 1]
-          const targetFilename = originalFilename.includes(memberId)
-            ? originalFilename
-            : `${memberId}_straight.xyt`
-          discoveredMap.set(targetFilename.toLowerCase(), {
-            memberId,
-            storagePath,
-            targetFilename,
-          })
-        } else if (row.template_hash) {
-          // If stored inline as template_hash
-          discoveredMap.set(`${memberId}_straight.xyt`.toLowerCase(), {
-            memberId,
-            storagePath: '',
-            targetFilename: `${memberId}_straight.xyt`,
-          })
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[BiometricSync] Table query error:', err)
-  }
-
-  // 3. Scan Supabase Storage buckets directly for any uploaded .xyt templates
-  onProgress?.('Scanning Supabase Storage buckets...', 0, 1)
-  const bucketsToScan = ['biometrics', 'templates', 'minutiae']
-  for (const bucket of bucketsToScan) {
-    try {
-      const { data: topLevel } = await supabase.storage.from(bucket).list('', { limit: 200 })
-      if (!topLevel || topLevel.length === 0) continue
-
-      for (const item of topLevel) {
-        if (item.name.endsWith('.xyt')) {
-          const baseNoExt = item.name.replace(/\.xyt$/i, '')
-          const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/)
-          const memberId = uuidMatch ? uuidMatch[1] : baseNoExt.split('_')[0]
-          discoveredMap.set(item.name.toLowerCase(), {
-            memberId,
-            storagePath: `${bucket}::${item.name}`,
-            targetFilename: item.name,
-          })
-        } else if (!item.id && !item.name.includes('.')) {
-          // Subfolder scan (e.g. orgId/ or memberId/)
-          try {
-            const { data: subItems } = await supabase.storage.from(bucket).list(item.name, { limit: 100 })
-            if (subItems) {
-              for (const sub of subItems) {
-                if (sub.name.endsWith('.xyt')) {
-                  const baseNoExt = sub.name.replace(/\.xyt$/i, '')
-                  const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/)
-                  const memberId = uuidMatch ? uuidMatch[1] : item.name.length > 20 ? item.name : sub.name.split('_')[0]
-                  discoveredMap.set(sub.name.toLowerCase(), {
-                    memberId,
-                    storagePath: `${bucket}::${item.name}/${sub.name}`,
-                    targetFilename: sub.name,
-                  })
-                } else if (!sub.id && !sub.name.includes('.')) {
-                  // Nested subfolder (e.g. orgId/memberId/)
-                  try {
-                    const { data: nestedItems } = await supabase.storage.from(bucket).list(`${item.name}/${sub.name}`, { limit: 50 })
-                    if (nestedItems) {
-                      for (const nest of nestedItems) {
-                        if (nest.name.endsWith('.xyt')) {
-                          const baseNoExt = nest.name.replace(/\.xyt$/i, '')
-                          const uuidMatch = baseNoExt.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/)
-                          const memberId = uuidMatch ? uuidMatch[1] : sub.name.length > 20 ? sub.name : item.name
-                          discoveredMap.set(nest.name.toLowerCase(), {
-                            memberId,
-                            storagePath: `${bucket}::${item.name}/${sub.name}/${nest.name}`,
-                            targetFilename: nest.name,
-                          })
-                        }
-                      }
-                    }
-                  } catch {
-                    // Continue
-                  }
-                }
-              }
-            }
-          } catch {
-            // Continue
-          }
-        }
-      }
-    } catch {
-      // Continue bucket search
-    }
-  }
-
-  const allTemplates = Array.from(discoveredMap.values())
-  const total = allTemplates.length
-  console.log(`[BiometricSync] Discovered total ${total} cloud template(s):`, allTemplates)
-
-  if (total === 0) {
+  if (totalCloud === 0) {
     return {
       success: true,
       totalCloudTemplates: 0,
-      alreadySyncedCount: localFilesSet.size,
+      alreadySyncedCount: 0,
+      newlySyncedCount: 0,
+      failedCount: 0,
+      purgedLocalCount: purgedCount,
+      dataDir: localBridge.dataDir,
+      message: 'No enrolled biometric records found in cloud database.',
+    }
+  }
+
+  // 4. Compute Differential
+  const currentLocalFiles = force ? [] : (await getLocalBridgeTemplates()).files
+  const differential = computeBiometricDifferential(cloudSummary, currentLocalFiles)
+
+  // If already up-to-date and not forced, skip!
+  if (!force && differential.inSync) {
+    console.log(`[BiometricSync] Local gallery is already in sync with cloud (${totalCloud} templates) - Skipping download.`)
+    return {
+      success: true,
+      totalCloudTemplates: totalCloud,
+      alreadySyncedCount: totalCloud,
       newlySyncedCount: 0,
       failedCount: 0,
       dataDir: localBridge.dataDir,
-      message: 'No enrolled biometric records found in cloud database or Supabase storage.',
+      message: `All ${totalCloud} cloud template(s) are already synchronized locally.`,
     }
   }
 
+  // 5. Download missing templates
+  const toDownload = force ? cloudSummary.templates : differential.missingTemplates
   let newlySynced = 0
-  let alreadySynced = 0
   let failed = 0
 
-  // 4. Download and write each template into local storage via bridge
-  for (let i = 0; i < total; i++) {
-    const item = allTemplates[i]
-    onProgress?.(`Downloading ${i + 1}/${total}: ${item.targetFilename}`, i + 1, total)
+  for (let i = 0; i < toDownload.length; i++) {
+    const item = toDownload[i]
+    onProgress?.(`Downloading ${i + 1}/${toDownload.length}: ${item.targetFilename}`, i + 1, toDownload.length)
 
-    if (localFilesSet.has(item.targetFilename.toLowerCase())) {
-      alreadySynced++
-      continue
-    }
-
-    let textContent = ''
-    let bucketName = 'biometrics'
-    let filePathInBucket = item.storagePath
-
-    if (item.storagePath.includes('::')) {
-      const parts = item.storagePath.split('::')
-      bucketName = parts[0]
-      filePathInBucket = parts[1]
-    }
-
-    // Method A: Supabase Storage SDK download
-    if (filePathInBucket) {
-      try {
-        const { data: fileBlob, error: downloadError } = await supabase.storage
-          .from(bucketName)
-          .download(filePathInBucket)
-
-        if (!downloadError && fileBlob) {
-          textContent = await fileBlob.text()
-        }
-      } catch (err) {
-        console.warn(`[BiometricSync] SDK download failed for ${filePathInBucket}:`, err)
-      }
-
-      // Method B: Public URL fetch
-      if (!textContent || textContent.trim().length === 0) {
-        try {
-          const { data: pubData } = supabase.storage.from(bucketName).getPublicUrl(filePathInBucket)
-          if (pubData?.publicUrl) {
-            const fetchRes = await fetch(pubData.publicUrl)
-            if (fetchRes.ok) {
-              textContent = await fetchRes.text()
-            }
-          }
-        } catch {
-          // Continue
-        }
-      }
-    }
-
-    if (!textContent || textContent.trim().length === 0) {
-      console.warn(`[BiometricSync] Empty template content for ${item.targetFilename}`)
-      failed++
-      continue
-    }
-
-    // Method C: Write directly to Node Bridge
-    try {
-      const syncRes = await fetch(`${httpUrl}/api/scanner/sync-template`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          memberId: item.memberId,
-          fileName: item.targetFilename,
-          template: textContent,
-        }),
-      })
-
-      if (syncRes.ok) {
-        console.log(`[BiometricSync] Successfully written to local AppData: ${item.targetFilename}`)
-        newlySynced++
-        localFilesSet.add(item.targetFilename.toLowerCase())
-      } else {
-        console.warn(`[BiometricSync] Bridge rejected template ${item.targetFilename} (Status: ${syncRes.status})`)
-        failed++
-      }
-    } catch (err) {
-      console.warn(`[BiometricSync] Network error posting to bridge for ${item.targetFilename}:`, err)
+    const ok = await syncSingleTemplate(item)
+    if (ok) {
+      newlySynced++
+    } else {
       failed++
     }
   }
 
-  const message = newlySynced > 0
-    ? `Successfully downloaded ${newlySynced} template(s) to ${localBridge.dataDir || 'AppData\\Local\\Chronos\\data\\minut'}. Total active files: ${localFilesSet.size}.`
-    : `All ${total} cloud template(s) are already synchronized in ${localBridge.dataDir || 'AppData\\Local\\Chronos\\data\\minut'}.`
+  const alreadySynced = force ? 0 : totalCloud - toDownload.length
 
-  console.log('[BiometricSync] Finished sync result:', { total, newlySynced, alreadySynced, failed })
+  // 6. Verification & Audit Check
+  onProgress?.('Verifying local template inventory against cloud database...', totalCloud, totalCloud)
+  const finalLocal = await getLocalBridgeTemplates()
+  const postDifferential = computeBiometricDifferential(cloudSummary, finalLocal.files)
+
+  console.log('[BiometricSync] Post-Sync Audit Log:', {
+    workspaceId,
+    cloudTotal: totalCloud,
+    localTotal: finalLocal.files.length,
+    newlySynced,
+    failed,
+    purgedCount,
+    verifiedInSync: postDifferential.inSync,
+  })
+
+  const verified = postDifferential.inSync || finalLocal.files.length >= totalCloud
+  const message = force
+    ? verified
+      ? `Force Sync verified: Purged local cache and successfully hydrated all ${newlySynced} template(s) from database.`
+      : `Force Sync completed with discrepancies: ${newlySynced}/${totalCloud} downloaded (${failed} failed).`
+    : newlySynced > 0
+    ? `Successfully synchronized ${newlySynced} template(s) from database.`
+    : `All ${totalCloud} cloud template(s) are up to date.`
 
   return {
-    success: true,
-    totalCloudTemplates: total,
+    success: verified || newlySynced > 0,
+    totalCloudTemplates: totalCloud,
     alreadySyncedCount: alreadySynced,
     newlySyncedCount: newlySynced,
     failedCount: failed,
+    purgedLocalCount: purgedCount,
     dataDir: localBridge.dataDir,
     message,
   }

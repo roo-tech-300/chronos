@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Fingerprint, Laptop, Wifi, Cpu, ArrowDownToLine } from 'lucide-react'
+import { Fingerprint, Laptop, Wifi, Cpu, ArrowDownToLine, RefreshCw, CheckCircle2 } from 'lucide-react'
 import type { TerminalDevice } from '../../types/terminal'
 import { BiometricSyncModal } from './BiometricSyncModal'
+import { useKioskAutoSync } from '../../hooks/useKioskAutoSync'
 
 interface KioskHeaderProps {
   terminal: TerminalDevice
@@ -17,6 +18,7 @@ export function KioskHeader({
   onOpenOptions,
 }: KioskHeaderProps) {
   const [syncModalOpen, setSyncModalOpen] = useState(false)
+  const { status: autoSyncStatus, differential } = useKioskAutoSync(terminal.workspaceId)
 
   return (
     <>
@@ -37,15 +39,29 @@ export function KioskHeader({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Manual Template Sync Button */}
+          {/* Smart Template Sync Indicator & Button */}
           <button
             type="button"
             onClick={() => setSyncModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50/50 border border-zinc-200 hover:border-purple-200 text-xs font-semibold text-zinc-700 hover:text-[#7c007e] shadow-2xs transition-colors cursor-pointer"
-            title="Download latest enrolled biometric templates from database"
+            title="Database is source of truth. Click to inspect or force-sync."
           >
-            <ArrowDownToLine size={13} className="text-[#7c007e]" />
-            <span className="hidden sm:inline">Sync Templates</span>
+            {autoSyncStatus === 'checking' || autoSyncStatus === 'syncing' ? (
+              <RefreshCw size={13} className="animate-spin text-[#7c007e]" />
+            ) : autoSyncStatus === 'synced' ? (
+              <CheckCircle2 size={13} className="text-emerald-600" />
+            ) : (
+              <ArrowDownToLine size={13} className="text-[#7c007e]" />
+            )}
+            <span className="hidden sm:inline">
+              {autoSyncStatus === 'checking'
+                ? 'Checking...'
+                : autoSyncStatus === 'syncing'
+                ? 'Syncing...'
+                : differential && differential.cloudTotal > 0
+                ? `Sync (${differential.localTotal}/${differential.cloudTotal})`
+                : 'Sync Templates'}
+            </span>
           </button>
 
           {/* Runtime Environment Badge */}
