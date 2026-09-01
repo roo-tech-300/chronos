@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
-import { getTodayTasks, orderDayTasks } from './dummy/myday-mock'
-import type { TaskItem, TaskSubmissionPayload } from './dummy/tasks-mock'
+import { orderDayTasks } from './dummy/myday-mock'
+import { useMyDayTasks } from './hooks/useMyDayTasks'
+import type { TaskItem, TaskSubmissionPayload } from './types/tasks'
 import ClockInStatusCard from './components/mytasks/ClockInStatusCard'
 import MyDaySummary from './components/mytasks/MyDaySummary'
 import DayTaskCard from './components/mytasks/DayTaskCard'
@@ -14,26 +15,16 @@ import './styles/tasks-day.css'
 
 export default function MyTasksPage() {
   const { currentDepartment, currentStaff } = useDevPersona()
-  const [tasks, setTasks] = useState<TaskItem[]>(() => getTodayTasks())
+  const { tasks, submitCompletion } = useMyDayTasks(currentStaff.name)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
 
   const orderedTasks = useMemo(() => orderDayTasks(tasks), [tasks])
 
-  function handleSubmit(task: TaskItem, payload: TaskSubmissionPayload) {
-    setTasks((prev) =>
-      prev.map((item) =>
-        item.id === task.id
-          ? {
-              ...item,
-              status: 'submitted',
-              completedAt: 'Just now',
-              proofNote: payload.completionNote,
-              completionLinks: payload.completionLinks,
-              actualMins: payload.actualMins,
-            }
-          : item,
-      ),
-    )
+  async function handleSubmit(task: TaskItem, payload: TaskSubmissionPayload) {
+    await submitCompletion({
+      taskId: task.id,
+      payload,
+    })
     setDrawerTask(null)
   }
 

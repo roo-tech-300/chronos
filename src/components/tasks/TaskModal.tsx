@@ -1,75 +1,119 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Check, Users } from 'lucide-react'
-import type { TaskItem, TaskPriority, TaskType } from '../../dummy/tasks-mock'
+import type { TaskPriority, TaskType, CreateTaskInput } from '../../types/tasks'
 import { STAFF_DIRECTORY } from '../../dummy/staff-directory'
+import { useStaffRoster } from '../../hooks/useStaffRoster'
 import { Modal, Button, Input, Select } from '../ui'
 
 interface TaskModalProps {
   open: boolean
   onClose: () => void
-  onCreateBatch: (tasks: Omit<TaskItem, 'id' | 'status'>[]) => void
+  onCreateBatch: (tasks: CreateTaskInput[]) => void | Promise<unknown>
+  workspaceId?: string
+  departmentName?: string
 }
 
-// Preserve the historical default assignee (pre-ticked checkbox).
-const DEFAULT_ASSIGNEE =
-  STAFF_DIRECTORY.find((s) => s.name === 'Marcus Vance')?.name ?? STAFF_DIRECTORY[0].name
+interface AssigneeOption {
+  id: string
+  name: string
+  role: string
+  subDepartment: string
+}
 
-export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalProps) {
+export default function TaskModal({
+  open,
+  onClose,
+  onCreateBatch,
+  workspaceId = '',
+  departmentName = 'Deep Tech & AI Labs',
+}: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<TaskType>('special')
   const [priority, setPriority] = useState<TaskPriority>('medium')
-  const [selectedStaffNames, setSelectedStaffNames] = useState<string[]>([DEFAULT_ASSIGNEE])
   const [recurrence, setRecurrence] = useState('Every weekday at 09:00 AM')
   const [dueDate, setDueDate] = useState('Today, 05:00 PM')
 
-  function toggleStaff(name: string) {
-    setSelectedStaffNames((prev) =>
-      prev.includes(name)
-        ? prev.length > 1
-          ? prev.filter((n) => n !== name)
-          : prev
-        : [...prev, name]
-    )
+  const { data: rosterData } = useStaffRoster({
+    workspaceId,
+    page: 1,
+    pageSize: 50,
+  })
+
+  const staffList = useMemo<AssigneeOption[]>(() => {
+    if (rosterData?.members && rosterData.members.length > 0) {
+      return rosterData.members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        role: m.role || 'Department Staff',
+        subDepartment: m.department || 'Neural Hardware',
+      }))
+    }
+    return STAFF_DIRECTORY.map((s, idx) => ({
+      id: `mem-${idx + 1}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: s.name,
+      role: s.role,
+      subDepartment: s.subDepartment,
+    }))
+  }, [rosterData])
+
+  const defaultAssigneeId = staffList[0]?.id || ''
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
+
+  const activeSelectedIds = selectedStaffIds.length > 0
+    ? selectedStaffIds
+    : defaultAssigneeId ? [defaultAssigneeId] : []
+
+  function toggleStaff(id: string) {
+    setSelectedStaffIds((prev) => {
+      const current = prev.length > 0 ? prev : [defaultAssigneeId]
+      return current.includes(id)
+        ? current.length > 1
+          ? current.filter((item) => item !== id)
+          : current
+        : [...current, id]
+    })
   }
 
   function toggleAllStaff() {
-    if (selectedStaffNames.length === STAFF_DIRECTORY.length) {
-      setSelectedStaffNames([DEFAULT_ASSIGNEE])
+    if (activeSelectedIds.length === staffList.length) {
+      setSelectedStaffIds([defaultAssigneeId])
     } else {
-      setSelectedStaffNames(STAFF_DIRECTORY.map((s) => s.name))
+      setSelectedStaffIds(staffList.map((s) => s.id))
     }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || selectedStaffNames.length === 0) return
+    if (!title.trim() || activeSelectedIds.length === 0) return
 
-    // Mass produce independent task instances for each selected person
-    const batch: Omit<TaskItem, 'id' | 'status'>[] = selectedStaffNames.map((staffName) => {
-      const staffInfo = STAFF_DIRECTORY.find((s) => s.name === staffName)
-      return {
-        title,
-        description,
-        type,
-        priority,
-        assigneeName: staffName,
-        assigneeRole: staffInfo?.role || 'Department Staff',
-        department: 'Deep Tech & AI Labs',
-        subDepartment: staffInfo?.subDepartment || 'Neural Hardware',
-        recurrence: type === 'recurring' ? recurrence : undefined,
-        dueDate,
-      }
-    })
+    const selectedOptions = staffList.filter((s) => activeSelectedIds.includes(s.id))
+
+    const batch: CreateTaskInput[] = selectedOptions.map((staff) => ({
+      workspaceId,
+      title,
+      description,
+      type,
+      priority,
+      assigneeMemberId: staff.id,
+      assigneeName: staff.name,
+      assigneeRole: staff.role,
+      department: departmentName,
+      subDepartment: staff.subDepartment,
+      recurrence: type === 'recurring' ? recurrence : undefined,
+      dueDate,
+      isToday: true,
+      estimatedMins: 30,
+    }))
 
     onCreateBatch(batch)
     setTitle('')
     setDescription('')
-    setSelectedStaffNames([DEFAULT_ASSIGNEE])
+    setSelectedStaffIds([])
     onClose()
   }
 
-  const isAllSelected = selectedStaffNames.length === STAFF_DIRECTORY.length
+  const isAllSelected = activeSelectedIds.length === staffList.length
 
   return (
     <Modal
@@ -107,7 +151,7 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wide">
               <Users size={14} className="text-zinc-500" />
-              <span>Assign To Staff ({selectedStaffNames.length} selected)</span>
+              <span>Assign To Staff ({activeSelectedIds.length} selected)</span>
             </div>
             <button
               type="button"
@@ -123,13 +167,13 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-            {STAFF_DIRECTORY.map((staff) => {
-              const isChecked = selectedStaffNames.includes(staff.name)
+            {staffList.map((staff) => {
+              const isChecked = activeSelectedIds.includes(staff.id)
               return (
                 <button
                   type="button"
-                  key={staff.name}
-                  onClick={() => toggleStaff(staff.name)}
+                  key={staff.id}
+                  onClick={() => toggleStaff(staff.id)}
                   className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                     isChecked
                       ? 'bg-white border-zinc-900 shadow-xs'
@@ -198,8 +242,8 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
 
         <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
           <span className="text-xs text-zinc-500">
-            Creates <strong>{selectedStaffNames.length}</strong> independent{' '}
-            {selectedStaffNames.length === 1 ? 'task' : 'tasks'}
+            Creates <strong>{activeSelectedIds.length}</strong> independent{' '}
+            {activeSelectedIds.length === 1 ? 'task' : 'tasks'}
           </span>
           <div className="flex items-center gap-3">
             <Button variant="outline" type="button" onClick={onClose}>
@@ -207,7 +251,7 @@ export default function TaskModal({ open, onClose, onCreateBatch }: TaskModalPro
             </Button>
             <Button variant="primary" type="submit" leftIcon={<Plus size={16} />}>
               Create{' '}
-              {selectedStaffNames.length > 1 ? `${selectedStaffNames.length} Tasks` : 'Task'}
+              {activeSelectedIds.length > 1 ? `${activeSelectedIds.length} Tasks` : 'Task'}
             </Button>
           </div>
         </div>

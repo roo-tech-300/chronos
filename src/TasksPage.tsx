@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
 import { useDevPersona } from './context/DevPersonaContext'
-import { initialTasks, type StaffTaskGroup, type TaskItem } from './dummy/tasks-mock'
+import { useWorkspace } from './context/useWorkspace'
+import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
+import type { StaffTaskGroup, TaskItem, CreateTaskInput } from './types/tasks'
 import { STAFF_DIRECTORY } from './dummy/staff-directory'
 import { Button, Toolbar } from './components/ui'
 import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
@@ -32,7 +34,10 @@ interface UnitOverview {
 
 export default function TasksPage() {
   const { currentDepartment } = useDevPersona()
-  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
+  const { currentWorkspace } = useWorkspace()
+  const activeWorkspaceId = currentWorkspace?.id || ''
+
+  const { tasks, createBatch, approveTask: approveTaskMutation } = useWorkspaceTasks(activeWorkspaceId)
   const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -71,29 +76,16 @@ export default function TasksPage() {
 
   const activeUnit = units.find((u) => u.name === activeUnitName) ?? null
 
-  function handleCreateBatch(newTasks: Omit<TaskItem, 'id' | 'status'>[]) {
-    const createdList: TaskItem[] = newTasks.map((t) => ({
-      ...t,
-      id: `TSK-${Math.floor(100 + Math.random() * 900)}`,
-      status: 'not_done',
-      isToday: true,
-    }))
-    setTasks((prev) => [...createdList, ...prev])
+  async function handleCreateBatch(newTasks: CreateTaskInput[]) {
+    await createBatch(newTasks)
+    setIsCreateOpen(false)
   }
 
-  function handleApproveTask(taskToApprove: TaskItem) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskToApprove.id
-          ? {
-              ...t,
-              status: 'approved',
-              completedAt: 'Just now by HOD',
-              verifiedBy: currentDepartment.lead,
-            }
-          : t,
-      ),
-    )
+  async function handleApproveTask(taskToApprove: TaskItem) {
+    await approveTaskMutation({
+      taskId: taskToApprove.id,
+      verifiedBy: currentDepartment.lead,
+    })
   }
 
   return (
@@ -200,6 +192,8 @@ export default function TasksPage() {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreateBatch={handleCreateBatch}
+        workspaceId={activeWorkspaceId}
+        departmentName={currentDepartment.name}
       />
 
       {activeUnit && (
