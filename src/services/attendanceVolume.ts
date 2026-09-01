@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase'
-import { sanitizeUUID } from './biometricService'
+import { isUuid } from '../utils/uuid'
 import type { AttendanceChartPoint, AttendancePeriod, AttendanceVolumeData } from '../types/attendance'
 
 interface RawScanTimestamp {
@@ -11,11 +11,10 @@ function formatDateKey(d: Date): string {
 }
 
 export async function fetchAttendanceVolume(
-  organizationId?: string,
+  workspaceId?: string,
   period: AttendancePeriod = 'Week'
 ): Promise<AttendanceVolumeData> {
   const supabase = getSupabase()
-  const orgUUID = sanitizeUUID(organizationId)
   const now = new Date()
   const startDate = new Date()
   let periodDescription: string
@@ -36,20 +35,22 @@ export async function fetchAttendanceVolume(
 
   let scans: RawScanTimestamp[] = []
 
-  try {
-    const { data, error } = await supabase
-      .from('attendance_logs')
-      .select('scan_timestamp')
-      .eq('organization_id', orgUUID)
-      .gte('scan_timestamp', startDate.toISOString())
-      .lte('scan_timestamp', now.toISOString())
-      .order('scan_timestamp', { ascending: true })
+  if (workspaceId && isUuid(workspaceId)) {
+    try {
+      const { data, error } = await supabase
+        .from('attendance_logs')
+        .select('scan_timestamp')
+        .eq('workspace_id', workspaceId)
+        .gte('scan_timestamp', startDate.toISOString())
+        .lte('scan_timestamp', now.toISOString())
+        .order('scan_timestamp', { ascending: true })
 
-    if (!error && data) {
-      scans = data
+      if (!error && data) {
+        scans = data
+      }
+    } catch (err) {
+      console.warn('[AttendanceVolume] Query error:', err)
     }
-  } catch (err) {
-    console.warn('[AttendanceVolume] Query error:', err)
   }
 
   const totalScans = scans.length

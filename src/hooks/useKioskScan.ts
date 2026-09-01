@@ -44,14 +44,14 @@ export function useKioskScan(terminal: TerminalDevice | null) {
       setErrorMessage(null)
 
       try {
-        const terminalId = terminal?.id || '5af3f6a1-ff4a-4591-8752-e14cd953e6c2'
-        const orgId = terminal?.workspaceId || '00000000-0000-0000-0000-000000000000'
+        const terminalId = terminal?.id
+        const workspaceId = terminal?.workspaceId
         const explicitDirection: AttendanceDirection | undefined =
           terminal?.mode === 'entry' ? 'in' : terminal?.mode === 'exit' ? 'out' : undefined
 
         // Validate if memberId exists in database and belongs to this workspace
         const memberIdToLookup = match.id || match.studentId || match.memberId || ''
-        const resolved = await resolveStaffByMemberId(memberIdToLookup, orgId)
+        const resolved = await resolveStaffByMemberId(memberIdToLookup, workspaceId)
 
         if (!resolved || !resolved.isMemberOfWorkspace || !resolved.name) {
           setErrorMessage(resolved?.error || 'User is not a member of this workspace.')
@@ -62,10 +62,8 @@ export function useKioskScan(terminal: TerminalDevice | null) {
 
         const result = await logAttendanceScan({
           memberId: resolved.memberId,
-          staffName: resolved.name,
-          department: resolved.department,
+          workspaceId,
           terminalId,
-          organizationId: orgId,
           explicitDirection,
           verificationMode: 'biometric_fs80h',
           confidenceScore: match.confidence || match.score || 98,

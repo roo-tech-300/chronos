@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase'
-import { ensureValidUuid } from '../utils/uuid'
+import { isUuid } from '../utils/uuid'
 import type {
   AttendanceLog,
   AttendanceDirection,
@@ -18,6 +18,8 @@ export {
 
 // In-memory cache for anti-double-scan protection (15s)
 const recentScansDebounce = new Map<string, number>()
+
+const DEFAULT_WORKSPACE_UUID = '00000000-0000-0000-0000-000000000000'
 
 export async function getLastScanToday(memberId: string): Promise<AttendanceLog | null> {
   try {
@@ -39,10 +41,9 @@ export async function getLastScanToday(memberId: string): Promise<AttendanceLog 
     const row = data[0]
     return {
       id: row.id,
-      organizationId: row.organization_id,
+      workspaceId: row.workspace_id,
       memberId: row.member_id,
-      staffName: 'Staff Member',
-      terminalId: row.terminal_id,
+      terminalId: row.terminal_id ?? undefined,
       direction: row.direction as AttendanceDirection,
       scanTimestamp: row.scan_timestamp,
       verificationMode: row.verification_mode,
@@ -67,21 +68,56 @@ export async function determineDirection(
   return !lastScan || lastScan.direction === 'out' ? 'in' : 'out'
 }
 
+function directionLabel(direction: AttendanceDirection): string {
+  return direction === 'in' ? 'Check-In (Arrival)' : 'Check-Out (Departure)'
+}
+
+function buildSyntheticLog(
+  memberId: string,
+  workspaceId: string,
+  terminalId: string | null,
+  direction: AttendanceDirection,
+  scanIso: string,
+  verificationMode: string,
+  confidenceScore: number
+): AttendanceLog {
+  return {
+    id: `att_${Date.now()}`,
+    workspaceId,
+    memberId,
+    terminalId: terminalId ?? undefined,
+    direction,
+    scanTimestamp: scanIso,
+    verificationMode,
+    confidenceScore,
+    status: 'verified',
+  }
+}
+
 export async function logAttendanceScan(
   params: LogAttendanceParams
 ): Promise<{ success: boolean; log?: AttendanceLog; message: string; dbSaved?: boolean }> {
   const {
     memberId,
-    staffName,
+    workspaceId,
     terminalId,
-    organizationId,
     explicitDirection,
     verificationMode = 'biometric_fs80h',
     confidenceScore = 98,
   } = params
 
+  // Schema: workspace_id and member_id are NOT NULL UUIDs with FK constraints.
+  // Fabricated or placeholder ids would be rejected by the database - buffer instead.
+  const cleanMemberId = (memberId || '').trim()
+  if (!isUuid(cleanMemberId)) {
+    return {
+      success: false,
+      message: 'Scan could not be attributed to a workspace member (invalid member reference).',
+    }
+  }
+
   const now = Date.now()
-  const lastScanTime = recentScansDebounce.get(memberId)
+  const lastScanTime = recentScansDebounce.get(cleanMemberId)
 
   if (lastScanTime && now - lastScanTime < 15000) {
     return {
@@ -90,55 +126,75 @@ export async function logAttendanceScan(
     }
   }
 
-  const direction = await determineDirection(memberId, explicitDirection)
-  const orgUUID = ensureValidUuid(organizationId, '00000000-0000-0000-0000-000000000000')
-  const cleanMemberId = (memberId || '').trim()
-  const cleanTerminalId = (terminalId || '5af3f6a1-ff4a-4591-8752-e14cd953e6c2').trim()
+  // Reserve the debounce slot SYNCHRONOUSLY, before the first await. A single
+  // physical scan is delivered by several bridge paths and subscribed listeners
+  // (direct identify response, SSE, fallback poll, kiosk hook + global toast) that
+  // all call this function concurrently. Without this immediate reservation each
+  // one would pass the gate above and insert its own attendance_logs row.
+  recentScansDebounce.set(cleanMemberId, now)
+
+  const direction = await determineDirection(cleanMemberId, explicitDirection)
   const scanIso = new Date(now).toISOString()
 
-  // Exact DDL schema payload
+  const cleanWorkspaceId = (workspaceId || '').trim()
+  const hasValidWorkspace = isUuid(cleanWorkspaceId) && cleanWorkspaceId !== DEFAULT_WORKSPACE_UUID
+  const cleanTerminalId = (terminalId || '').trim()
+  const validTerminalId = isUuid(cleanTerminalId) ? cleanTerminalId : null
+
+  // Terminals not paired to a workspace still complete the scan UX, but the log is
+  // buffered (dbSaved: false) instead of violating the database FK constraints.
+  if (!hasValidWorkspace) {
+    return {
+      success: true,
+      log: buildSyntheticLog(
+        cleanMemberId,
+        cleanWorkspaceId,
+        validTerminalId,
+        direction,
+        scanIso,
+        verificationMode,
+        confidenceScore
+      ),
+      dbSaved: false,
+      message: `${directionLabel(direction)} verified (workspace not paired - scan buffered).`,
+    }
+  }
+
   const insertPayload = {
-    organization_id: orgUUID,
+    workspace_id: cleanWorkspaceId,
     member_id: cleanMemberId,
-    terminal_id: cleanTerminalId,
-    direction: direction, // 'in' | 'out'
+    terminal_id: validTerminalId,
+    direction,
     scan_timestamp: scanIso,
     verification_mode: verificationMode,
     confidence_score: Math.round(confidenceScore),
-    status: 'verified', // 'verified' | 'flagged' | 'manual_override'
+    status: 'verified',
   }
 
   try {
     const supabase = getSupabase()
 
-    // Insert into attendance_logs matching table DDL
     const { data, error } = await supabase
       .from('attendance_logs')
       .insert(insertPayload)
       .select()
       .single()
 
-    recentScansDebounce.set(memberId, now)
-
     if (error) {
       console.warn('[Attendance] Supabase insert warning (RLS or policy):', error.message)
-      const syntheticLog: AttendanceLog = {
-        id: `att_${now}`,
-        organizationId: orgUUID,
-        memberId: cleanMemberId,
-        staffName,
-        terminalId: cleanTerminalId,
-        direction,
-        scanTimestamp: scanIso,
-        verificationMode,
-        confidenceScore,
-        status: 'verified',
-      }
       return {
         success: true,
-        log: syntheticLog,
+        log: buildSyntheticLog(
+          cleanMemberId,
+          cleanWorkspaceId,
+          validTerminalId,
+          direction,
+          scanIso,
+          verificationMode,
+          confidenceScore
+        ),
         dbSaved: false,
-        message: `${direction === 'in' ? 'Check-In (Arrival)' : 'Check-Out (Departure)'} verified (Buffer: ${error.message})`,
+        message: `${directionLabel(direction)} verified (Buffer: ${error.message})`,
       }
     }
 
@@ -149,10 +205,9 @@ export async function logAttendanceScan(
       dbSaved: true,
       log: {
         id: data.id,
-        organizationId: data.organization_id,
+        workspaceId: data.workspace_id,
         memberId: data.member_id,
-        staffName,
-        terminalId: data.terminal_id,
+        terminalId: data.terminal_id ?? undefined,
         direction: data.direction as AttendanceDirection,
         scanTimestamp: data.scan_timestamp,
         verificationMode: data.verification_mode,
@@ -160,10 +215,11 @@ export async function logAttendanceScan(
         status: data.status,
         createdAt: data.created_at,
       },
-      message: `${direction === 'in' ? 'Check-In (Arrival)' : 'Check-Out (Departure)'} successfully recorded in database.`,
+      message: `${directionLabel(direction)} successfully recorded in database.`,
     }
   } catch (err) {
     console.error('[Attendance] Exception in logAttendanceScan:', err)
     return { success: false, message: err instanceof Error ? err.message : 'Unknown scan error' }
   }
 }
+

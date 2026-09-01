@@ -16,7 +16,7 @@ export interface EnrollmentStepLog {
 
 export interface AngleScanResult {
   angle: ScanAngle
-  templateHash: string
+  templateSha256: string
   storagePath: string
   qualityScore: number
 }

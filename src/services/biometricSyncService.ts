@@ -97,7 +97,7 @@ export async function syncBiometricTemplates(
   try {
     const { data: dbRecords, error: dbError } = await supabase
       .from('biometric_templates')
-      .select('id, organization_id, member_id, storage_path, template_hash, finger_position')
+      .select('id, member_id, storage_path, template_hash, finger_position')
 
     if (dbError) {
       console.warn('[BiometricSync] Database query note:', dbError.message)

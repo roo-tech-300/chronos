@@ -141,7 +141,6 @@ class FutronicBridgeService {
       }
 
       const payload: BiometricCapturePayload = {
-        templateHash: res.data.template.slice(0, 64),
         rawTemplate: res.data.template,
         qualityScore: 95,
         scannerModel: 'Futronic FS80H',
@@ -209,7 +208,16 @@ class FutronicBridgeService {
     }
   }
 
+  private lastDispatchedScanKey: string | null = null
+
   private dispatchScan(payload: BiometricCapturePayload) {
+    // The same physical scan reaches this point from the direct identify response,
+    // the SSE stream, and the fallback poll (all share the same server-side
+    // timestamp). Emit exactly once so no listener can log a duplicate row.
+    const key = payload.capturedAt ?? ''
+    if (key && key === this.lastDispatchedScanKey) return
+    if (key) this.lastDispatchedScanKey = key
+
     this.scanListeners.forEach((l) => {
       try {
         l(payload)

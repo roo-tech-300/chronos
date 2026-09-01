@@ -80,7 +80,7 @@ export default function StaffProfilePage() {
               canEnroll={isTerminalDevice}
               isEnrolled={isEnrolled}
               onEnrollFingerprint={() => setEnrollOpen(true)}
-              onDownloadLog={() => exportStaffAttendanceLogs(staffId || displayStaffCode, displayName)}
+              onDownloadLog={() => exportStaffAttendanceLogs(profile?.id || staffId || displayStaffCode, displayName)}
             />
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function StaffProfilePage() {
           onClose={() => setEnrollOpen(false)}
           memberId={staffId}
           memberName={displayName}
-          organizationId={workspaceId || '00000000-0000-0000-0000-000000000000'}
+          organizationId={workspaceId}
           onSuccess={() => {
             setEnrollOpen(false)
             refetch()

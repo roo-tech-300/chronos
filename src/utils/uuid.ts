@@ -1,4 +1,14 @@
 /**
+ * UUID validation helpers (AGENTS.md Rule #5 - strict typing, no placeholders).
+ */
+
+/**
+ * The all-zero UUID is the schema-wide "no workspace" sentinel. It is
+ * syntactically valid, so callers must treat it as absent, never as a real id.
+ */
+export const NIL_UUID = '00000000-0000-0000-0000-000000000000'
+
+/**
  * Validates if a given string is a valid standard RFC4122 UUID
  */
 export function isUuid(val?: string | null): boolean {
@@ -10,24 +20,10 @@ export function isUuid(val?: string | null): boolean {
 }
 
 /**
- * Ensures a valid UUID is returned, converting legacy string IDs into deterministic UUIDs.
+ * Returns true only for a real, non-sentinel workspace UUID. The nil UUID
+ * (00000000-...) passes isUuid but always means "no workspace selected".
  */
-export function ensureValidUuid(val?: string | null, fallback = '00000000-0000-0000-0000-000000000000'): string {
-  if (!val) return fallback
-  const trimmed = val.trim()
-  if (isUuid(trimmed)) return trimmed
-
-  // Deterministic UUID for demo / fallback staff
-  if (trimmed === 'STAFF-2024-001' || trimmed.toLowerCase() === 'amina bello') {
-    return '2f158922-80a3-4722-b7c6-c7ec97d70ca0'
-  }
-
-  // Create a 32-char hex hash from string
-  let hash = 0
-  for (let i = 0; i < trimmed.length; i++) {
-    hash = (hash << 5) - hash + trimmed.charCodeAt(i)
-    hash |= 0
-  }
-  const hex = Math.abs(hash).toString(16).padStart(32, '0')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+export function isRealWorkspaceUuid(val?: string | null): val is string {
+  const clean = (val ?? '').trim().toLowerCase()
+  return clean !== NIL_UUID && isUuid(clean)
 }

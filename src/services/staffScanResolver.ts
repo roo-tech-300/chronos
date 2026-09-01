@@ -40,9 +40,7 @@ export async function resolveStaffFromScan(
       const matched = templateRows.find(
         (t) =>
           t.member_id === searchTarget ||
-          t.template_hash === searchTarget ||
-          (t.template_hash && searchTarget.includes(t.template_hash)) ||
-          (searchTarget.length >= 16 && t.template_hash?.startsWith(searchTarget.slice(0, 16)))
+          t.template_hash === searchTarget
       )
 
       if (matched && matched.member_id) {

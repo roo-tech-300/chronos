@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/supabase'
-import { sanitizeUUID } from './biometricService'
+import { isUuid } from '../utils/uuid'
 import { downloadCsv } from '../utils/csvExport'
+import { resolveAttendanceMemberId } from './attendanceMemberResolver'
 import type { AttendanceDirection, AttendanceSummary } from '../types/attendance'
 import type { ScanActivity } from '../dummy/profile-mock'
 
@@ -63,17 +64,18 @@ export async function resolveMemberNameMap(memberIds: string[]): Promise<Map<str
 }
 
 export async function fetchRecentLiveScans(
-  organizationId?: string,
+  workspaceId?: string,
   limit = 6
 ): Promise<LiveScanFeedItem[]> {
+  if (!workspaceId || !isUuid(workspaceId)) return []
+
   try {
     const supabase = getSupabase()
-    const orgUUID = sanitizeUUID(organizationId)
 
     const { data, error } = await supabase
       .from('attendance_logs')
-      .select('id, member_id, staff_name, terminal_id, direction, scan_timestamp')
-      .eq('organization_id', orgUUID)
+      .select('id, member_id, terminal_id, direction, scan_timestamp')
+      .eq('workspace_id', workspaceId)
       .order('scan_timestamp', { ascending: false })
       .limit(limit)
 
@@ -83,8 +85,7 @@ export async function fetchRecentLiveScans(
     const profileMap = await resolveMemberNameMap(memberIds)
 
     return data.map((row) => {
-      const name =
-        profileMap.get(row.member_id) || row.staff_name?.trim() || 'Staff Member'
+      const name = profileMap.get(row.member_id) || 'Staff Member'
       const initials = name
         .split(' ')
         .map((n: string) => n[0])
@@ -97,9 +98,7 @@ export async function fetchRecentLiveScans(
         minute: '2-digit',
       })
 
-      const terminal = row.terminal_id?.startsWith('STATION-')
-        ? row.terminal_id
-        : `Terminal ${row.terminal_id || 'A'}`
+      const terminal = row.terminal_id ? 'Kiosk terminal' : 'Unassigned terminal'
 
       return {
         id: row.id,
@@ -120,10 +119,16 @@ export async function fetchStaffAttendanceHistory(memberId: string): Promise<Sca
   if (!memberId) return []
   try {
     const supabase = getSupabase()
+
+    // attendance_logs.member_id references workspace_members.id - callers may pass
+    // an auth user_id or a CHR staff code, so resolve to the canonical id first.
+    const canonicalId = await resolveAttendanceMemberId(supabase, memberId)
+    if (!canonicalId) return []
+
     const { data, error } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('member_id', memberId)
+      .eq('member_id', canonicalId)
       .order('scan_timestamp', { ascending: false })
       .limit(10)
 
@@ -143,10 +148,22 @@ export async function fetchStaffAttendanceHistory(memberId: string): Promise<Sca
 export async function exportStaffAttendanceLogs(memberId: string, staffName: string): Promise<void> {
   try {
     const supabase = getSupabase()
+
+    // Resolve staff ids / CHR codes to the canonical workspace_members.id
+    const canonicalId = await resolveAttendanceMemberId(supabase, memberId)
+
+    // member_id is a workspace_members UUID - unresolvable codes can never match a row
+    if (!canonicalId) {
+      downloadCsv(`attendance_log_${staffName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}.csv`, [
+        { 'Staff ID': memberId, 'Staff Name': staffName, 'Notice': 'No records logged.' },
+      ])
+      return
+    }
+
     const { data } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('member_id', memberId)
+      .eq('member_id', canonicalId)
       .order('scan_timestamp', { ascending: false })
 
     const rows = (data && data.length > 0)
@@ -171,16 +188,23 @@ export async function exportStaffAttendanceLogs(memberId: string, staffName: str
 }
 
 export async function exportWorkspaceAttendanceLogs(
-  organizationId?: string,
+  workspaceId?: string,
   workspaceName = 'Workspace'
 ): Promise<void> {
   try {
     const supabase = getSupabase()
-    const orgUUID = sanitizeUUID(organizationId)
+
+    if (!workspaceId || !isUuid(workspaceId)) {
+      downloadCsv(`attendance_report_${workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}.csv`, [
+        { 'Workspace': workspaceName, 'Notice': 'No workspace selected.' },
+      ])
+      return
+    }
+
     const { data } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('organization_id', orgUUID)
+      .eq('workspace_id', workspaceId)
       .order('scan_timestamp', { ascending: false })
 
     const memberIds = Array.from(new Set(data?.map((r) => r.member_id).filter(Boolean) || []))
@@ -190,7 +214,7 @@ export async function exportWorkspaceAttendanceLogs(
       ? data.map((row) => ({
           'Log ID': row.id,
           'Staff ID': row.member_id,
-          'Staff Name': row.staff_name?.trim() || profileMap.get(row.member_id) || 'Staff Member',
+          'Staff Name': profileMap.get(row.member_id) || 'Staff Member',
           'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
           'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
           'Terminal Station': row.terminal_id,
@@ -207,17 +231,19 @@ export async function exportWorkspaceAttendanceLogs(
   }
 }
 
-export async function fetchTodaySummary(organizationId?: string, totalStaffCount = 50): Promise<AttendanceSummary> {
+export async function fetchTodaySummary(workspaceId?: string, totalStaffCount = 50): Promise<AttendanceSummary> {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
-  const orgUUID = sanitizeUUID(organizationId)
+  if (!workspaceId || !isUuid(workspaceId)) {
+    return { totalExpected: totalStaffCount, currentlyOnSite: 0, departedToday: 0, totalScansToday: 0, attendanceRate: 0 }
+  }
 
   try {
     const supabase = getSupabase()
     const { data, error } = await supabase
       .from('attendance_logs')
       .select('member_id, direction')
-      .eq('organization_id', orgUUID)
+      .eq('workspace_id', workspaceId)
       .gte('scan_timestamp', startOfDay.toISOString())
 
     if (error || !data) {

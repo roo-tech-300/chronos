@@ -58,7 +58,14 @@ exports.capture = (id, count) => {
         const newPath = path.join(OUTPUT_DIR, `${fileId}.xyt`);
         if (fs.existsSync(currentPath)) {
           // Immediately sanitize the captured file before moving
-          sanitizeXytFile(currentPath);
+          const sanitized = sanitizeXytFile(currentPath);
+          if (!sanitized) {
+            // Garbage capture (no valid NIST minutiae lines) must never reach
+            // the local gallery, Supabase Storage, or the database.
+            console.warn(`[Scanner] Rejected capture ${fileId}: no valid NIST minutiae lines.`);
+            resolve({ error: true, status: "poor-quality-scan" });
+            return;
+          }
           if (fs.existsSync(newPath)) fs.unlinkSync(newPath);
           fs.renameSync(currentPath, newPath);
           sanitizeXytFile(newPath);

@@ -4,9 +4,11 @@ import { getInitials } from '../../dummy/roster-mock'
 import { futronicBridge } from '../../services/futronicBridge'
 import { resolveStaffByMemberId } from '../../services/identityResolver'
 import { logAttendanceScan } from '../../services/attendanceService'
+import { useWorkspace } from '../../context/useWorkspace'
 import type { BiometricCapturePayload } from '../../types/terminal'
 
 export default function GlobalScanNotificationToast() {
+  const { currentWorkspace } = useWorkspace()
   const [activeToast, setActiveToast] = useState<{
     id: string
     name: string
@@ -53,11 +55,8 @@ export default function GlobalScanNotificationToast() {
 
         try {
           const logRes = await logAttendanceScan({
-            memberId: memberIdToLookup,
-            staffName,
-            department: dept,
-            terminalId: '5af3f6a1-ff4a-4591-8752-e14cd953e6c2',
-            organizationId: '00000000-0000-0000-0000-000000000000',
+            memberId: resolved.memberId,
+            workspaceId: currentWorkspace?.id,
             verificationMode: 'biometric_fs80h',
             confidenceScore: match.confidence || match.score || 98,
           })
@@ -99,7 +98,7 @@ export default function GlobalScanNotificationToast() {
     return () => {
       unsubscribe()
     }
-  }, [])
+  }, [currentWorkspace?.id])
 
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase'
-import { sanitizeUUID } from './biometricService'
+import { isUuid } from '../utils/uuid'
 import { resolveMemberNameMap } from './attendanceReporting'
 import type { AttendanceSummary, OnSiteMember } from '../types/attendance'
 
@@ -12,12 +12,11 @@ export interface LiveHeadcountResult {
  * Aggregates live on-site personnel and attendance status directly from database attendance_logs.
  */
 export async function fetchLiveHeadcount(
-  organizationId?: string,
+  workspaceId?: string,
   totalStaffCount = 50
 ): Promise<LiveHeadcountResult> {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
-  const orgUUID = sanitizeUUID(organizationId)
 
   const emptySummary: AttendanceSummary = {
     totalExpected: totalStaffCount,
@@ -27,12 +26,16 @@ export async function fetchLiveHeadcount(
     attendanceRate: 0,
   }
 
+  if (!workspaceId || !isUuid(workspaceId)) {
+    return { summary: emptySummary, onSiteMembers: [] }
+  }
+
   try {
     const supabase = getSupabase()
     const { data: logs, error } = await supabase
       .from('attendance_logs')
-      .select('id, member_id, staff_name, terminal_id, direction, scan_timestamp')
-      .eq('organization_id', orgUUID)
+      .select('id, member_id, terminal_id, direction, scan_timestamp')
+      .eq('workspace_id', workspaceId)
       .gte('scan_timestamp', startOfDay.toISOString())
       .order('scan_timestamp', { ascending: false })
 
@@ -43,7 +46,7 @@ export async function fetchLiveHeadcount(
     // Determine the latest scan state for each distinct member today
     const latestScanByMember = new Map<
       string,
-      { id: string; memberId: string; staffName?: string; terminalId: string; direction: string; scanTimestamp: string }
+      { id: string; memberId: string; terminalId: string; direction: string; scanTimestamp: string }
     >()
 
     logs.forEach((row) => {
@@ -51,7 +54,6 @@ export async function fetchLiveHeadcount(
         latestScanByMember.set(row.member_id, {
           id: row.id,
           memberId: row.member_id,
-          staffName: row.staff_name,
           terminalId: row.terminal_id,
           direction: row.direction,
           scanTimestamp: row.scan_timestamp,
@@ -59,7 +61,7 @@ export async function fetchLiveHeadcount(
       }
     })
 
-    const onSiteRows: Array<{ id: string; memberId: string; staffName?: string; terminalId: string; scanTimestamp: string }> = []
+    const onSiteRows: Array<{ id: string; memberId: string; terminalId: string; scanTimestamp: string }> = []
     let departedCount = 0
 
     latestScanByMember.forEach((scan) => {
@@ -75,7 +77,7 @@ export async function fetchLiveHeadcount(
     const profileMap = await resolveMemberNameMap(onSiteMemberIds)
 
     const onSiteMembers: OnSiteMember[] = onSiteRows.map((row) => {
-      const resolvedName = profileMap.get(row.memberId) || row.staffName?.trim() || 'Staff Member'
+      const resolvedName = profileMap.get(row.memberId) || 'Staff Member'
       const initials =
         resolvedName
           .split(' ')
@@ -90,9 +92,7 @@ export async function fetchLiveHeadcount(
         minute: '2-digit',
       })
 
-      const terminal = row.terminalId?.startsWith('STATION-')
-        ? row.terminalId
-        : `Terminal ${row.terminalId || 'A'}`
+      const terminal = row.terminalId ? 'Kiosk terminal' : 'Unassigned terminal'
 
       return {
         id: row.id,

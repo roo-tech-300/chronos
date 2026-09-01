@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Fingerprint, CheckCircle2, ScanLine, AlertCircle, Info, Hand } from 'lucide-react'
 import { Modal, Button } from './components/ui'
-import { captureAndUploadAngle, finalizeEnrollment, sanitizeUUID } from './services/biometricService'
+import { captureAndUploadAngle, finalizeEnrollment } from './services/biometricService'
 import { AngleProgressBar } from './components/biometrics/AngleProgressBar'
 import { EnrollmentDiagnosticsLogs } from './components/biometrics/EnrollmentDiagnosticsLogs'
 import type { ScanAngleStep, EnrollmentStepLog, AngleScanResult } from './types/biometric'
@@ -43,7 +43,7 @@ export default function BiometricEnrollmentModal({
   onClose,
   memberId = 'wm_usr_current',
   memberName = 'Staff Member',
-  organizationId = '00000000-0000-0000-0000-000000000000',
+  organizationId,
   onSuccess,
 }: Props) {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0)
@@ -54,7 +54,6 @@ export default function BiometricEnrollmentModal({
   const [accumulatedPasses, setAccumulatedPasses] = useState<AngleScanResult[]>([])
 
   const currentStep = SCAN_STEPS[currentStepIndex]
-  const validOrgId = sanitizeUUID(organizationId)
 
   const handleScanStep = async () => {
     setPhase('scanning')
@@ -64,7 +63,7 @@ export default function BiometricEnrollmentModal({
       // Step 1: Capture optical scan and upload to Storage
       const passResult = await captureAndUploadAngle({
         memberId,
-        organizationId: validOrgId,
+        organizationId,
         staffName: memberName,
         angle: currentStep.angle,
         passNumber: currentStepIndex + 1,
@@ -83,7 +82,7 @@ export default function BiometricEnrollmentModal({
         setPhase('finalizing')
         await finalizeEnrollment({
           memberId,
-          organizationId: validOrgId,
+          organizationId,
           staffName: memberName,
           passes: updatedPasses,
           onLog: (newLog: EnrollmentStepLog) => setLogs((prev) => [...prev, newLog]),

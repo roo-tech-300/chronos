@@ -4,13 +4,12 @@ export type AttendancePeriod = 'Day' | 'Week' | 'Month'
 
 export interface AttendanceLog {
   id: string
-  organizationId: string
+  /** workspaces.id (workspace-scoped FK) */
+  workspaceId: string
+  /** workspace_members.id - canonical member reference */
   memberId: string
-  staffName: string
-  staffCode?: string
-  department?: string
-  terminalId: string
-  terminalName?: string
+  /** kiosks.id when the scan came from a paired terminal (nullable in schema) */
+  terminalId?: string
   direction: AttendanceDirection
   scanTimestamp: string
   verificationMode: string
@@ -55,14 +54,15 @@ export interface OnSiteMember {
 }
 
 export interface LogAttendanceParams {
+  /** workspace_members.id - resolved by the identity pipeline */
   memberId: string
-  staffName: string
-  terminalId: string
-  terminalName?: string
-  department?: string
-  organizationId?: string
+  /** workspaces.id - required for a database write; otherwise the scan buffers */
+  workspaceId?: string
+  /** kiosks.id - nullable; unpaired terminals log without one */
+  terminalId?: string
   explicitDirection?: AttendanceDirection
   verificationMode?: string
   confidenceScore?: number
 }
+
 

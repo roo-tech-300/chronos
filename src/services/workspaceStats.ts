@@ -53,7 +53,7 @@ export async function getWorkspaceStats(workspaceId: string): Promise<WorkspaceD
       supabase
         .from('attendance_logs')
         .select('*', { count: 'exact', head: true })
-        .eq('organization_id', resolvedId)
+        .eq('workspace_id', resolvedId)
         .gte('scan_timestamp', startOfDay.toISOString()),
     ])
 
