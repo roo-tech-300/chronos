@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { X, Search } from 'lucide-react'
 import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface NodeEditorModalProps {
   isOpen: boolean
@@ -25,6 +26,7 @@ function DeptForm({
   onClose: () => void
   onSave: (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => void
 }) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [name, setName] = useState(editingNode?.name || '')
   const [code, setCode] = useState(editingNode?.code || '')
   const [leadName, setLeadName] = useState(editingNode?.leadName || '')
@@ -62,7 +64,7 @@ function DeptForm({
           <input
             type="text"
             required
-            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
             placeholder="e.g. Cybersecurity Science"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -77,7 +79,7 @@ function DeptForm({
             </label>
             <input
               type="text"
-              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[#111827]"
+              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl font-mono text-sm focus:ring-2 focus:outline-none transition-all text-zinc-900"
               placeholder="e.g. CYB"
               value={code}
               onChange={(e) => setCode(e.target.value)}
@@ -89,7 +91,7 @@ function DeptForm({
               Level
             </label>
             <select
-              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
               disabled
               value={currentLevel}
             >
@@ -107,7 +109,7 @@ function DeptForm({
           </label>
           <select
             disabled
-            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827] disabled:opacity-60"
+            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900 disabled:opacity-60"
             value={parentNode?.name || 'None - Top Level'}
           >
             <option value={parentNode?.name || 'None - Top Level'}>
@@ -124,7 +126,7 @@ function DeptForm({
             </label>
             <input
               type="text"
-              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
               placeholder="e.g. Head of Department"
               value={leadRoleTitle}
               onChange={(e) => setLeadRoleTitle(e.target.value)}
@@ -142,7 +144,7 @@ function DeptForm({
               />
               <input
                 type="text"
-                className="w-full h-11 pl-10 pr-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+                className="w-full h-11 pl-10 pr-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
                 placeholder="Search staff..."
                 value={leadName}
                 onChange={(e) => setLeadName(e.target.value)}
@@ -157,7 +159,7 @@ function DeptForm({
           </label>
           <input
             type="text"
-            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#111827] focus:border-transparent outline-none transition-all text-[14px] text-[#111827]"
+            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
             placeholder="e.g. Senate Building, 3rd Floor"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
@@ -176,7 +178,8 @@ function DeptForm({
         </button>
         <button
           type="submit"
-          className="px-6 py-2.5 text-sm font-bold text-white bg-[#111827] hover:bg-black rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+          className="px-6 py-2.5 text-sm font-bold text-white rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+          style={{ backgroundColor: accentColor }}
         >
           {editingNode ? 'Save Changes' : 'Create Department'}
         </button>
@@ -209,7 +212,7 @@ export default function NodeEditorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop with click-outside listener */}
       <div
-        className="absolute inset-0 bg-[#111827]/40 backdrop-blur-[4px] transition-opacity"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[4px] transition-opacity"
         onClick={onClose}
       />
 

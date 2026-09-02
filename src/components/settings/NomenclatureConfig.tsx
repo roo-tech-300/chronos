@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Plus, Trash2, X } from 'lucide-react'
 import type { HierarchyLevelNaming } from '../../types/organization'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface NomenclatureConfigProps {
   isOpen: boolean
@@ -15,6 +16,8 @@ export default function NomenclatureConfig({
   levelNamings,
   onUpdateLevelNamings,
 }: NomenclatureConfigProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
+
   // Global Escape key listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -69,12 +72,12 @@ export default function NomenclatureConfig({
         {/* Drawer Header */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-100">
           <div>
-            <h2 className="text-[18px] font-bold text-[#111827]">Department Naming Structure</h2>
+            <h2 className="text-[18px] font-bold text-zinc-900">Department Naming Structure</h2>
             <p className="text-[13px] text-[#6b7280] mt-0.5">Customize terminology across depth tiers</p>
           </div>
           <button
             type="button"
-            className="text-[#6b7280] hover:text-[#111827] hover:bg-zinc-100 p-2 rounded-full transition-colors cursor-pointer"
+            className="text-[#6b7280] hover:text-zinc-900 hover:bg-zinc-100 p-2 rounded-full transition-colors cursor-pointer"
             onClick={onClose}
           >
             <X size={18} />
@@ -111,7 +114,8 @@ export default function NomenclatureConfig({
                 <input
                   type="text"
                   placeholder={isPrimary ? 'e.g. University, Faculty, Division' : 'e.g. Sub-Department, Unit'}
-                  className="w-full bg-white border border-zinc-200 rounded-lg px-3.5 py-2 text-[14px] text-[#111827] focus:ring-1 focus:ring-[#111827] focus:border-[#111827] focus:outline-none"
+                  className="w-full bg-white border border-zinc-200 rounded-lg px-3.5 py-2 text-[14px] text-zinc-900 focus:ring-2 focus:outline-none transition-all"
+                  style={{ borderColor: undefined }}
                   value={lvl.singular}
                   onChange={(e) => handleChange(index, e.target.value)}
                 />
@@ -128,7 +132,7 @@ export default function NomenclatureConfig({
             <button
               type="button"
               onClick={handleAddLevel}
-              className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-[#111827] hover:bg-zinc-200 transition-colors font-semibold text-[13px] rounded-full py-3 px-4 border border-zinc-300 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-zinc-800 hover:bg-zinc-200 transition-colors font-semibold text-[13px] rounded-full py-3 px-4 border border-zinc-300 cursor-pointer"
             >
               <Plus size={16} /> Add Sub-Level
             </button>
@@ -139,7 +143,8 @@ export default function NomenclatureConfig({
         <div className="mt-auto pt-6 border-t border-zinc-100">
           <button
             type="button"
-            className="w-full bg-[#111827] hover:bg-black text-white font-bold text-[14px] py-3 rounded-xl transition-all cursor-pointer shadow-md"
+            className="w-full text-white font-bold text-[14px] py-3 rounded-xl transition-all cursor-pointer shadow-md active:scale-[0.99]"
+            style={{ backgroundColor: accentColor }}
             onClick={onClose}
           >
             Save Nomenclature

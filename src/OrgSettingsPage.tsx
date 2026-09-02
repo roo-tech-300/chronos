@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { HierarchyNode, HierarchyLevelNaming, OrgRole, OrganizationProfile } from './types/organization'
 import { defaultOrgProfile } from './dummy/organization-mock'
 import { addNodeChild, updateNode, deleteNode } from './utils/hierarchyUtils'
+import { useWorkspace } from './context/useWorkspace'
 import SettingsNav from './components/settings/SettingsNav'
 import NomenclatureConfig from './components/settings/NomenclatureConfig'
 import HierarchyManager from './components/settings/HierarchyManager'
@@ -12,6 +13,7 @@ import OrgGeneralCard from './components/settings/OrgGeneralCard'
 import './styles/org-settings.css'
 
 export default function OrgSettingsPage() {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [profile, setProfile] = useState<OrganizationProfile>(defaultOrgProfile)
   const [activeTab, setActiveTab] = useState<'overview' | 'hierarchy' | 'roles'>('overview')
   const [namingDrawerOpen, setNamingDrawerOpen] = useState(false)
@@ -90,7 +92,14 @@ export default function OrgSettingsPage() {
   }
 
   return (
-    <div className="settings-page">
+    <div
+      className="settings-page"
+      style={{
+        ['--accent-purple' as string]: accentColor,
+        ['--accent-purple-light' as string]: `${accentColor}14`,
+        ['--accent-purple-border' as string]: `${accentColor}40`,
+      }}
+    >
       <SettingsNav />
 
       <main className="settings-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '88px 24px 80px' }}>
@@ -118,10 +127,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'overview' ? 700 : 500,
-              color: activeTab === 'overview' ? '#111827' : '#4b5563',
+              color: activeTab === 'overview' ? accentColor : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'overview' ? '2.5px solid #111827' : '2.5px solid transparent',
+              borderBottom: activeTab === 'overview' ? `2.5px solid ${accentColor}` : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',
@@ -136,10 +145,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'hierarchy' ? 700 : 500,
-              color: activeTab === 'hierarchy' ? '#111827' : '#4b5563',
+              color: activeTab === 'hierarchy' ? accentColor : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'hierarchy' ? '2.5px solid #111827' : '2.5px solid transparent',
+              borderBottom: activeTab === 'hierarchy' ? `2.5px solid ${accentColor}` : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',
@@ -154,10 +163,10 @@ export default function OrgSettingsPage() {
               padding: '10px 0',
               fontSize: 13.5,
               fontWeight: activeTab === 'roles' ? 700 : 500,
-              color: activeTab === 'roles' ? '#111827' : '#4b5563',
+              color: activeTab === 'roles' ? accentColor : '#4b5563',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'roles' ? '2.5px solid #111827' : '2.5px solid transparent',
+              borderBottom: activeTab === 'roles' ? `2.5px solid ${accentColor}` : '2.5px solid transparent',
               cursor: 'pointer',
               marginBottom: -1,
               transition: 'all 0.15s ease',

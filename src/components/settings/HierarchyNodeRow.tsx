@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface HierarchyNodeRowProps {
   node: HierarchyNode
@@ -21,6 +22,7 @@ export default function HierarchyNodeRow({
   onEditNode,
   onDeleteNode,
 }: HierarchyNodeRowProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
   const levelLabel = getLevelLabel(node.level, levelNamings)
@@ -40,7 +42,7 @@ export default function HierarchyNodeRow({
           {hasChildren ? (
             <button
               type="button"
-              className="text-zinc-500 hover:text-[#111827] transition-colors p-1 rounded cursor-pointer"
+              className="text-zinc-500 hover:text-zinc-900 transition-colors p-1 rounded cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation()
                 setExpanded(!expanded)
@@ -55,30 +57,53 @@ export default function HierarchyNodeRow({
           <div
             className={`flex-shrink-0 flex items-center justify-center rounded-lg border ${
               isApex
-                ? 'w-11 h-11 bg-zinc-100 text-[#111827] border-zinc-300'
+                ? 'w-11 h-11'
                 : 'w-9 h-9 bg-zinc-100 text-zinc-600 border-zinc-200'
             }`}
+            style={
+              isApex
+                ? {
+                    backgroundColor: `${accentColor}15`,
+                    color: accentColor,
+                    borderColor: `${accentColor}35`,
+                  }
+                : undefined
+            }
           >
             {isApex ? <Landmark size={20} /> : <Building2 size={16} />}
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className={`text-[#111827] ${isApex ? 'text-[15px] font-bold' : 'text-[14px] font-semibold'}`}>
+            <span className={`text-zinc-900 ${isApex ? 'text-[15px] font-bold' : 'text-[14px] font-semibold'}`}>
               {node.name} {node.code ? `(${node.code})` : ''}
             </span>
 
             <span
               className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                isApex
-                  ? 'bg-zinc-100 text-[#111827] border-zinc-300'
-                  : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                isApex ? '' : 'bg-zinc-100 text-zinc-600 border-zinc-200'
               }`}
+              style={
+                isApex
+                  ? {
+                      backgroundColor: `${accentColor}10`,
+                      color: accentColor,
+                      borderColor: `${accentColor}30`,
+                    }
+                  : undefined
+              }
             >
               {levelLabel}
             </span>
 
             {hasChildren && !expanded && (
-              <span className="text-[11px] font-semibold text-[#111827] bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200">
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full border"
+                style={{
+                  backgroundColor: `${accentColor}10`,
+                  color: accentColor,
+                  borderColor: `${accentColor}30`,
+                }}
+              >
                 +{node.children.length} sub-units
               </span>
             )}
@@ -100,7 +125,8 @@ export default function HierarchyNodeRow({
         >
           <button
             type="button"
-            className="text-[12px] font-bold text-[#111827] hover:bg-zinc-100 px-2.5 py-1 rounded transition-colors whitespace-nowrap cursor-pointer"
+            className="text-[12px] font-bold px-2.5 py-1 rounded transition-colors whitespace-nowrap cursor-pointer"
+            style={{ color: accentColor }}
             onClick={() => onAddChild(node)}
           >
             Add Sub-Department
@@ -109,7 +135,7 @@ export default function HierarchyNodeRow({
           <button
             type="button"
             title="Edit department"
-            className="p-1.5 text-zinc-500 hover:text-[#111827] hover:bg-zinc-100 rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors cursor-pointer"
             onClick={() => onEditNode(node)}
           >
             <Edit3 size={15} />

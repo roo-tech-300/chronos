@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { OrgRole, PermissionItem } from '../../types/organization'
 import { defaultPermissionsList } from '../../dummy/organization-mock'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface RoleModalProps {
   isOpen: boolean
@@ -53,6 +54,7 @@ function RoleForm({
   onClose: () => void
   onSave: (role: OrgRole) => void
 }) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [name, setName] = useState(initialData?.name || '')
   const [description, setDescription] = useState(initialData?.description || '')
   const [activePermIds, setActivePermIds] = useState<string[]>(() => {
@@ -101,7 +103,7 @@ function RoleForm({
             <input
               type="text"
               required
-              className="w-full px-4 py-2 bg-[#f8f9fa] border border-zinc-200 rounded-lg text-sm text-[#191c1d] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 focus:border-[#111827] transition-all"
+              className="w-full px-4 py-2 bg-[#f8f9fa] border border-zinc-200 rounded-lg text-sm text-[#191c1d] focus:outline-none focus:ring-2 focus:ring-[#7c007e]/20 focus:border-[#7c007e] transition-all"
               placeholder="e.g., Regional Manager"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -113,7 +115,7 @@ function RoleForm({
               Description
             </label>
             <textarea
-              className="w-full px-4 py-2 bg-[#f8f9fa] border border-zinc-200 rounded-lg text-sm text-[#191c1d] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 focus:border-[#111827] transition-all resize-none"
+              className="w-full px-4 py-2 bg-[#f8f9fa] border border-zinc-200 rounded-lg text-sm text-[#191c1d] focus:outline-none focus:ring-2 focus:ring-[#7c007e]/20 focus:border-[#7c007e] transition-all resize-none"
               placeholder="Briefly describe the responsibilities of this role..."
               rows={2}
               value={description}
@@ -138,7 +140,7 @@ function RoleForm({
                   className="bg-[#f8f9fa] border border-zinc-200 rounded-xl p-5"
                 >
                   <div className="flex items-center gap-2 mb-3">
-                    <IconComp size={20} className="text-[#111827]" />
+                    <IconComp size={20} style={{ color: accentColor }} />
                     <h4 className="text-sm font-semibold text-[#191c1d]">
                       {group.name}
                     </h4>
@@ -156,7 +158,8 @@ function RoleForm({
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => togglePerm(item.id)}
-                            className="h-4 w-4 rounded border-zinc-300 text-[#111827] focus:ring-[#111827] accent-[#111827] cursor-pointer transition-colors"
+                            style={{ accentColor }}
+                            className="h-4 w-4 rounded border-zinc-300 cursor-pointer transition-colors"
                           />
                           <span
                             className={`text-sm ${
@@ -189,7 +192,8 @@ function RoleForm({
         </button>
         <button
           type="submit"
-          className="px-6 py-2 bg-[#111827] hover:bg-black text-white text-sm font-semibold rounded-lg transition-colors shadow-sm cursor-pointer active:scale-95 duration-150"
+          className="px-6 py-2 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm cursor-pointer active:scale-95 duration-150"
+          style={{ backgroundColor: accentColor }}
         >
           {initialData ? 'Save Changes' : 'Create Role'}
         </button>

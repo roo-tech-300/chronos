@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import type { OrgRole } from '../../types/organization'
 import { Button, Toolbar } from '../ui'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface RoleListProps {
   roles: OrgRole[]
@@ -22,6 +23,7 @@ export default function RoleList({
   onEditRole,
   onDeleteRole,
 }: RoleListProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredRoles = roles.filter(
@@ -34,7 +36,7 @@ export default function RoleList({
     return (
       <span
         key={permId}
-        className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-zinc-100 text-[#111827] text-[11.5px] font-medium border border-zinc-200 transition-all hover:bg-zinc-200 select-none"
+        className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-zinc-100 text-zinc-800 text-[11.5px] font-medium border border-zinc-200 transition-all hover:bg-zinc-200 select-none"
       >
         {permLabel}
       </span>
@@ -79,7 +81,14 @@ export default function RoleList({
                   <h3 className="text-lg font-bold text-[#191c1d] leading-snug">
                     {role.name}
                   </h3>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 text-[#111827] text-[12px] font-semibold border border-zinc-200 shrink-0">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold border shrink-0"
+                    style={{
+                      backgroundColor: `${accentColor}10`,
+                      color: accentColor,
+                      borderColor: `${accentColor}30`,
+                    }}
+                  >
                     <Users size={14} />
                     {role.assignedCount} Staff Assigned
                   </span>
@@ -98,7 +107,7 @@ export default function RoleList({
                       getPermissionTag(perm.id, perm.label)
                     )}
                     {enabledPerms.length > 4 && (
-                      <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-zinc-100 text-[#111827] text-[11.5px] font-semibold border border-zinc-200">
+                      <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-zinc-100 text-zinc-700 text-[11.5px] font-semibold border border-zinc-200">
                         +{enabledPerms.length - 4} more
                       </span>
                     )}
@@ -114,7 +123,8 @@ export default function RoleList({
                 <button
                   type="button"
                   onClick={() => onEditRole(role)}
-                  className="text-sm font-semibold text-[#111827] hover:text-black transition-colors flex items-center gap-1 cursor-pointer"
+                  className="text-sm font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                  style={{ color: accentColor }}
                 >
                   View Details <ArrowRight size={16} />
                 </button>
@@ -123,7 +133,7 @@ export default function RoleList({
                   <button
                     type="button"
                     onClick={() => onEditRole(role)}
-                    className="p-1.5 text-zinc-500 hover:text-[#111827] rounded-md hover:bg-zinc-200/50 transition-colors cursor-pointer"
+                    className="p-1.5 text-zinc-500 hover:text-zinc-900 rounded-md hover:bg-zinc-200/50 transition-colors cursor-pointer"
                     title="Edit Role"
                   >
                     <Edit3 size={18} />

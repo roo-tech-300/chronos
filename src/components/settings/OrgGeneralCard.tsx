@@ -9,6 +9,7 @@ import {
   Globe2,
 } from 'lucide-react'
 import type { OrganizationProfile } from '../../types/organization'
+import { useWorkspace } from '../../context/useWorkspace'
 import {
   countTotalNodes,
   countTotalStaff,
@@ -24,6 +25,7 @@ export default function OrgGeneralCard({
   profile,
   onUpdateProfile,
 }: OrgGeneralCardProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [formData, setFormData] = useState({
     name: profile.name,
     category: profile.category,
@@ -53,11 +55,14 @@ export default function OrgGeneralCard({
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
               Enrolled Staff
             </span>
-            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-[#111827] flex items-center justify-center">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
+            >
               <Users size={16} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#111827] mt-2">{totalStaff}</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{totalStaff}</p>
           <p className="text-xs text-zinc-500 mt-1">Biometrically active</p>
         </div>
 
@@ -66,11 +71,14 @@ export default function OrgGeneralCard({
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
               Hierarchy Units
             </span>
-            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-[#111827] flex items-center justify-center">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
+            >
               <Building2 size={16} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#111827] mt-2">{totalUnits}</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{totalUnits}</p>
           <p className="text-xs text-zinc-500 mt-1">Faculties, Depts & Units</p>
         </div>
 
@@ -79,11 +87,14 @@ export default function OrgGeneralCard({
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
               Structural Tiers
             </span>
-            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-[#111827] flex items-center justify-center">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
+            >
               <Layers size={16} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#111827] mt-2">{maxDepth} Levels</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{maxDepth} Levels</p>
           <p className="text-xs text-zinc-500 mt-1">Hierarchy depth</p>
         </div>
 
@@ -92,11 +103,14 @@ export default function OrgGeneralCard({
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
               Deployment
             </span>
-            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-[#111827] flex items-center justify-center">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
+            >
               <Globe2 size={16} />
             </div>
           </div>
-          <p className="text-lg font-bold text-[#111827] mt-2 truncate">Production</p>
+          <p className="text-lg font-bold text-zinc-900 mt-2 truncate">Production</p>
           <p className="text-xs text-zinc-500 mt-1 truncate">{profile.deploymentLocation}</p>
         </div>
       </div>
@@ -105,11 +119,18 @@ export default function OrgGeneralCard({
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-zinc-100 text-[#111827] border border-zinc-200 flex items-center justify-center">
+            <div
+              className="w-10 h-10 rounded-xl border flex items-center justify-center"
+              style={{
+                backgroundColor: `${accentColor}12`,
+                borderColor: `${accentColor}30`,
+                color: accentColor,
+              }}
+            >
               <Building2 size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#111827]">
+              <h2 className="text-lg font-bold text-zinc-900">
                 Institution &amp; Deployment Profile
               </h2>
               <p className="text-sm text-zinc-500">
@@ -118,7 +139,14 @@ export default function OrgGeneralCard({
             </div>
           </div>
 
-          <span className="bg-zinc-100 text-[#111827] border border-zinc-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+          <span
+            className="border px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+            style={{
+              backgroundColor: `${accentColor}10`,
+              borderColor: `${accentColor}35`,
+              color: accentColor,
+            }}
+          >
             {profile.category}
           </span>
         </div>
@@ -207,13 +235,14 @@ export default function OrgGeneralCard({
 
           <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-zinc-500">
-              <Sparkles size={14} className="text-[#111827]" />
+              <Sparkles size={14} style={{ color: accentColor }} />
               <span>Changes reflect globally across all department kiosks and nodes.</span>
             </div>
 
             <button
               type="submit"
-              className="px-6 py-2.5 text-sm font-bold text-white bg-[#111827] hover:bg-black rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+              className="px-6 py-2.5 text-sm font-bold text-white rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+              style={{ backgroundColor: accentColor }}
             >
               {savedSuccess ? (
                 <>

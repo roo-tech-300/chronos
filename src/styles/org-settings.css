@@ -7,9 +7,10 @@
   --bg-page: #f9fafb;
   --bg-card: #ffffff;
   --bg-subtle: #f3f4f6;
-  --accent-purple: #111827;
-  --accent-purple-light: rgba(17, 24, 39, 0.06);
-  --accent-purple-border: rgba(17, 24, 39, 0.25);
+  --accent-purple: #7c007e;
+  --accent-purple-hover: #570058;
+  --accent-purple-light: rgba(124, 0, 126, 0.08);
+  --accent-purple-border: rgba(124, 0, 126, 0.25);
   
   background-color: var(--bg-page);
   min-height: 100vh;
@@ -113,7 +114,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #111827;
+  background: var(--accent-purple, #7c007e);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -209,9 +210,9 @@
 }
 
 .settings-tab-button.active {
-  color: var(--accent-purple);
+  color: var(--accent-purple, #7c007e);
   font-weight: 600;
-  border-bottom-color: var(--accent-purple);
+  border-bottom-color: var(--accent-purple, #7c007e);
 }
 
 /* Clean Cards */
@@ -257,7 +258,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #111827;
+  background: var(--accent-purple, #7c007e);
   color: #ffffff;
   padding: 7px 14px;
   font-size: 12.5px;
@@ -270,7 +271,7 @@
 }
 
 .btn-primary-clean:hover {
-  background: #374151;
+  background: var(--accent-purple-hover, #570058);
 }
 
 .btn-secondary-clean {

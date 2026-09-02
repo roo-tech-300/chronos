@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Users, UserCheck, ChevronDown, ChevronUp } from 'lucide-react'
 import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
+import { useWorkspace } from '../../context/useWorkspace'
 
 interface HierarchyVisualChartProps {
   node: HierarchyNode
@@ -16,6 +17,7 @@ export default function HierarchyVisualChart({
   onAddChild,
   onEditNode,
 }: HierarchyVisualChartProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const [collapsed, setCollapsed] = useState(false)
   const hasChildren = node.children && node.children.length > 0
   const isApex = node.level === 1
@@ -29,8 +31,8 @@ export default function HierarchyVisualChart({
           width: 210,
           background: '#ffffff',
           borderRadius: 8,
-          border: isApex ? '2px solid #111827' : '1px solid #d1d5db',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)',
+          border: isApex ? `2px solid ${accentColor}` : '1px solid #d1d5db',
+          boxShadow: isApex ? `0 2px 8px ${accentColor}20` : '0 2px 4px rgba(0, 0, 0, 0.04)',
           padding: '10px 12px',
           textAlign: 'center',
           position: 'relative',
@@ -39,7 +41,7 @@ export default function HierarchyVisualChart({
         }}
         onClick={() => onEditNode(node)}
       >
-        <div style={{ fontSize: 9.5, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, color: isApex ? accentColor : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
           {levelLabel}
         </div>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', lineHeight: 1.3, marginBottom: 3 }}>
@@ -65,7 +67,7 @@ export default function HierarchyVisualChart({
             bottom: -9,
             left: '50%',
             transform: 'translateX(-50%)',
-            background: '#111827',
+            background: accentColor,
             color: '#ffffff',
             border: 'none',
             borderRadius: '50%',
@@ -75,7 +77,7 @@ export default function HierarchyVisualChart({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            boxShadow: `0 1px 3px ${accentColor}40`,
           }}
         >
           <Plus size={11} />
