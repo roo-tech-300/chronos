@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
+import { AlertTriangle, Plus } from 'lucide-react'
 import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
 import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
+import { useWorkspaceUnits } from './hooks/useOrganizationUnits'
 import { useWorkspace } from './context/useWorkspace'
 import { useAuth } from './context/useAuth'
 import AppNavbar from './components/layout/AppNavbar'
@@ -16,20 +17,15 @@ import {
   type TasksFilterTab,
   summarizeStatuses,
   filterReviewTasks,
-  buildStaffGroups,
-  type StatusSummary,
 } from './utils/taskAggregation'
-import type { TaskItem, CreateTaskInput, StaffTaskGroup, TaskFilters } from './types/tasks'
+import {
+  resolveScopeAssigneeIds,
+  buildUnitOverviews,
+  type UnitScopeMode,
+} from './utils/taskUnitScoping'
+import type { TaskItem, CreateTaskInput, TaskFilters } from './types/tasks'
 import './styles/tasks-layout.css'
 import './styles/tasks-directory.css'
-
-interface UnitOverview {
-  name: string
-  leadName: string | null
-  memberCount: number
-  groups: StaffTaskGroup[]
-  summary: StatusSummary
-}
 
 export default function TasksPage() {
   const { currentWorkspace, accentColor = '#7c007e' } = useWorkspace()
@@ -38,65 +34,58 @@ export default function TasksPage() {
   const workspaceName = currentWorkspace?.name || 'Workspace'
 
   const [filters, setFilters] = useState<TaskFilters>({ unit: 'all' })
-  const { tasks, createBatch, approveTask: approveTaskMutation } = useWorkspaceTasks(
-    activeWorkspaceId,
-    filters,
-  )
+  const {
+    tasks,
+    createBatch,
+    approveTask: approveTaskMutation,
+    approveError,
+  } = useWorkspaceTasks(activeWorkspaceId, filters)
   const { roster } = useWorkspaceRoster(activeWorkspaceId)
+  const { units } = useWorkspaceUnits(activeWorkspaceId)
   const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [activeUnitName, setActiveUnitName] = useState<string | null>(null)
+  const [activeUnitId, setActiveUnitId] = useState<string | null>(null)
+  const [scopeMode, setScopeMode] = useState<UnitScopeMode>('subtree')
 
   // Lifecycle anchors stay unfiltered across the full task set for stable headline totals
   const overall = useMemo(() => summarizeStatuses(tasks), [tasks])
 
-  // Everything below honours the toolbar filter (status tab + search + unit scope)
-  const filteredTasks = useMemo(
-    () => filterReviewTasks(tasks, activeTab, searchQuery, filters.unit),
-    [tasks, activeTab, searchQuery, filters.unit],
+  // Unit scope resolves to real organization_units subtree membership
+  const scopedUnitId = filters.unit && filters.unit !== 'all' ? filters.unit : null
+  const scopeAssigneeIds = useMemo(
+    () => resolveScopeAssigneeIds(units, roster, scopedUnitId, scopeMode),
+    [units, roster, scopedUnitId, scopeMode],
   )
 
-  // Units derived from live roster
-  const units = useMemo<UnitOverview[]>(() => {
-    const unitNames = Array.from(new Set(roster.map((m) => m.department)))
-    return unitNames.map((unitName) => {
-      const unitRoster = roster.filter((m) => m.department === unitName)
-      const memberIds = new Set(unitRoster.map((m) => m.memberId))
-      const memberNames = new Set(unitRoster.map((m) => m.name))
-      const unitTasks = filteredTasks.filter(
-        (t) =>
-          (t.assigneeMemberId ? memberIds.has(t.assigneeMemberId) : false) ||
-          memberNames.has(t.assigneeName),
-      )
-      const lead = unitRoster.find(
-        (m) => m.role === 'hod' || m.role === 'owner' || m.role === 'admin',
-      )
-      return {
-        name: unitName,
-        leadName: lead?.name ?? null,
-        memberCount: unitRoster.length,
-        groups: buildStaffGroups(unitTasks, unitRoster),
-        summary: summarizeStatuses(unitTasks),
-      }
-    })
-  }, [roster, filteredTasks])
+  // Everything below honours the toolbar filter (status tab + search + unit scope)
+  const filteredTasks = useMemo(
+    () => filterReviewTasks(tasks, activeTab, searchQuery, scopeAssigneeIds),
+    [tasks, activeTab, searchQuery, scopeAssigneeIds],
+  )
+
+  const unitOverviews = useMemo(
+    () => buildUnitOverviews(units, roster, filteredTasks),
+    [units, roster, filteredTasks],
+  )
 
   const unitScopeOptions = useMemo(() => {
-    const unitNames = Array.from(new Set(roster.map((m) => m.department)))
-    return unitNames.map((name) => ({
-      name,
-      memberCount: roster.filter((m) => m.department === name).length,
-      taskCount: tasks.filter((t) => t.department === name || t.subDepartment === name).length,
+    return units.map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      memberCount: roster.filter((m) => m.unitId === unit.id).length,
     }))
-  }, [roster, tasks])
+  }, [units, roster])
 
   const displayedUnits = useMemo(() => {
-    if (!filters.unit || filters.unit === 'all') return units
-    return units.filter((u) => u.name.toLowerCase() === filters.unit?.toLowerCase())
-  }, [units, filters.unit])
+    if (!scopedUnitId) return unitOverviews
+    return unitOverviews.filter((u) => u.id === scopedUnitId)
+  }, [unitOverviews, scopedUnitId])
 
-  const activeUnit = units.find((u) => u.name === activeUnitName) ?? null
+  const scopedUnit = scopedUnitId
+    ? unitOverviews.find((u) => u.id === scopedUnitId) ?? null
+    : null
+  const activeUnit = unitOverviews.find((u) => u.id === activeUnitId) ?? null
 
   async function handleCreateBatch(newTasks: CreateTaskInput[]) {
     await createBatch(newTasks)
@@ -164,14 +153,26 @@ export default function TasksPage() {
           }}
         />
 
-        {/* Unit scope toggle wired through TaskFilters */}
+        {/* Unit scope toggle wired to real organization_units */}
         <UnitScopeToggle
           activeUnit={filters.unit || 'all'}
           units={unitScopeOptions}
           totalTaskCount={tasks.length}
-          onSelectUnit={(selectedUnit) => setFilters((prev) => ({ ...prev, unit: selectedUnit }))}
+          onSelectUnit={(selectedUnitId) =>
+            setFilters((prev) => ({ ...prev, unit: selectedUnitId }))
+          }
+          scopeMode={scopeMode}
+          onScopeModeChange={setScopeMode}
           accentColor={accentColor}
         />
+
+        {/* Approval authority feedback (DB-enforced via approve_task_if_authorized) */}
+        {approveError && (
+          <div className="mb-4 flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>{approveError}</span>
+          </div>
+        )}
 
         {/* Browse-by-unit grid */}
         <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
@@ -182,20 +183,21 @@ export default function TasksPage() {
             </p>
           </div>
           <span className="tasks-badge">
-            {filters.unit && filters.unit !== 'all' ? `Scoped: ${filters.unit} · ` : ''}
-            {displayedUnits.length} {displayedUnits.length === 1 ? 'Unit' : 'Units'} · {filteredTasks.length} in view
+            {scopedUnit ? `Scoped: ${scopedUnit.name} · ` : ''}
+            {displayedUnits.length} {displayedUnits.length === 1 ? 'Unit' : 'Units'} ·{' '}
+            {filteredTasks.length} in view
           </span>
         </div>
 
         <div className="unit-grid">
           {displayedUnits.map((unit) => (
             <DepartmentUnitCard
-              key={unit.name}
+              key={unit.id}
               unitName={unit.name}
               leadName={unit.leadName}
               memberCount={unit.memberCount}
               summary={unit.summary}
-              onSelect={() => setActiveUnitName(unit.name)}
+              onSelect={() => setActiveUnitId(unit.id)}
             />
           ))}
         </div>
@@ -229,7 +231,7 @@ export default function TasksPage() {
       {activeUnit && (
         <StaffDirectoryModal
           open
-          onClose={() => setActiveUnitName(null)}
+          onClose={() => setActiveUnitId(null)}
           unitName={activeUnit.name}
           leadName={activeUnit.leadName}
           members={activeUnit.groups}

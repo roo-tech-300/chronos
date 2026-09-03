@@ -1,9 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  fetchWorkspaceTasks,
-  createTaskBatch,
-  approveTask,
-} from '../services/taskService'
+import { fetchWorkspaceTasks, createTaskBatch } from '../services/taskService'
+import { approveTask } from '../services/taskWorkflowService'
 import type { TaskItem, TaskFilters, CreateTaskInput } from '../types/tasks'
 
 export function useWorkspaceTasks(workspaceId: string, filters?: TaskFilters) {
@@ -34,8 +31,11 @@ export function useWorkspaceTasks(workspaceId: string, filters?: TaskFilters) {
   })
 
   const approveTaskMutation = useMutation({
-    mutationFn: ({ taskId, verifiedBy }: { taskId: string; verifiedBy: string }) =>
-      approveTask(taskId, verifiedBy),
+    mutationFn: async ({ taskId }: { taskId: string; verifiedBy: string }) => {
+      const result = await approveTask(taskId)
+      if (!result.success) throw new Error(result.error || 'Failed to approve task.')
+      return result.data
+    },
     onMutate: async ({ taskId, verifiedBy }) => {
       await queryClient.cancelQueries({ queryKey: ['workspace-tasks', workspaceId] })
       const previousTasks = queryClient.getQueryData<TaskItem[]>(queryKey)
@@ -77,5 +77,8 @@ export function useWorkspaceTasks(workspaceId: string, filters?: TaskFilters) {
     isCreating: createBatchMutation.isPending,
     approveTask: approveTaskMutation.mutateAsync,
     isApproving: approveTaskMutation.isPending,
+    /** Error from the last approval attempt (authority failures surface here). */
+    approveError:
+      approveTaskMutation.error instanceof Error ? approveTaskMutation.error.message : null,
   }
 }

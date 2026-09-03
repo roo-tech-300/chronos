@@ -12,6 +12,8 @@ interface MemberRow {
   role?: string | null
   department?: string | null
   user_id?: string | null
+  unit_id?: string | null
+  job_title?: string | null
 }
 
 /** Maps a workspace_members row + its profile into the UI member record. */
@@ -30,6 +32,8 @@ function toMemberRecord(
     role: row.role || undefined,
     roleLabel: formatRole(row.role || undefined),
     department: row.department || 'General Staff',
+    unitId: row.unit_id || undefined,
+    jobTitle: row.job_title || undefined,
   }
 }
 
@@ -66,7 +70,7 @@ export async function fetchCurrentWorkspaceMember(
   try {
     const { data, error } = await supabase
       .from('workspace_members')
-      .select('id, role, department, user_id')
+      .select('id, role, department, user_id, unit_id, job_title')
       .eq('workspace_id', cleanId)
       .eq('user_id', auth.userId)
       .maybeSingle()
@@ -98,7 +102,7 @@ export async function fetchWorkspaceRoster(
   try {
     const { data, error } = await supabase
       .from('workspace_members')
-      .select('id, role, department, user_id')
+      .select('id, role, department, user_id, unit_id, job_title')
       .eq('workspace_id', cleanId)
       .order('created_at', { ascending: true })
 

@@ -115,4 +115,8 @@ export interface WorkspaceMemberRecord {
   roleLabel: string
   /** workspace_members.department value ('General Staff' when unset) */
   department: string
+  /** organization_units.id this member is placed in (null when unassigned) */
+  unitId?: string
+  /** workspace_members.job_title */
+  jobTitle?: string
 }

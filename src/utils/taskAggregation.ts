@@ -43,21 +43,22 @@ export function taskMatchesTab(task: TaskItem, tab: TasksFilterTab): boolean {
   }
 }
 
-/** Applies the active toolbar filter (status tab + free-text search + optional unit scope). */
+/**
+ * Applies the active toolbar filter (status tab + free-text search + optional unit scope).
+ * Unit scoping is member-id based: the caller resolves the allowed assignee
+ * ids from the real organization_units subtree.
+ */
 export function filterReviewTasks(
   tasks: TaskItem[],
   tab: TasksFilterTab,
   searchQuery: string,
-  unitScope?: string,
+  allowedAssigneeIds?: ReadonlySet<string>,
 ): TaskItem[] {
   return tasks.filter((task) => {
     if (!taskMatchesTab(task, tab)) return false
     if (!matchesSearch(task, searchQuery)) return false
-    if (unitScope && unitScope !== 'all') {
-      const scope = unitScope.toLowerCase().trim()
-      const dept = task.department.toLowerCase().trim()
-      const subDept = task.subDepartment.toLowerCase().trim()
-      return dept === scope || subDept === scope
+    if (allowedAssigneeIds) {
+      return Boolean(task.assigneeMemberId && allowedAssigneeIds.has(task.assigneeMemberId))
     }
     return true
   })

@@ -1,17 +1,11 @@
 import { getSupabase } from '../lib/supabase'
 import { isRealWorkspaceUuid } from '../utils/uuid'
-import type {
-  TaskItem,
-  TaskRow,
-  TaskFilters,
-  CreateTaskInput,
-  TaskSubmissionPayload,
-} from '../types/tasks'
+import type { TaskItem, TaskRow, TaskFilters, CreateTaskInput } from '../types/tasks'
 
 /**
  * Maps a Supabase tasks row + joined workspace_members / profiles into UI TaskItem model.
  */
-function mapTaskRowToItem(row: TaskRow & { workspace_members?: { id: string; role?: string; profiles?: { full_name?: string; avatar_url?: string; email?: string } } }): TaskItem {
+export function mapTaskRowToItem(row: TaskRow & { workspace_members?: { id: string; role?: string; profiles?: { full_name?: string; avatar_url?: string; email?: string } } }): TaskItem {
   const member = row.workspace_members
   const profile = member?.profiles
 
@@ -75,9 +69,6 @@ export async function fetchWorkspaceTasks(
     }
     if (filters?.department && filters.department !== 'all') {
       query = query.eq('department', filters.department)
-    }
-    if (filters?.unit && filters.unit !== 'all') {
-      query = query.or(`department.eq.${filters.unit},sub_department.eq.${filters.unit}`)
     }
     if (filters?.assigneeMemberId) {
       query = query.eq('assignee_member_id', filters.assigneeMemberId)
@@ -210,85 +201,5 @@ export async function createTaskBatch(
   }
 }
 
-/**
- * 4. Submits task completion with proof notes, actual minutes, and evidence links.
- */
-export async function submitTaskCompletion(
-  taskId: string,
-  payload: TaskSubmissionPayload
-): Promise<{ success: boolean; data?: TaskItem; error?: string }> {
-  const cleanTaskId = (taskId || '').trim()
-  const supabase = getSupabase()
-
-  const updateFields = {
-    status: 'submitted' as const,
-    proof_note: payload.completionNote || null,
-    difficulty_note: payload.difficultyNote || null,
-    actual_mins: payload.actualMins || 0,
-    completion_links: payload.completionLinks || [],
-    completed_at: new Date().toISOString(),
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(updateFields)
-      .eq('id', cleanTaskId)
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
-      .maybeSingle()
-
-    if (error) {
-      console.warn('[taskService] Failed to submit task completion:', error.message)
-      return { success: false, error: error.message }
-    }
-
-    return {
-      success: true,
-      data: data ? mapTaskRowToItem(data) : undefined,
-    }
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown submission error'
-    return { success: false, error: errorMsg }
-  }
-}
-
-/**
- * 5. Approves a submitted task with verifier name and timestamp.
- */
-export async function approveTask(
-  taskId: string,
-  verifiedBy: string
-): Promise<{ success: boolean; data?: TaskItem; error?: string }> {
-  const cleanTaskId = (taskId || '').trim()
-  const supabase = getSupabase()
-
-  const updateFields = {
-    status: 'approved' as const,
-    verified_by: verifiedBy || 'HOD / Manager',
-    updated_at: new Date().toISOString(),
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(updateFields)
-      .eq('id', cleanTaskId)
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
-      .maybeSingle()
-
-    if (error) {
-      console.warn('[taskService] Failed to approve task:', error.message)
-      return { success: false, error: error.message }
-    }
-
-    return {
-      success: true,
-      data: data ? mapTaskRowToItem(data) : undefined,
-    }
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown approval error'
-    return { success: false, error: errorMsg }
-  }
-}
 
 

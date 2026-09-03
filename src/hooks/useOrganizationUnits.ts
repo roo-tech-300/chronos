@@ -28,7 +28,11 @@ export function useWorkspaceUnits(workspaceId: string) {
     refetch,
   } = useQuery({
     queryKey: unitsKey,
-    queryFn: () => fetchWorkspaceUnits(workspaceId),
+    queryFn: async () => {
+      const { data, error } = await fetchWorkspaceUnits(workspaceId)
+      if (error) throw error
+      return data
+    },
     enabled: Boolean(workspaceId),
     staleTime: 1000 * 60 * 2, // 2 min fresh cache protects the backend
   })

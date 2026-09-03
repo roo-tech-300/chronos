@@ -1,32 +1,44 @@
 import { useState } from 'react'
 import {
   ChevronRight, ChevronDown, Edit3, Trash2,
-  User, Landmark, Building2,
+  User, Users, Landmark, Building2,
 } from 'lucide-react'
-import type { OrganizationUnit, HierarchyLevelNaming } from '../../types/organization'
-import { getLevelLabel } from '../../utils/hierarchyUtils'
+import type { OrgUnit } from '../../types/organization'
+import type { OrgUnitNode } from '../../utils/orgUnitTree'
 import { useWorkspace } from '../../context/useWorkspace'
 
 interface HierarchyNodeRowProps {
-  node: OrganizationUnit
-  levelNamings: HierarchyLevelNaming[]
-  onAddChild: (parentNode: OrganizationUnit) => void
-  onEditNode: (node: OrganizationUnit) => void
-  onDeleteNode: (nodeId: string) => void
+  node: OrgUnitNode
+  depth: number
+  memberNameById: Record<string, string>
+  memberCountByUnit: Record<string, number>
+  onAddChild: (parent: OrgUnit) => void
+  onEditNode: (unit: OrgUnit) => void
+  onDeleteNode: (unit: OrgUnit) => void
+}
+
+function formatUnitType(unitType: string): string {
+  return unitType
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 export default function HierarchyNodeRow({
   node,
-  levelNamings,
+  depth,
+  memberNameById,
+  memberCountByUnit,
   onAddChild,
   onEditNode,
   onDeleteNode,
 }: HierarchyNodeRowProps) {
   const { accentColor = '#7c007e' } = useWorkspace()
-  const [expanded, setExpanded] = useState(false)
-  const hasChildren = node.children && node.children.length > 0
-  const levelLabel = getLevelLabel(node.level, levelNamings)
-  const isApex = node.level === 1
+  const [expanded, setExpanded] = useState(depth === 0)
+  const hasChildren = node.children.length > 0
+  const isApex = depth === 0
+  const headName = node.headMemberId ? memberNameById[node.headMemberId] : undefined
+  const staffCount = memberCountByUnit[node.id] ?? 0
 
   return (
     <div className="relative group select-none">
@@ -92,7 +104,7 @@ export default function HierarchyNodeRow({
                   : undefined
               }
             >
-              {levelLabel}
+              {formatUnitType(node.unitType)}
             </span>
 
             {hasChildren && !expanded && (
@@ -110,11 +122,15 @@ export default function HierarchyNodeRow({
           </div>
         </div>
 
-        {/* Middle segment: Lead metadata */}
-        <div className="hidden sm:flex items-center justify-center px-4 w-[260px]">
+        {/* Middle segment: Lead + staff metadata */}
+        <div className="hidden sm:flex items-center justify-center px-4 w-[280px] gap-4">
           <div className="flex items-center gap-1.5 text-[13px] text-zinc-600 whitespace-nowrap">
             <User size={14} className="text-zinc-400" />
-            <span>Lead: {node.leadName}</span>
+            <span>Lead: {headName ?? 'Unassigned'}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 whitespace-nowrap">
+            <Users size={14} className="text-zinc-400" />
+            <span>{staffCount} staff</span>
           </div>
         </div>
 
@@ -134,34 +150,33 @@ export default function HierarchyNodeRow({
 
           <button
             type="button"
-            title="Edit department"
+            title="Edit unit"
             className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors cursor-pointer"
             onClick={() => onEditNode(node)}
           >
             <Edit3 size={15} />
           </button>
 
-          {!isApex && (
-            <button
-              type="button"
-              title="Delete department"
-              className="p-1.5 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
-              onClick={() => onDeleteNode(node.id)}
-            >
-              <Trash2 size={15} />
-            </button>
-          )}
+          <button
+            type="button"
+            title="Delete unit and all sub-units"
+            className="p-1.5 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+            onClick={() => onDeleteNode(node)}
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       </div>
 
-      {/* Nested Children with tree connecting stem */}
       {hasChildren && expanded && (
         <div className="ml-6 sm:ml-9 pl-4 relative mt-1 border-l-2 border-zinc-200">
           {node.children.map((child) => (
             <div key={child.id} className="relative before:content-[''] before:absolute before:-left-4 before:top-6 before:w-4 before:h-[2px] before:bg-zinc-200">
               <HierarchyNodeRow
                 node={child}
-                levelNamings={levelNamings}
+                depth={depth + 1}
+                memberNameById={memberNameById}
+                memberCountByUnit={memberCountByUnit}
                 onAddChild={onAddChild}
                 onEditNode={onEditNode}
                 onDeleteNode={onDeleteNode}

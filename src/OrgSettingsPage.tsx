@@ -1,12 +1,9 @@
 import { useState } from 'react'
-import type { OrganizationUnit, HierarchyNode, HierarchyLevelNaming, OrgRole, OrganizationProfile } from './types/organization'
-import { defaultOrgProfile } from './dummy/organization-mock'
-import { addNodeChild, updateNode, deleteNode } from './utils/hierarchyUtils'
+import type { OrgRole } from './types/organization'
+import { initialRoles } from './dummy/organization-mock'
 import { useWorkspace } from './context/useWorkspace'
 import SettingsNav from './components/settings/SettingsNav'
-import NomenclatureConfig from './components/settings/NomenclatureConfig'
-import HierarchyManager from './components/settings/HierarchyManager'
-import NodeEditorModal from './components/settings/NodeEditorModal'
+import UnitHierarchySection from './components/settings/UnitHierarchySection'
 import RoleList from './components/settings/RoleList'
 import RoleModal from './components/settings/RoleModal'
 import OrgGeneralCard from './components/settings/OrgGeneralCard'
@@ -14,81 +11,25 @@ import './styles/org-settings.css'
 
 export default function OrgSettingsPage() {
   const { accentColor = '#7c007e' } = useWorkspace()
-  const [profile, setProfile] = useState<OrganizationProfile>(defaultOrgProfile)
+  const [roles, setRoles] = useState<OrgRole[]>(initialRoles)
   const [activeTab, setActiveTab] = useState<'overview' | 'hierarchy' | 'roles'>('overview')
-  const [namingDrawerOpen, setNamingDrawerOpen] = useState(false)
-
-  // Node Modal State
-  const [nodeModalOpen, setNodeModalOpen] = useState(false)
-  const [selectedParentNode, setSelectedParentNode] = useState<OrganizationUnit | null>(null)
-  const [editingNode, setEditingNode] = useState<OrganizationUnit | null>(null)
 
   // Role Modal State
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<OrgRole | null>(null)
 
-  // Handlers for Level Nomenclature
-  const handleUpdateLevelNamings = (levelNamings: HierarchyLevelNaming[]) => {
-    setProfile((prev) => ({ ...prev, levelNamings }))
-  }
-
-  // Handlers for Hierarchy Nodes
-  const handleOpenAddChild = (parent: HierarchyNode) => {
-    setSelectedParentNode(parent)
-    setEditingNode(null)
-    setNodeModalOpen(true)
-  }
-
-  const handleOpenEditNode = (node: HierarchyNode) => {
-    setSelectedParentNode(null)
-    setEditingNode(node)
-    setNodeModalOpen(true)
-  }
-
-  const handleSaveNode = (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => {
-    if (nodeData.id) {
-      // Edit existing node
-      setProfile((prev) => ({
-        ...prev,
-        hierarchyRoot: updateNode(prev.hierarchyRoot, nodeData.id!, nodeData),
-      }))
-    } else if (selectedParentNode) {
-      // Add child node
-      const newNode: HierarchyNode = {
-        ...nodeData,
-        id: `node-${Date.now()}`,
-        children: [],
-      }
-      setProfile((prev) => ({
-        ...prev,
-        hierarchyRoot: addNodeChild(prev.hierarchyRoot, selectedParentNode.id, newNode),
-      }))
-    }
-  }
-
-  const handleDeleteNode = (nodeId: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      hierarchyRoot: deleteNode(prev.hierarchyRoot, nodeId),
-    }))
-  }
-
   // Handlers for Roles
   const handleSaveRole = (roleData: OrgRole) => {
-    setProfile((prev) => {
-      const exists = prev.roles.some((r) => r.id === roleData.id)
-      const nextRoles = exists
-        ? prev.roles.map((r) => (r.id === roleData.id ? roleData : r))
-        : [...prev.roles, roleData]
-      return { ...prev, roles: nextRoles }
+    setRoles((prev) => {
+      const exists = prev.some((r) => r.id === roleData.id)
+      return exists
+        ? prev.map((r) => (r.id === roleData.id ? roleData : r))
+        : [...prev, roleData]
     })
   }
 
   const handleDeleteRole = (roleId: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      roles: prev.roles.filter((r) => r.id !== roleId),
-    }))
+    setRoles((prev) => prev.filter((r) => r.id !== roleId))
   }
 
   return (
@@ -155,7 +96,7 @@ export default function OrgSettingsPage() {
             }}
             onClick={() => setActiveTab('hierarchy')}
           >
-            Hierarchy & Nomenclatures
+            Organization Units
           </button>
           <button
             type="button"
@@ -177,29 +118,11 @@ export default function OrgSettingsPage() {
           </button>
         </div>
 
-        {activeTab === 'hierarchy' && (
-          <div>
-            <HierarchyManager
-              rootNode={profile.hierarchyRoot}
-              levelNamings={profile.levelNamings}
-              onOpenNamingRules={() => setNamingDrawerOpen(true)}
-              onAddChild={handleOpenAddChild}
-              onEditNode={handleOpenEditNode}
-              onDeleteNode={handleDeleteNode}
-            />
-
-            <NomenclatureConfig
-              isOpen={namingDrawerOpen}
-              onClose={() => setNamingDrawerOpen(false)}
-              levelNamings={profile.levelNamings}
-              onUpdateLevelNamings={handleUpdateLevelNamings}
-            />
-          </div>
-        )}
+        {activeTab === 'hierarchy' && <UnitHierarchySection />}
 
         {activeTab === 'roles' && (
           <RoleList
-            roles={profile.roles}
+            roles={roles}
             onAddRole={() => {
               setEditingRole(null)
               setRoleModalOpen(true)
@@ -214,15 +137,6 @@ export default function OrgSettingsPage() {
 
         {activeTab === 'overview' && <OrgGeneralCard />}
       </main>
-
-      <NodeEditorModal
-        isOpen={nodeModalOpen}
-        parentNode={selectedParentNode}
-        editingNode={editingNode}
-        levelNamings={profile.levelNamings}
-        onClose={() => setNodeModalOpen(false)}
-        onSave={handleSaveNode}
-      />
 
       <RoleModal
         isOpen={roleModalOpen}

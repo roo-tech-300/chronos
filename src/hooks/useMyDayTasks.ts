@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchMemberTasks, submitTaskCompletion } from '../services/taskService'
+import { fetchMemberTasks } from '../services/taskService'
+import { submitTaskCompletion } from '../services/taskWorkflowService'
 import type { TaskItem, TaskSubmissionPayload } from '../types/tasks'
 
 export function useMyDayTasks(memberId?: string) {
