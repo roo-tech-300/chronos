@@ -200,7 +200,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
           <button
             type="button"
             onClick={() => handleSync(true)}
-            disabled={isSyncing || !bridgeOnline}
+            disabled={isSyncing || !bridgeOnline || !organizationId}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-700 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
             title="Deletes all local minutiae and re-downloads everything directly from the database"
           >
@@ -219,7 +219,7 @@ export function BiometricSyncModal({ isOpen, organizationId, onClose }: Biometri
             <button
               type="button"
               onClick={() => handleSync(false)}
-              disabled={isSyncing || !bridgeOnline}
+              disabled={isSyncing || !bridgeOnline || !organizationId}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#7c007e] hover:bg-[#68006a] text-xs font-bold text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />

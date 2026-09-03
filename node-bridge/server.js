@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const crypto = require("crypto");
 const { identify, onIdentifyResult } = require("./src/identify");
 const fs = require("fs");
 const store = require("./src/store");
@@ -215,7 +216,17 @@ app.get("/api/scanner/templates", (_req, res) => {
       }).filter(Boolean)
     )];
 
-    res.json({ studentIds: memberIds, memberIds, files, count: files.length });
+    // SHA-256 digest of each local template's content so the frontend can verify
+    // that locally stored files match the database's template_hash (stale files can't pass).
+    const fileHashes = {};
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(ENROLL_DIR, file), 'utf8');
+        fileHashes[file] = crypto.createHash('sha256').update(content).digest('hex');
+      } catch (_) {}
+    }
+
+    res.json({ studentIds: memberIds, memberIds, files, count: files.length, fileHashes });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

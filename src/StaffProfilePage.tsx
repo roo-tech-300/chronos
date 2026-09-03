@@ -18,17 +18,19 @@ import './styles/profile-card.css'
 export default function StaffProfilePage() {
   const { workspaceId, staffId } = useParams<{ workspaceId?: string; staffId: string }>()
   const { profile: authProfile } = useAuth()
-  const { accentColor } = useWorkspace()
+  const { currentWorkspace, accentColor } = useWorkspace()
   const { isPaired } = useTerminalAuth()
   const { isWindowsApp, canBecomeTerminal } = useTauriEnvironment()
   const [enrollOpen, setEnrollOpen] = useState(false)
 
+  const activeWorkspaceId = workspaceId || currentWorkspace?.id
+
   // A machine is only authorized to capture biometrics if it is a paired terminal / hardware desktop app
   const isTerminalDevice = Boolean(isPaired && isWindowsApp && canBecomeTerminal)
 
-  const { data: profile, isLoading, refetch } = useStaffProfile(staffId, workspaceId)
+  const { data: profile, isLoading, refetch } = useStaffProfile(staffId, activeWorkspaceId)
 
-  const backLink = workspaceId ? `/workspace/${workspaceId}/staff` : '/staff'
+  const backLink = activeWorkspaceId ? `/workspace/${activeWorkspaceId}/staff` : '/staff'
 
   const displayName = profile?.name || authProfile?.fullName || 'Staff Member'
   const displayStaffCode = profile?.staffId || (staffId?.startsWith('CHR-') ? staffId : 'CHR-0001')
@@ -92,7 +94,7 @@ export default function StaffProfilePage() {
           onClose={() => setEnrollOpen(false)}
           memberId={staffId}
           memberName={displayName}
-          organizationId={workspaceId}
+          organizationId={activeWorkspaceId}
           onSuccess={() => {
             setEnrollOpen(false)
             refetch()

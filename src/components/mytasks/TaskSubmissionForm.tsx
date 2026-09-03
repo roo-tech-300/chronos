@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link2, Plus, Send, X } from 'lucide-react'
-import type { TaskItem, TaskSubmissionPayload } from '../../dummy/tasks-mock'
+import type { TaskItem, TaskSubmissionPayload } from '../../types/tasks'
 import { Button, Input } from '../ui'
 
 interface TaskSubmissionFormProps {

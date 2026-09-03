@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
-import type { TaskItem } from '../../dummy/tasks-mock'
+import type { TaskItem } from '../../types/tasks'
 import { Button } from '../ui'
 
 interface TaskCardProps {

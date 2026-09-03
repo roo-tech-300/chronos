@@ -94,3 +94,24 @@ export interface TaskFilters {
   searchQuery?: string
   onlyToday?: boolean
 }
+
+/**
+ * A real workspace member resolved from Supabase (workspace_members + profiles).
+ * Used as the single source of truth for staff identity on the tasks screens.
+ */
+export interface WorkspaceMemberRecord {
+  /** workspace_members.id - the canonical id referenced by tasks.assignee_member_id */
+  memberId: string
+  /** auth.users.id linked through workspace_members.user_id (when present) */
+  userId?: string
+  /** Display name resolved from profiles (never a fabricated placeholder) */
+  name: string
+  email?: string
+  avatarUrl?: string
+  /** Raw DB role value (owner | admin | hod | editor | staff | member ...) */
+  role?: string
+  /** Human-readable role label derived from the raw role */
+  roleLabel: string
+  /** workspace_members.department value ('General Staff' when unset) */
+  department: string
+}

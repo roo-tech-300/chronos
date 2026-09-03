@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Check, Users } from 'lucide-react'
 import type { TaskPriority, TaskType, CreateTaskInput } from '../../types/tasks'
-import { STAFF_DIRECTORY } from '../../dummy/staff-directory'
-import { useStaffRoster } from '../../hooks/useStaffRoster'
+import { useWorkspaceRoster } from '../../hooks/useWorkspaceRoster'
 import { Modal, Button, Input, Select } from '../ui'
 
 interface TaskModalProps {
@@ -25,7 +24,7 @@ export default function TaskModal({
   onClose,
   onCreateBatch,
   workspaceId = '',
-  departmentName = 'Deep Tech & AI Labs',
+  departmentName = 'Workspace',
 }: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -34,28 +33,17 @@ export default function TaskModal({
   const [recurrence, setRecurrence] = useState('Every weekday at 09:00 AM')
   const [dueDate, setDueDate] = useState('Today, 05:00 PM')
 
-  const { data: rosterData } = useStaffRoster({
-    workspaceId,
-    page: 1,
-    pageSize: 50,
-  })
+  const { roster } = useWorkspaceRoster(workspaceId)
 
   const staffList = useMemo<AssigneeOption[]>(() => {
-    if (rosterData?.members && rosterData.members.length > 0) {
-      return rosterData.members.map((m) => ({
-        id: m.id,
-        name: m.name,
-        role: m.role || 'Department Staff',
-        subDepartment: m.department || 'Neural Hardware',
-      }))
-    }
-    return STAFF_DIRECTORY.map((s, idx) => ({
-      id: `mem-${idx + 1}-${s.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: s.name,
-      role: s.role,
-      subDepartment: s.subDepartment,
+    // Pure DB roster - never seeded with mock members.
+    return roster.map((m) => ({
+      id: m.memberId,
+      name: m.name,
+      role: m.roleLabel,
+      subDepartment: m.department,
     }))
-  }, [rosterData])
+  }, [roster])
 
   const defaultAssigneeId = staffList[0]?.id || ''
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
@@ -165,6 +153,13 @@ export default function TaskModal({
           <p className="text-[11px] text-zinc-500 leading-tight">
             Each chosen person will receive their own independent task to complete and submit.
           </p>
+
+          {staffList.length === 0 && (
+            <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5">
+              No staff members exist in this workspace yet. Add team members to the roster before
+              assigning tasks.
+            </p>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
             {staffList.map((staff) => {

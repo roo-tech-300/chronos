@@ -6,6 +6,7 @@ import {
   fetchCloudTemplatesSummary,
   computeBiometricDifferential,
 } from './biometricSyncDifferential'
+import { isRealWorkspaceUuid } from '../utils/uuid'
 import { syncSingleTemplate } from './biometricSyncDownloader'
 import type {
   BiometricSyncResult,
@@ -40,7 +41,7 @@ export async function checkBiometricSyncStatus(
   }
 
   const cloudSummary = await fetchCloudTemplatesSummary(workspaceId)
-  const differential = computeBiometricDifferential(cloudSummary, localBridge.files)
+  const differential = computeBiometricDifferential(cloudSummary, localBridge.files, localBridge.fileHashes)
 
   return {
     bridgeOnline: true,
@@ -59,7 +60,20 @@ export async function syncBiometricTemplates(
   onProgress?: SyncProgressCallback,
   force = false
 ): Promise<BiometricSyncResult> {
-  console.log(`[BiometricSync] Starting ${force ? 'FORCE ' : ''}sync for workspace:`, workspaceId)
+  const cleanWorkspaceId = (workspaceId || '').trim().toLowerCase()
+  console.log(`[BiometricSync] Starting ${force ? 'FORCE ' : ''}sync for workspace:`, cleanWorkspaceId)
+
+  if (!cleanWorkspaceId || !isRealWorkspaceUuid(cleanWorkspaceId)) {
+    return {
+      success: false,
+      totalCloudTemplates: 0,
+      alreadySyncedCount: 0,
+      newlySyncedCount: 0,
+      failedCount: 0,
+      message: 'This kiosk is not tied to a valid workspace. Pair the terminal to a workspace before syncing biometric templates.',
+      error: 'Missing workspaceId',
+    }
+  }
 
   // 1. Check Local Bridge
   onProgress?.('Connecting to local scanner bridge...', 0, 1)
@@ -105,8 +119,8 @@ export async function syncBiometricTemplates(
   }
 
   // 4. Compute Differential
-  const currentLocalFiles = force ? [] : (await getLocalBridgeTemplates()).files
-  const differential = computeBiometricDifferential(cloudSummary, currentLocalFiles)
+  const currentLocal = force ? { files: [], fileHashes: {} } : await getLocalBridgeTemplates()
+  const differential = computeBiometricDifferential(cloudSummary, currentLocal.files, currentLocal.fileHashes)
 
   // If already up-to-date and not forced, skip!
   if (!force && differential.inSync) {
@@ -144,7 +158,7 @@ export async function syncBiometricTemplates(
   // 6. Verification & Audit Check
   onProgress?.('Verifying local template inventory against cloud database...', totalCloud, totalCloud)
   const finalLocal = await getLocalBridgeTemplates()
-  const postDifferential = computeBiometricDifferential(cloudSummary, finalLocal.files)
+  const postDifferential = computeBiometricDifferential(cloudSummary, finalLocal.files, finalLocal.fileHashes)
 
   console.log('[BiometricSync] Post-Sync Audit Log:', {
     workspaceId,

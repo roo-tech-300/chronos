@@ -1,6 +1,6 @@
 import { Clock3, Hourglass, ListTodo, ShieldCheck } from 'lucide-react'
-import type { TaskItem } from '../../dummy/tasks-mock'
-import { formatMinutes } from '../../dummy/myday-mock'
+import type { TaskItem } from '../../types/tasks'
+import { formatMinutes } from '../../utils/dayTasks'
 
 interface MyDaySummaryProps {
   tasks: TaskItem[]

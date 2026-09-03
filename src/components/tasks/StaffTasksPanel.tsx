@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import type { StaffTaskGroup, TaskItem } from '../../dummy/tasks-mock'
+import type { StaffTaskGroup, TaskItem } from '../../types/tasks'
 import TaskCard from './TaskCard'
 
 interface StaffTasksPanelProps {

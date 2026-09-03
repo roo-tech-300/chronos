@@ -1,6 +1,5 @@
 import { getSupabase } from '../lib/supabase'
 import { isRealWorkspaceUuid } from '../utils/uuid'
-import { initialTasks } from '../dummy/tasks-mock'
 import type {
   TaskItem,
   TaskRow,
@@ -48,7 +47,7 @@ function mapTaskRowToItem(row: TaskRow & { workspace_members?: { id: string; rol
 
 /**
  * 1. Fetches workspace tasks joined with member profiles from Supabase.
- * Falls back cleanly to initialTasks from /dummy if empty, offline, or on error.
+ * Returns actual database results only - no fallback to dummy data.
  */
 export async function fetchWorkspaceTasks(
   workspaceId: string,
@@ -58,7 +57,7 @@ export async function fetchWorkspaceTasks(
   const supabase = getSupabase()
 
   if (!isRealWorkspaceUuid(cleanId)) {
-    return applyLocalFilters(initialTasks, filters)
+    return []
   }
 
   try {
@@ -87,12 +86,13 @@ export async function fetchWorkspaceTasks(
     const { data, error } = await query
 
     if (error) {
-      console.warn('[taskService] Supabase fetch error, fallback to mock:', error.message)
-      return applyLocalFilters(initialTasks, filters)
+      console.warn('[taskService] Supabase fetch error:', error.message)
+      return []
     }
 
+    // Return actual database results even if empty - don't fall back to dummy data
     if (!data || data.length === 0) {
-      return applyLocalFilters(initialTasks, filters)
+      return []
     }
 
     const mapped = data.map(mapTaskRowToItem)
@@ -108,8 +108,8 @@ export async function fetchWorkspaceTasks(
 
     return mapped
   } catch (err) {
-    console.warn('[taskService] Error fetching tasks, fallback to mock:', err)
-    return applyLocalFilters(initialTasks, filters)
+    console.warn('[taskService] Error fetching tasks:', err)
+    return []
   }
 }
 
@@ -124,7 +124,7 @@ export async function fetchMemberTasks(
   const supabase = getSupabase()
 
   if (!cleanMemberId) {
-    return initialTasks.filter((t) => !options?.onlyToday || t.isToday)
+    return []
   }
 
   try {
@@ -140,14 +140,18 @@ export async function fetchMemberTasks(
 
     const { data, error } = await query
 
+    // Return actual database results even if empty - don't fall back to dummy data
     if (error || !data || data.length === 0) {
-      return initialTasks.filter((t) => !options?.onlyToday || t.isToday)
+      if (error) {
+        console.warn('[taskService] Error in fetchMemberTasks:', error.message)
+      }
+      return []
     }
 
     return data.map(mapTaskRowToItem)
   } catch (err) {
-    console.warn('[taskService] Error in fetchMemberTasks, fallback to mock:', err)
-    return initialTasks.filter((t) => !options?.onlyToday || t.isToday)
+    console.warn('[taskService] Error in fetchMemberTasks:', err)
+    return []
   }
 }
 
@@ -284,34 +288,4 @@ export async function approveTask(
   }
 }
 
-/**
- * Local helper for filtering mock fallback data.
- */
-function applyLocalFilters(items: TaskItem[], filters?: TaskFilters): TaskItem[] {
-  let filtered = [...items]
-  if (!filters) return filtered
 
-  if (filters.status && filters.status !== 'all') {
-    filtered = filtered.filter((t) => t.status === filters.status)
-  }
-  if (filters.type && filters.type !== 'all') {
-    filtered = filtered.filter((t) => t.type === filters.type)
-  }
-  if (filters.department && filters.department !== 'all') {
-    filtered = filtered.filter((t) => t.department === filters.department)
-  }
-  if (filters.onlyToday) {
-    filtered = filtered.filter((t) => t.isToday)
-  }
-  if (filters.searchQuery && filters.searchQuery.trim()) {
-    const q = filters.searchQuery.toLowerCase().trim()
-    filtered = filtered.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q) ||
-        t.assigneeName.toLowerCase().includes(q)
-    )
-  }
-
-  return filtered
-}

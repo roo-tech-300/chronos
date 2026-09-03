@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
-import { useDevPersona } from './context/DevPersonaContext'
-import { orderDayTasks } from './dummy/myday-mock'
+import { useWorkspace } from './context/useWorkspace'
+import { useCurrentWorkspaceMember } from './hooks/useCurrentWorkspaceMember'
 import { useMyDayTasks } from './hooks/useMyDayTasks'
+import { orderDayTasks } from './utils/dayTasks'
+import { getInitials } from './utils/taskAggregation'
 import type { TaskItem, TaskSubmissionPayload } from './types/tasks'
 import ClockInStatusCard from './components/mytasks/ClockInStatusCard'
 import MyDaySummary from './components/mytasks/MyDaySummary'
@@ -14,8 +16,13 @@ import './styles/tasks-widgets.css'
 import './styles/tasks-day.css'
 
 export default function MyTasksPage() {
-  const { currentDepartment, currentStaff } = useDevPersona()
-  const { tasks, submitCompletion } = useMyDayTasks(currentStaff.name)
+  const { currentWorkspace } = useWorkspace()
+  const activeWorkspaceId = currentWorkspace?.id || ''
+
+  // Real signed-in identity for this workspace (DB record, never a persona).
+  const { member } = useCurrentWorkspaceMember(activeWorkspaceId)
+
+  const { tasks, submitCompletion } = useMyDayTasks(member?.memberId)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
 
   const orderedTasks = useMemo(() => orderDayTasks(tasks), [tasks])
@@ -44,8 +51,9 @@ export default function MyTasksPage() {
             <div>
               <h1>My Tasks — Daily Workspace</h1>
               <p>
-                Arrival &amp; daily focus for {currentStaff.name} · {currentDepartment.name}. Tasks
-                are ordered by priority, then estimated duration.
+                Arrival &amp; daily focus for {member?.name || 'you'} ·{' '}
+                {currentWorkspace?.name || 'Workspace'}. Tasks are ordered by priority, then
+                estimated duration.
               </p>
             </div>
             <span className="tasks-badge">
@@ -56,11 +64,10 @@ export default function MyTasksPage() {
 
         <div className="flex flex-col gap-6">
           <ClockInStatusCard
-            name={currentStaff.name}
-            role={currentStaff.role}
-            subDepartment={currentStaff.subDepartment}
-            initials={currentStaff.initials}
-            clockInTime={currentStaff.clockInTime}
+            name={member?.name || 'Signed-in Staff'}
+            role={member?.roleLabel || 'Staff Member'}
+            subDepartment={member?.department || 'General Staff'}
+            initials={getInitials(member?.name || 'Staff')}
           />
 
           <MyDaySummary tasks={tasks} />
@@ -75,7 +82,6 @@ export default function MyTasksPage() {
                 <DayTaskCard
                   key={task.id}
                   task={task}
-                  hodName={currentDepartment.lead}
                   onOpenDrawer={setDrawerTask}
                 />
               ))}

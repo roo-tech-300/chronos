@@ -1,5 +1,6 @@
 import { getSupabase } from '../lib/supabase'
 import { writeTemplateToBridge } from './biometricSyncBridge'
+import { computeTemplateSha256 } from './biometricHash'
 import type { CloudTemplateSummaryItem } from '../types/biometricSync'
 
 export async function downloadTemplateContent(item: CloudTemplateSummaryItem): Promise<string> {
@@ -52,6 +53,23 @@ export async function syncSingleTemplate(item: CloudTemplateSummaryItem): Promis
   if (!content) {
     console.warn(`[BiometricSync] Empty template content for ${item.targetFilename}`)
     return false
+  }
+
+  // Verify downloaded content matches the cloud template_hash before writing
+  if (item.templateHash) {
+    try {
+      const computedHash = await computeTemplateSha256(content)
+      if (computedHash !== item.templateHash.toLowerCase()) {
+        console.warn(
+          `[BiometricSync] Hash mismatch for ${item.targetFilename}: ` +
+          `expected ${item.templateHash}, got ${computedHash}. Skipping write.`
+        )
+        return false
+      }
+    } catch (err) {
+      console.warn(`[BiometricSync] Hash verification failed for ${item.targetFilename}:`, err)
+      return false
+    }
   }
 
   const res = await writeTemplateToBridge(item.memberId, item.targetFilename, content)

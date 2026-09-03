@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import type { StaffTaskGroup } from '../../dummy/tasks-mock'
+import type { StaffTaskGroup } from '../../types/tasks'
 
 interface StaffMemberRowProps {
   member: StaffTaskGroup

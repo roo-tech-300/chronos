@@ -5,7 +5,8 @@ interface ClockInStatusCardProps {
   role: string
   subDepartment: string
   initials: string
-  clockInTime: string
+  /** Real clock-in time when known; the segment is hidden when absent. */
+  clockInTime?: string
 }
 
 export default function ClockInStatusCard({
@@ -32,10 +33,14 @@ export default function ClockInStatusCard({
           <span className="tasks-live-dot" />
           On the clock
         </span>
-        <span className="tasks-clock-sep">·</span>
-        <span className="tasks-clock-meta">
-          <LogIn size={13} /> Clocked in {clockInTime}
-        </span>
+        {clockInTime && (
+          <>
+            <span className="tasks-clock-sep">·</span>
+            <span className="tasks-clock-meta">
+              <LogIn size={13} /> Clocked in {clockInTime}
+            </span>
+          </>
+        )}
         <span className="tasks-clock-sep">·</span>
         <span className="tasks-clock-meta">
           <MapPin size={12} /> {subDepartment}

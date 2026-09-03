@@ -19,6 +19,7 @@ export async function getLocalBridgeTemplates(): Promise<LocalBridgeTemplates> {
       online: true,
       files: Array.isArray(data.files) ? data.files : [],
       memberIds: Array.isArray(data.memberIds) ? data.memberIds : Array.isArray(data.studentIds) ? data.studentIds : [],
+      fileHashes: data.fileHashes && typeof data.fileHashes === 'object' ? data.fileHashes : {},
       dataDir: healthData?.dataDir || '',
     }
   } catch (err) {

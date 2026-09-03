@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
-import { useDevPersona } from './context/DevPersonaContext'
 import { useWorkspace } from './context/useWorkspace'
+import { useAuth } from './context/useAuth'
 import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
+import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
 import type { StaffTaskGroup, TaskItem, CreateTaskInput } from './types/tasks'
-import { STAFF_DIRECTORY } from './dummy/staff-directory'
 import { Button, Toolbar } from './components/ui'
 import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
 import TasksMetrics from './components/tasks/TasksMetrics'
 import StaffDirectoryModal from './components/tasks/StaffDirectoryModal'
+import TaskModal from './components/tasks/TaskModal'
 import {
   TASK_FILTER_TABS,
   buildStaffGroups,
@@ -21,7 +22,6 @@ import {
 import './styles/tasks-layout.css'
 import './styles/tasks-widgets.css'
 import './styles/tasks-directory.css'
-import TaskModal from './components/tasks/TaskModal'
 
 /** One browseable unit rendered on the page; selecting it opens the directory. */
 interface UnitOverview {
@@ -33,11 +33,13 @@ interface UnitOverview {
 }
 
 export default function TasksPage() {
-  const { currentDepartment } = useDevPersona()
   const { currentWorkspace } = useWorkspace()
+  const { profile } = useAuth()
   const activeWorkspaceId = currentWorkspace?.id || ''
+  const workspaceName = currentWorkspace?.name || 'Workspace'
 
   const { tasks, createBatch, approveTask: approveTaskMutation } = useWorkspaceTasks(activeWorkspaceId)
+  const { roster } = useWorkspaceRoster(activeWorkspaceId)
   const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -52,27 +54,30 @@ export default function TasksPage() {
     [tasks, activeTab, searchQuery],
   )
 
+  // Units are derived from the live roster's departments - no hardcoded slices.
   const units = useMemo<UnitOverview[]>(() => {
-    const hasSubUnits = currentDepartment.subDepartments.length > 0
-    const unitNames = hasSubUnits ? currentDepartment.subDepartments : [currentDepartment.name]
-
+    const unitNames = Array.from(new Set(roster.map((m) => m.department)))
     return unitNames.map((unitName) => {
-      const roster = hasSubUnits
-        ? STAFF_DIRECTORY.filter((s) => s.subDepartment === unitName)
-        : STAFF_DIRECTORY
-      const unitTasks = hasSubUnits
-        ? filteredTasks.filter((t) => t.subDepartment === unitName)
-        : filteredTasks
+      const unitRoster = roster.filter((m) => m.department === unitName)
+      const memberIds = new Set(unitRoster.map((m) => m.memberId))
+      const memberNames = new Set(unitRoster.map((m) => m.name))
+      const unitTasks = filteredTasks.filter(
+        (t) =>
+          (t.assigneeMemberId ? memberIds.has(t.assigneeMemberId) : false) ||
+          memberNames.has(t.assigneeName),
+      )
+      const lead = unitRoster.find(
+        (m) => m.role === 'hod' || m.role === 'owner' || m.role === 'admin',
+      )
       return {
         name: unitName,
-        leadName:
-          roster.find((s) => s.isLead)?.name ?? (hasSubUnits ? null : currentDepartment.lead),
-        memberCount: roster.length,
-        groups: buildStaffGroups(unitTasks, roster),
+        leadName: lead?.name ?? null,
+        memberCount: unitRoster.length,
+        groups: buildStaffGroups(unitTasks, unitRoster),
         summary: summarizeStatuses(unitTasks),
       }
     })
-  }, [currentDepartment, filteredTasks])
+  }, [roster, filteredTasks])
 
   const activeUnit = units.find((u) => u.name === activeUnitName) ?? null
 
@@ -84,7 +89,7 @@ export default function TasksPage() {
   async function handleApproveTask(taskToApprove: TaskItem) {
     await approveTaskMutation({
       taskId: taskToApprove.id,
-      verifiedBy: currentDepartment.lead,
+      verifiedBy: profile?.fullName || '',
     })
   }
 
@@ -104,7 +109,7 @@ export default function TasksPage() {
               </p>
             </div>
             <div className="tasks-header-actions">
-              <span className="tasks-badge">{currentDepartment.name}</span>
+              <span className="tasks-badge">{workspaceName}</span>
               <Button
                 variant="primary"
                 leftIcon={<Plus size={16} />}
@@ -193,7 +198,7 @@ export default function TasksPage() {
         onClose={() => setIsCreateOpen(false)}
         onCreateBatch={handleCreateBatch}
         workspaceId={activeWorkspaceId}
-        departmentName={currentDepartment.name}
+        departmentName={workspaceName}
       />
 
       {activeUnit && (

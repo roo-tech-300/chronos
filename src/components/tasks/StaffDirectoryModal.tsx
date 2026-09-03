@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronRight, UserRound } from 'lucide-react'
-import type { StaffTaskGroup, TaskItem } from '../../dummy/tasks-mock'
+import type { StaffTaskGroup, TaskItem } from '../../types/tasks'
 import { Modal } from '../ui'
 import StaffMemberRow from './StaffMemberRow'
 import StaffTasksPanel from './StaffTasksPanel'

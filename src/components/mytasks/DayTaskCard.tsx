@@ -1,11 +1,12 @@
 import { Clock3, ExternalLink, PenLine, Send, ShieldCheck } from 'lucide-react'
-import type { TaskItem } from '../../dummy/tasks-mock'
+import type { TaskItem } from '../../types/tasks'
 import { Button } from '../ui'
 import TaskStatusBadge from './TaskStatusBadge'
 
 interface DayTaskCardProps {
   task: TaskItem
-  hodName: string
+  /** Optional reviewer name fallback for the verified status badge. */
+  hodName?: string
   onOpenDrawer: (task: TaskItem) => void
 }
 

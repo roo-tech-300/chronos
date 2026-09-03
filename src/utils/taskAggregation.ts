@@ -1,5 +1,4 @@
-import type { StaffTaskGroup, TaskItem } from '../dummy/tasks-mock'
-import { STAFF_DIRECTORY } from '../dummy/staff-directory'
+import type { StaffTaskGroup, TaskItem, WorkspaceMemberRecord } from '../types/tasks'
 
 /** Exact filter surfaces provided by the review toolbar. */
 export const TASK_FILTER_TABS = [
@@ -74,13 +73,13 @@ export function summarizeStatuses(tasks: TaskItem[]): StatusSummary {
 }
 
 /**
- * Groups tasks per staff member, seeded from a directory slice so team
- * members without live tasks still surface for review. Leads are listed
- * first, followed alphabetically by name.
+ * Groups tasks per staff member, seeded from the live workspace roster so team
+ * members without tasks still surface for review. Leads are listed first,
+ * followed alphabetically by name.
  */
 export function buildStaffGroups(
   filteredTasks: TaskItem[],
-  directory: typeof STAFF_DIRECTORY,
+  directory: readonly WorkspaceMemberRecord[],
 ): StaffTaskGroup[] {
   const map = new Map<string, StaffTaskGroup>()
 
@@ -88,11 +87,10 @@ export function buildStaffGroups(
     if (!map.has(entry.name)) {
       map.set(entry.name, {
         name: entry.name,
-        role: entry.role,
-        subDepartment: entry.subDepartment,
+        role: entry.roleLabel,
+        subDepartment: entry.department,
         initials: getInitials(entry.name),
-        isLead: entry.isLead,
-        leadsSubDepartment: entry.leadsSubDepartment,
+        isLead: entry.role === 'hod' || entry.role === 'owner' || entry.role === 'admin',
         tasks: [],
       })
     }

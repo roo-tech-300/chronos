@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
-import type { TaskItem, TaskSubmissionPayload } from '../../dummy/tasks-mock'
+import type { TaskItem, TaskSubmissionPayload } from '../../types/tasks'
 import TaskSubmissionForm from './TaskSubmissionForm'
 
 interface TaskCompletionDrawerProps {

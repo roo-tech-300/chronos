@@ -7,6 +7,7 @@ export interface LocalBridgeTemplates {
   files: string[]
   memberIds: string[]
   dataDir?: string
+  fileHashes?: Record<string, string>
   error?: string
 }
 
