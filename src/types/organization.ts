@@ -38,6 +38,8 @@ export interface OrgRole {
 export interface OrganizationProfile {
   id: string
   name: string
+  shortName?: string
+  slug?: string
   category: string
   deploymentLocation: string
   topLeaderTitle: string

@@ -1,20 +1,7 @@
 import { useState } from 'react'
-import {
-  Building2,
-  Users,
-  Layers,
-  Sparkles,
-  Save,
-  CheckCircle2,
-  Globe2,
-} from 'lucide-react'
+import { Building2, Sparkles, Save, CheckCircle2 } from 'lucide-react'
 import type { OrganizationProfile } from '../../types/organization'
 import { useWorkspace } from '../../context/useWorkspace'
-import {
-  countTotalNodes,
-  countTotalStaff,
-  calculateMaxDepth,
-} from '../../utils/hierarchyUtils'
 
 interface OrgGeneralCardProps {
   profile: OrganizationProfile
@@ -28,16 +15,10 @@ export default function OrgGeneralCard({
   const { accentColor = '#7c007e' } = useWorkspace()
   const [formData, setFormData] = useState({
     name: profile.name,
+    shortName: profile.shortName || 'FUT Minna',
     category: profile.category,
-    topLeaderTitle: profile.topLeaderTitle,
-    topLeaderName: profile.topLeaderName,
-    deploymentLocation: profile.deploymentLocation,
   })
   const [savedSuccess, setSavedSuccess] = useState(false)
-
-  const totalUnits = countTotalNodes(profile.hierarchyRoot)
-  const totalStaff = countTotalStaff(profile.hierarchyRoot)
-  const maxDepth = calculateMaxDepth(profile.hierarchyRoot)
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,74 +28,7 @@ export default function OrgGeneralCard({
   }
 
   return (
-    <div className="w-full space-y-6">
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Enrolled Staff
-            </span>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
-            >
-              <Users size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{totalStaff}</p>
-          <p className="text-xs text-zinc-500 mt-1">Biometrically active</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Hierarchy Units
-            </span>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
-            >
-              <Building2 size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{totalUnits}</p>
-          <p className="text-xs text-zinc-500 mt-1">Faculties, Depts & Units</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Structural Tiers
-            </span>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
-            >
-              <Layers size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{maxDepth} Levels</p>
-          <p className="text-xs text-zinc-500 mt-1">Hierarchy depth</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Deployment
-            </span>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${accentColor}14`, color: accentColor }}
-            >
-              <Globe2 size={16} />
-            </div>
-          </div>
-          <p className="text-lg font-bold text-zinc-900 mt-2 truncate">Production</p>
-          <p className="text-xs text-zinc-500 mt-1 truncate">{profile.deploymentLocation}</p>
-        </div>
-      </div>
-
+    <div className="w-full">
       {/* Main Profile Form Card */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
@@ -131,10 +45,10 @@ export default function OrgGeneralCard({
             </div>
             <div>
               <h2 className="text-lg font-bold text-zinc-900">
-                Institution &amp; Deployment Profile
+                Organization Profile
               </h2>
               <p className="text-sm text-zinc-500">
-                Configure enterprise identity, executive leadership, and physical locations.
+                Configure enterprise identity, short name / acronym, and classification.
               </p>
             </div>
           </div>
@@ -147,12 +61,12 @@ export default function OrgGeneralCard({
               color: accentColor,
             }}
           >
-            {profile.category}
+            {formData.category || profile.category}
           </span>
         </div>
 
         <form onSubmit={handleSave}>
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {/* Field: Organization Name */}
             <div>
               <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
@@ -162,10 +76,31 @@ export default function OrgGeneralCard({
                 type="text"
                 required
                 className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
-                placeholder="e.g. Federal University of Technology Minna"
+                placeholder="e.g. Federal University of Technology, Minna"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
+              />
+            </div>
+
+            {/* Field: Short Form Name / Acronym */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider">
+                  Short Name / Acronym *
+                </label>
+                <span className="text-[11px] text-zinc-400">Display abbreviation</span>
+              </div>
+              <input
+                type="text"
+                required
+                className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
+                placeholder="e.g. FUT Minna"
+                value={formData.shortName}
+                onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
+              />
+              <p className="text-[11.5px] text-zinc-400 mt-1.5">
+                Compact title used on top navigation headers, kiosk scanners, and badges (e.g. <span className="font-medium text-zinc-600">FUT Minna</span>, <span className="font-medium text-zinc-600">UNILAG</span>, <span className="font-medium text-zinc-600">MIT</span>).
+              </p>
             </div>
 
             {/* Field: Sector / Category */}
@@ -180,55 +115,6 @@ export default function OrgGeneralCard({
                 placeholder="e.g. Higher Education / University"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-            </div>
-
-            {/* 2-Column: Leader Title & Leader Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
-                  Top Executive Designation Title
-                </label>
-                <input
-                  type="text"
-                  className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
-                  placeholder="e.g. Vice-Chancellor / CEO"
-                  value={formData.topLeaderTitle}
-                  onChange={(e) =>
-                    setFormData({ ...formData, topLeaderTitle: e.target.value })
-                  }
-                  />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
-                  Top Executive Name
-                </label>
-                <input
-                  type="text"
-                  className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
-                  placeholder="e.g. Prof. Faruk Adamu Kuta"
-                  value={formData.topLeaderName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, topLeaderName: e.target.value })
-                  }
-                  />
-              </div>
-            </div>
-
-            {/* Field: Deployment Location */}
-            <div>
-              <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
-                Primary Deployment Sites &amp; Campuses
-              </label>
-              <input
-                type="text"
-                className="w-full h-11 px-4 text-sm bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#7c007e]/15 focus:border-[#7c007e] transition-all"
-                placeholder="e.g. Main Campus, Gidan Kwanu & Bosso Campuses, Minna"
-                value={formData.deploymentLocation}
-                onChange={(e) =>
-                  setFormData({ ...formData, deploymentLocation: e.target.value })
-                }
               />
             </div>
           </div>

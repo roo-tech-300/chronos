@@ -250,7 +250,9 @@ export const initialRoles: OrgRole[] = [
 
 export const defaultOrgProfile: OrganizationProfile = {
   id: 'org-main',
-  name: 'Federal University of Technology / Enterprise Institution',
+  name: 'Federal University of Technology, Minna',
+  shortName: 'FUT Minna',
+  slug: 'futminna-tech',
   category: 'Higher Education & Technology Research',
   deploymentLocation: 'Main Campus, Tech Park & Hybrid Stations',
   topLeaderTitle: 'Vice Chancellor & Executive Lead',
