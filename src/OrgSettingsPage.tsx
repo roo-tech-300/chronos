@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { HierarchyNode, HierarchyLevelNaming, OrgRole, OrganizationProfile } from './types/organization'
+import type { OrganizationUnit, HierarchyNode, HierarchyLevelNaming, OrgRole, OrganizationProfile } from './types/organization'
 import { defaultOrgProfile } from './dummy/organization-mock'
 import { addNodeChild, updateNode, deleteNode } from './utils/hierarchyUtils'
 import { useWorkspace } from './context/useWorkspace'
@@ -20,8 +20,8 @@ export default function OrgSettingsPage() {
 
   // Node Modal State
   const [nodeModalOpen, setNodeModalOpen] = useState(false)
-  const [selectedParentNode, setSelectedParentNode] = useState<HierarchyNode | null>(null)
-  const [editingNode, setEditingNode] = useState<HierarchyNode | null>(null)
+  const [selectedParentNode, setSelectedParentNode] = useState<OrganizationUnit | null>(null)
+  const [editingNode, setEditingNode] = useState<OrganizationUnit | null>(null)
 
   // Role Modal State
   const [roleModalOpen, setRoleModalOpen] = useState(false)

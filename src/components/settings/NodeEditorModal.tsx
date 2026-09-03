@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Search } from 'lucide-react'
-import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
+import { X } from 'lucide-react'
+import type { OrganizationUnit, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
 import { useWorkspace } from '../../context/useWorkspace'
+import LeadPicker from './LeadPicker'
 
 interface NodeEditorModalProps {
   isOpen: boolean
-  parentNode?: HierarchyNode | null
-  editingNode?: HierarchyNode | null
+  parentNode?: OrganizationUnit | null
+  editingNode?: OrganizationUnit | null
   levelNamings: HierarchyLevelNaming[]
   onClose: () => void
-  onSave: (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => void
+  onSave: (nodeData: Omit<OrganizationUnit, 'id' | 'children'> & { id?: string }) => void
 }
 
 function DeptForm({
@@ -20,17 +21,19 @@ function DeptForm({
   onClose,
   onSave,
 }: {
-  parentNode?: HierarchyNode | null
-  editingNode?: HierarchyNode | null
+  parentNode?: OrganizationUnit | null
+  editingNode?: OrganizationUnit | null
   levelNamings: HierarchyLevelNaming[]
   onClose: () => void
-  onSave: (nodeData: Omit<HierarchyNode, 'id' | 'children'> & { id?: string }) => void
+  onSave: (nodeData: Omit<OrganizationUnit, 'id' | 'children'> & { id?: string }) => void
 }) {
   const { accentColor = '#7c007e' } = useWorkspace()
   const [name, setName] = useState(editingNode?.name || '')
   const [code, setCode] = useState(editingNode?.code || '')
+  const [leadMemberId, setLeadMemberId] = useState<string | null>(editingNode?.leadMemberId || null)
   const [leadName, setLeadName] = useState(editingNode?.leadName || '')
   const [leadRoleTitle, setLeadRoleTitle] = useState(editingNode?.leadRoleTitle || '')
+  const [leadEmail, setLeadEmail] = useState(editingNode?.leadEmail || '')
   const [location, setLocation] = useState(editingNode?.location || '')
 
   const currentLevel = editingNode ? editingNode.level : (parentNode ? parentNode.level + 1 : 1)
@@ -45,8 +48,11 @@ function DeptForm({
       name: name.trim(),
       code: code.trim(),
       level: currentLevel,
+      parentId: parentNode ? parentNode.id : (editingNode?.parentId || null),
+      leadMemberId,
       leadName: leadName.trim(),
       leadRoleTitle: leadRoleTitle.trim(),
+      leadEmail: leadEmail.trim() || undefined,
       staffCount: editingNode?.staffCount ?? 0,
       location: location.trim(),
     })
@@ -56,7 +62,7 @@ function DeptForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
       <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-        {/* Unit Name */}
+        {/* Department Name */}
         <div>
           <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
             Department / Unit Name *
@@ -64,7 +70,7 @@ function DeptForm({
           <input
             type="text"
             required
-            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
+            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#7c007e] focus:outline-none transition-all text-[14px] text-zinc-900"
             placeholder="e.g. Cybersecurity Science"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -79,8 +85,8 @@ function DeptForm({
             </label>
             <input
               type="text"
-              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl font-mono text-sm focus:ring-2 focus:outline-none transition-all text-zinc-900"
-              placeholder="e.g. CYB"
+              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-[#7c007e] focus:outline-none transition-all text-zinc-900"
+              placeholder="e.g. CYB-01"
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
@@ -118,15 +124,15 @@ function DeptForm({
           </select>
         </div>
 
-        {/* Lead Officer Title & Search */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Designation Title & Lead Officer Picker */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
               Designation Title
             </label>
             <input
               type="text"
-              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
+              className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#7c007e] focus:outline-none transition-all text-[14px] text-zinc-900"
               placeholder="e.g. Head of Department"
               value={leadRoleTitle}
               onChange={(e) => setLeadRoleTitle(e.target.value)}
@@ -135,31 +141,29 @@ function DeptForm({
 
           <div>
             <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
-              Department Lead
+              Department Lead Officer
             </label>
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
-              />
-              <input
-                type="text"
-                className="w-full h-11 pl-10 pr-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
-                placeholder="Search staff..."
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-              />
-            </div>
+            <LeadPicker
+              value={leadName}
+              leadMemberId={leadMemberId}
+              onChange={(selected) => {
+                setLeadName(selected.name)
+                if (selected.memberId !== undefined) setLeadMemberId(selected.memberId)
+                if (selected.roleLabel && !leadRoleTitle) setLeadRoleTitle(selected.roleLabel)
+                if (selected.email) setLeadEmail(selected.email)
+              }}
+            />
           </div>
         </div>
 
+        {/* Location */}
         <div>
           <label className="block text-xs font-bold text-[#4b5563] uppercase tracking-wider mb-1.5">
             Building / Location
           </label>
           <input
             type="text"
-            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:outline-none transition-all text-[14px] text-zinc-900"
+            className="w-full h-11 px-4 bg-zinc-50/50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#7c007e] focus:outline-none transition-all text-[14px] text-zinc-900"
             placeholder="e.g. Senate Building, 3rd Floor"
             value={location}
             onChange={(e) => setLocation(e.target.value)}

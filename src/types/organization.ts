@@ -4,19 +4,26 @@ export interface HierarchyLevelNaming {
   plural: string
 }
 
-export interface HierarchyNode {
+export interface OrganizationUnit {
   id: string
+  workspaceId?: string
   name: string
   code: string
   level: number
+  parentId?: string | null
+  leadMemberId?: string | null
   leadName: string
   leadRoleTitle: string
   leadEmail?: string
   staffCount: number
   location?: string
   description?: string
-  children: HierarchyNode[]
+  createdAt?: string
+  updatedAt?: string
+  children: OrganizationUnit[]
 }
+
+export type HierarchyNode = OrganizationUnit
 
 export interface PermissionItem {
   id: string

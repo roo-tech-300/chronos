@@ -1,29 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
-import AppNavbar from './components/layout/AppNavbar'
-import { useWorkspace } from './context/useWorkspace'
-import { useAuth } from './context/useAuth'
 import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
 import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
-import type { StaffTaskGroup, TaskItem, CreateTaskInput } from './types/tasks'
-import { Button, Toolbar } from './components/ui'
-import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
+import { useWorkspace } from './context/useWorkspace'
+import { useAuth } from './context/useAuth'
+import AppNavbar from './components/layout/AppNavbar'
 import TasksMetrics from './components/tasks/TasksMetrics'
+import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
 import StaffDirectoryModal from './components/tasks/StaffDirectoryModal'
 import TaskModal from './components/tasks/TaskModal'
+import UnitScopeToggle from './components/tasks/UnitScopeToggle'
+import { Button, Toolbar } from './components/ui'
 import {
   TASK_FILTER_TABS,
-  buildStaffGroups,
-  filterReviewTasks,
-  summarizeStatuses,
-  type StatusSummary,
   type TasksFilterTab,
+  summarizeStatuses,
+  filterReviewTasks,
+  buildStaffGroups,
+  type StatusSummary,
 } from './utils/taskAggregation'
+import type { TaskItem, CreateTaskInput, StaffTaskGroup, TaskFilters } from './types/tasks'
 import './styles/tasks-layout.css'
-import './styles/tasks-widgets.css'
 import './styles/tasks-directory.css'
 
-/** One browseable unit rendered on the page; selecting it opens the directory. */
 interface UnitOverview {
   name: string
   leadName: string | null
@@ -33,28 +32,32 @@ interface UnitOverview {
 }
 
 export default function TasksPage() {
-  const { currentWorkspace } = useWorkspace()
+  const { currentWorkspace, accentColor = '#7c007e' } = useWorkspace()
   const { profile } = useAuth()
   const activeWorkspaceId = currentWorkspace?.id || ''
   const workspaceName = currentWorkspace?.name || 'Workspace'
 
-  const { tasks, createBatch, approveTask: approveTaskMutation } = useWorkspaceTasks(activeWorkspaceId)
+  const [filters, setFilters] = useState<TaskFilters>({ unit: 'all' })
+  const { tasks, createBatch, approveTask: approveTaskMutation } = useWorkspaceTasks(
+    activeWorkspaceId,
+    filters,
+  )
   const { roster } = useWorkspaceRoster(activeWorkspaceId)
   const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [activeUnitName, setActiveUnitName] = useState<string | null>(null)
 
-  // Lifecycle anchors stay unfiltered so headline totals remain stable.
+  // Lifecycle anchors stay unfiltered across the full task set for stable headline totals
   const overall = useMemo(() => summarizeStatuses(tasks), [tasks])
 
-  // Everything below honours the toolbar filter (status tab + search).
+  // Everything below honours the toolbar filter (status tab + search + unit scope)
   const filteredTasks = useMemo(
-    () => filterReviewTasks(tasks, activeTab, searchQuery),
-    [tasks, activeTab, searchQuery],
+    () => filterReviewTasks(tasks, activeTab, searchQuery, filters.unit),
+    [tasks, activeTab, searchQuery, filters.unit],
   )
 
-  // Units are derived from the live roster's departments - no hardcoded slices.
+  // Units derived from live roster
   const units = useMemo<UnitOverview[]>(() => {
     const unitNames = Array.from(new Set(roster.map((m) => m.department)))
     return unitNames.map((unitName) => {
@@ -78,6 +81,20 @@ export default function TasksPage() {
       }
     })
   }, [roster, filteredTasks])
+
+  const unitScopeOptions = useMemo(() => {
+    const unitNames = Array.from(new Set(roster.map((m) => m.department)))
+    return unitNames.map((name) => ({
+      name,
+      memberCount: roster.filter((m) => m.department === name).length,
+      taskCount: tasks.filter((t) => t.department === name || t.subDepartment === name).length,
+    }))
+  }, [roster, tasks])
+
+  const displayedUnits = useMemo(() => {
+    if (!filters.unit || filters.unit === 'all') return units
+    return units.filter((u) => u.name.toLowerCase() === filters.unit?.toLowerCase())
+  }, [units, filters.unit])
 
   const activeUnit = units.find((u) => u.name === activeUnitName) ?? null
 
@@ -104,8 +121,7 @@ export default function TasksPage() {
             <div>
               <h1>Departmental Tasks</h1>
               <p>
-                Browse by unit, open any team member, and review their deliverables in one
-                clean flow.
+                Browse by unit, open any team member, and review their deliverables in one clean flow.
               </p>
             </div>
             <div className="tasks-header-actions">
@@ -126,7 +142,7 @@ export default function TasksPage() {
 
         {/* Filter toolbar */}
         <Toolbar
-          className="mb-8"
+          className="mb-4"
           search={{
             placeholder: 'Search tasks, staff, or units...',
             value: searchQuery,
@@ -148,6 +164,15 @@ export default function TasksPage() {
           }}
         />
 
+        {/* Unit scope toggle wired through TaskFilters */}
+        <UnitScopeToggle
+          activeUnit={filters.unit || 'all'}
+          units={unitScopeOptions}
+          totalTaskCount={tasks.length}
+          onSelectUnit={(selectedUnit) => setFilters((prev) => ({ ...prev, unit: selectedUnit }))}
+          accentColor={accentColor}
+        />
+
         {/* Browse-by-unit grid */}
         <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
           <div>
@@ -157,13 +182,13 @@ export default function TasksPage() {
             </p>
           </div>
           <span className="tasks-badge">
-            {units.length} {units.length === 1 ? 'Unit' : 'Units'} · {filteredTasks.length} in
-            view
+            {filters.unit && filters.unit !== 'all' ? `Scoped: ${filters.unit} · ` : ''}
+            {displayedUnits.length} {displayedUnits.length === 1 ? 'Unit' : 'Units'} · {filteredTasks.length} in view
           </span>
         </div>
 
         <div className="unit-grid">
-          {units.map((unit) => (
+          {displayedUnits.map((unit) => (
             <DepartmentUnitCard
               key={unit.name}
               unitName={unit.name}

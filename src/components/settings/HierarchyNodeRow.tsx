@@ -3,15 +3,15 @@ import {
   ChevronRight, ChevronDown, Edit3, Trash2,
   User, Landmark, Building2,
 } from 'lucide-react'
-import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
+import type { OrganizationUnit, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
 import { useWorkspace } from '../../context/useWorkspace'
 
 interface HierarchyNodeRowProps {
-  node: HierarchyNode
+  node: OrganizationUnit
   levelNamings: HierarchyLevelNaming[]
-  onAddChild: (parentNode: HierarchyNode) => void
-  onEditNode: (node: HierarchyNode) => void
+  onAddChild: (parentNode: OrganizationUnit) => void
+  onEditNode: (node: OrganizationUnit) => void
   onDeleteNode: (nodeId: string) => void
 }
 

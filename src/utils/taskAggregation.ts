@@ -43,13 +43,24 @@ export function taskMatchesTab(task: TaskItem, tab: TasksFilterTab): boolean {
   }
 }
 
-/** Applies the active toolbar filter (status tab + free-text search). */
+/** Applies the active toolbar filter (status tab + free-text search + optional unit scope). */
 export function filterReviewTasks(
   tasks: TaskItem[],
   tab: TasksFilterTab,
   searchQuery: string,
+  unitScope?: string,
 ): TaskItem[] {
-  return tasks.filter((task) => taskMatchesTab(task, tab) && matchesSearch(task, searchQuery))
+  return tasks.filter((task) => {
+    if (!taskMatchesTab(task, tab)) return false
+    if (!matchesSearch(task, searchQuery)) return false
+    if (unitScope && unitScope !== 'all') {
+      const scope = unitScope.toLowerCase().trim()
+      const dept = task.department.toLowerCase().trim()
+      const subDept = task.subDepartment.toLowerCase().trim()
+      return dept === scope || subDept === scope
+    }
+    return true
+  })
 }
 
 /** Compact 2-letter initials from a display name (e.g. "Sarah Jenkins" -> "SJ"). */

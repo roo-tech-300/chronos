@@ -90,6 +90,7 @@ export interface TaskFilters {
   status?: TaskStatus | 'all'
   type?: TaskType | 'all'
   department?: string | 'all'
+  unit?: string | 'all'
   assigneeMemberId?: string
   searchQuery?: string
   onlyToday?: boolean

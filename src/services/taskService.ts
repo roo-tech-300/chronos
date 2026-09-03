@@ -76,6 +76,9 @@ export async function fetchWorkspaceTasks(
     if (filters?.department && filters.department !== 'all') {
       query = query.eq('department', filters.department)
     }
+    if (filters?.unit && filters.unit !== 'all') {
+      query = query.or(`department.eq.${filters.unit},sub_department.eq.${filters.unit}`)
+    }
     if (filters?.assigneeMemberId) {
       query = query.eq('assignee_member_id', filters.assigneeMemberId)
     }

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
+import type { OrganizationUnit, HierarchyLevelNaming } from '../../types/organization'
 import { Button, Toolbar } from '../ui'
 import HierarchyNodeRow from './HierarchyNodeRow'
 
 interface HierarchyManagerProps {
-  rootNode: HierarchyNode
+  rootNode: OrganizationUnit
   levelNamings: HierarchyLevelNaming[]
   onOpenNamingRules: () => void
-  onAddChild: (parentNode: HierarchyNode) => void
-  onEditNode: (node: HierarchyNode) => void
+  onAddChild: (parentNode: OrganizationUnit) => void
+  onEditNode: (node: OrganizationUnit) => void
   onDeleteNode: (nodeId: string) => void
 }
 

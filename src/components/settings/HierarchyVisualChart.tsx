@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Plus, Users, UserCheck, ChevronDown, ChevronUp } from 'lucide-react'
-import type { HierarchyNode, HierarchyLevelNaming } from '../../types/organization'
+import type { OrganizationUnit, HierarchyLevelNaming } from '../../types/organization'
 import { getLevelLabel } from '../../utils/hierarchyUtils'
 import { useWorkspace } from '../../context/useWorkspace'
 
 interface HierarchyVisualChartProps {
-  node: HierarchyNode
+  node: OrganizationUnit
   levelNamings: HierarchyLevelNaming[]
-  onAddChild: (parentNode: HierarchyNode) => void
-  onEditNode: (node: HierarchyNode) => void
+  onAddChild: (parentNode: OrganizationUnit) => void
+  onEditNode: (node: OrganizationUnit) => void
 }
 
 export default function HierarchyVisualChart({
