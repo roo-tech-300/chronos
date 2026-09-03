@@ -212,12 +212,7 @@ export default function OrgSettingsPage() {
           />
         )}
 
-        {activeTab === 'overview' && (
-          <OrgGeneralCard
-            profile={profile}
-            onUpdateProfile={(updated) => setProfile((prev) => ({ ...prev, ...updated }))}
-          />
-        )}
+        {activeTab === 'overview' && <OrgGeneralCard />}
       </main>
 
       <NodeEditorModal

@@ -46,7 +46,14 @@ You are an expert frontend developer working with TypeScript, React, Tailwind CS
 * **Background Polling:** Kiosk and live dashboard list feeds must avoid manual reload interactions. Keep administrative overview components fresh by pairing TanStack Query with safe background fetch polling parameters (`refetchInterval`), maintaining fluid tracking updates without interface flickering.
 
 ### 10. Do not overstep proactively
-* **The AI must strictly perform only what is explicitly requested and nothing more. It must never introduce unprompted features, structural changes, or speculative code expansions.
+* The AI must strictly perform only what is explicitly requested and nothing more. It must never introduce unprompted features, structural changes, or speculative code expansions.
 
 ### 11. Mandatory permission gate for deviation 
- * ** If the AI identifies an important improvement, optimization, missing edge case, or additional task it believes should be handled, it must explicitly pause, state its observation, and ask for your permission before proceeding.
+ * If the AI identifies an important improvement, optimization, missing edge case, or additional task it believes should be handled, it must explicitly pause, state its observation, and ask for your permission before proceedin
+
+ ### 12. Comprehensive Error Handling & Resilience
+* **User-Facing Safety:** Never expose raw stack traces, system dumps, or sensitive backend error messages to the end-user. All critical failures must be caught and mapped to user-friendly, localized fallback UI components or toast notifications.
+React Error Boundaries: Wrap critical route segments and high-risk layout components in React Error Boundaries to ensure a single component crash does not white-screen the entire application. Provide actionable recovery options (e.g., "Reload" or "Go Home") in the fallback UI.
+* **Server-State Error Recovery:** Utilize TanStack Query's onError (or throwOnError where appropriate) to handle failed requests gracefully. Implement intelligent retry logic for transient network issues (e.g., 5xx errors or network timeouts), but fail fast on 4xx errors to save backend resources.
+* **Tauri Command Failures:** When wrapping Tauri invoke commands (per Rule 7), strictly enforce try/catch blocks. Log the environmental error trace securely and return a predictable, typed fallback object rather than letting the promise rejection crash the UI thread.
+Secure Logging: Ensure error logging (to console or remote telemetry) scrubs any sensitive data, particularly the biometric signatures or user PII mentioned in Rule 8.

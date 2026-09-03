@@ -19,6 +19,7 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
   }
 
   try {
+    console.log("Fetching this shi")
     const { data, error } = await supabase
       .from('workspace_members')
       .select(`
@@ -39,6 +40,7 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
       .eq('user_id', targetUserId)
 
     if (error) {
+      console.warn('Error fetching workspaces:', error.message)
       return { data: [], error: new Error(error.message) }
     }
 
