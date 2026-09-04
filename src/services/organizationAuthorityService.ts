@@ -1,5 +1,6 @@
 import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
+import { assertMemberIdRows } from '../utils/supabaseTypeGuards'
 
 /**
  * All member IDs a leader has authority over (self + every unit they head +
@@ -20,7 +21,7 @@ export async function fetchSubordinateMemberIds(leaderMemberId: string): Promise
     return []
   }
 
-  return ((data ?? []) as unknown as { member_id: string }[]).map((row) => row.member_id)
+  return assertMemberIdRows(data).map((row) => row.member_id)
 }
 
 /**

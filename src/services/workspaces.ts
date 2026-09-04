@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
 import type { Workspace, WorkspaceRole, WorkspaceDraft } from '../types/workspaces'
+import { assertWorkspaceWithCounts } from '../utils/supabaseTypeGuards'
 
 /**
  * Fetch all workspaces that the currently signed-in user belongs to.
@@ -51,18 +52,7 @@ export async function getUserWorkspaces(userId?: string): Promise<{ data: Worksp
     const workspaces: Workspace[] = data
       .filter((row) => row.workspaces !== null)
       .map((row) => {
-        const ws = row.workspaces as unknown as {
-          id: string
-          name: string
-          slug: string
-          plan: 'enterprise' | 'pro' | 'starter' | 'free'
-          category?: string
-          avatar_url?: string
-          accent_color?: string
-          created_at?: string
-          workspace_members?: [{ count: number }] | { count: number }[]
-          kiosks?: [{ count: number }] | { count: number }[]
-        }
+        const ws = assertWorkspaceWithCounts(row.workspaces)
 
         const memberCount = Array.isArray(ws.workspace_members) && ws.workspace_members[0]
           ? ws.workspace_members[0].count
@@ -209,19 +199,7 @@ export async function getWorkspaceById(
       return { data: null, error: new Error(error?.message || 'Workspace not found') }
     }
 
-    const typedWs = ws as unknown as {
-      id: string
-      name: string
-      slug: string
-      plan: 'enterprise' | 'pro' | 'starter' | 'free'
-      category?: string
-      avatar_url?: string
-      accent_color?: string
-      status?: 'active' | 'pending' | 'suspended'
-      created_at?: string
-      workspace_members?: [{ count: number }] | { count: number }[]
-      kiosks?: [{ count: number }] | { count: number }[]
-    }
+    const typedWs = assertWorkspaceWithCounts(ws)
 
     const memberCount =
       Array.isArray(typedWs.workspace_members) && typedWs.workspace_members[0]

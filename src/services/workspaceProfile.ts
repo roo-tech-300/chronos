@@ -1,5 +1,6 @@
 import { getSupabase } from '../lib/supabase'
 import { isRealWorkspaceUuid } from '../utils/uuid'
+import { assertWorkspaceProfileUpdateResult } from '../utils/supabaseTypeGuards'
 
 export interface WorkspaceProfileUpdates {
   name: string
@@ -64,9 +65,7 @@ export async function updateWorkspaceProfile(
       return { data: null, error: new Error(message) }
     }
 
-    const typedWs = ws as unknown as WorkspaceProfileUpdateResult
-
-    return { data: typedWs, error: null }
+    return { data: assertWorkspaceProfileUpdateResult(ws), error: null }
   } catch (err) {
     return {
       data: null,

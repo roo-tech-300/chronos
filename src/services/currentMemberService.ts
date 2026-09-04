@@ -6,6 +6,7 @@ import {
   formatRole,
 } from './identityResolver'
 import type { WorkspaceMemberRecord } from '../types/tasks'
+import { assertUnitAssignmentRows } from '../utils/supabaseTypeGuards'
 
 interface MemberRow {
   id: string
@@ -14,11 +15,6 @@ interface MemberRow {
   user_id?: string | null
   unit_id?: string | null
   job_title?: string | null
-}
-
-interface UnitAssignmentRow {
-  member_id: string
-  unit_id: string
 }
 
 /** Maps a workspace_members row + its profile into the UI member record. */
@@ -64,7 +60,7 @@ async function hydrateMembers(rows: MemberRow[], workspaceId?: string): Promise<
 
   const assignmentsByMember = new Map<string, string[]>()
   if (!assignmentsResult.error && assignmentsResult.data) {
-    for (const item of assignmentsResult.data as unknown as UnitAssignmentRow[]) {
+    for (const item of assertUnitAssignmentRows(assignmentsResult.data)) {
       const list = assignmentsByMember.get(item.member_id) || []
       list.push(item.unit_id)
       assignmentsByMember.set(item.member_id, list)

@@ -11,6 +11,11 @@ import type {
   OrgUnit,
 } from '../types/organization'
 import { mapUnitRow } from './organizationUnitService'
+import {
+  assertOrganizationUnitMemberRows,
+  assertOrganizationUnitRow,
+  assertOrganizationUnitRows,
+} from '../utils/supabaseTypeGuards'
 
 export { fetchSubordinateMemberIds, canManageMember } from './organizationAuthorityService'
 
@@ -60,7 +65,7 @@ export async function fetchMemberUnitAssignments(
     return { data: [], error: new Error(error.message) }
   }
 
-  const items = ((data ?? []) as unknown as (OrganizationUnitMemberRow & { unit?: OrganizationUnitRow })[]).map(
+  const items = assertOrganizationUnitMemberRows(data).map(
     (row) => {
       const unit = row.unit ? mapUnitRow(row.unit) : undefined
       return mapUnitMemberRow(row, unit)
@@ -137,7 +142,7 @@ export async function assignMemberToUnit(
     return { data: null, error: translateMemberError(error, 'Failed to assign member to unit.') }
   }
 
-  const assigned = data as unknown as OrganizationUnitMemberRow
+  const assigned = assertOrganizationUnitMemberRow(data)
   return {
     data: {
       memberId: assigned.member_id,
@@ -220,7 +225,7 @@ export async function fetchMemberUnitLineage(
     return { data: { ...base, lineage: [], allAssignedUnits: [] }, error: null }
   }
 
-  const unit = unitRow as unknown as OrganizationUnitRow
+  const unit = assertOrganizationUnitRow(unitRow)
   const ancestorIds = Array.isArray(unit.ancestor_ids) ? unit.ancestor_ids : []
   const { data: ancestorRows } = await supabase
     .from('organization_units')
@@ -228,7 +233,7 @@ export async function fetchMemberUnitLineage(
     .in('id', ancestorIds)
     .order('path')
 
-  const lineage = ((ancestorRows ?? []) as unknown as OrganizationUnitRow[]).map(mapUnitRow)
+  const lineage = assertOrganizationUnitRows(ancestorRows).map(mapUnitRow)
   const allAssignedUnits = assignments.map((a) => a.unit).filter(Boolean) as OrgUnit[]
 
   return { data: { ...base, lineage, allAssignedUnits }, error: null }

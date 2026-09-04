@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
 import { fetchMemberProfilesMap, formatRole } from './identityResolver'
+import { assertMemberWithAssignmentRows } from '../utils/supabaseTypeGuards'
 import type { AssignmentType } from '../types/organization'
 
 export interface UnitMemberItem {
@@ -16,23 +17,6 @@ export interface UnitMemberItem {
   isPrimary: boolean
   assignmentType: AssignmentType
   reportsTo?: string | null
-}
-
-interface MemberWithAssignmentRow {
-  id: string
-  unit_id: string
-  member_id: string
-  is_primary: boolean
-  assignment_type: AssignmentType
-  job_title: string | null
-  reports_to: string | null
-  member: {
-    id: string
-    user_id: string | null
-    role: string | null
-    department: string | null
-    workspace_id: string
-  }
 }
 
 /**
@@ -57,7 +41,7 @@ export async function fetchUnitMembers(
     return { data: [], error: new Error(error.message) }
   }
 
-  const rows = (data ?? []) as unknown as MemberWithAssignmentRow[]
+  const rows = assertMemberWithAssignmentRows(data)
   const userIds = rows.map((r) => r.member.user_id).filter(Boolean) as string[]
   const workspaceId = rows[0]?.member?.workspace_id
   const profiles = await fetchMemberProfilesMap(userIds, workspaceId)

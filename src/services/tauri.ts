@@ -3,6 +3,8 @@
  * Isolates desktop-bundled operations and gracefully falls back in web environments.
  */
 
+import { assertWindowWithTauri } from '../utils/supabaseTypeGuards'
+
 export interface AppEnvironment {
   isTauri: boolean
   isWindowsApp: boolean
@@ -19,7 +21,7 @@ const DEV_OVERRIDE_KEY = 'chronos_dev_tauri_override'
  */
 export function isTauriEnvironment(): boolean {
   if (typeof window === 'undefined') return false
-  const win = window as unknown as { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown }
+  const win = assertWindowWithTauri(window)
   return Boolean(win.__TAURI__ || win.__TAURI_INTERNALS__)
 }
 

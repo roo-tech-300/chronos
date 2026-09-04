@@ -7,6 +7,11 @@ import type {
   CreateUnitInput,
   UpdateUnitInput,
 } from '../types/organization'
+import {
+  assertOrganizationUnitRow,
+  assertOrganizationUnitRows,
+  assertUnitIdRows,
+} from '../utils/supabaseTypeGuards'
 
 /**
  * Maps a raw organization_units row into the UI model. The ltree path arrives
@@ -67,7 +72,7 @@ export async function fetchWorkspaceUnits(
     return { data: [], error: new Error(error.message) }
   }
 
-  const rows = (data ?? []) as unknown as OrganizationUnitRow[]
+  const rows = assertOrganizationUnitRows(data)
   return { data: rows.map(mapUnitRow), error: null }
 }
 
@@ -93,7 +98,7 @@ export async function fetchUnitSubtree(
     return { data: [], error: new Error(rpcError.message) }
   }
 
-  const ids = ((subtreeIds ?? []) as unknown as { unit_id: string }[]).map((row) => row.unit_id)
+  const ids = assertUnitIdRows(subtreeIds).map((row) => row.unit_id)
   if (ids.length === 0) {
     return { data: [], error: null }
   }
@@ -109,7 +114,7 @@ export async function fetchUnitSubtree(
     return { data: [], error: new Error(error.message) }
   }
 
-  const rows = (data ?? []) as unknown as OrganizationUnitRow[]
+  const rows = assertOrganizationUnitRows(data)
   return { data: rows.map(mapUnitRow), error: null }
 }
 
@@ -148,7 +153,7 @@ export async function createOrganizationUnit(
     return { data: null, error: translateUnitError(error, 'Failed to create the unit.') }
   }
 
-  return { data: mapUnitRow(data as unknown as OrganizationUnitRow), error: null }
+  return { data: mapUnitRow(assertOrganizationUnitRow(data)), error: null }
 }
 
 /**
@@ -196,7 +201,7 @@ export async function updateOrganizationUnit(
     return { data: null, error: translateUnitError(error, 'Failed to update the unit.') }
   }
 
-  return { data: mapUnitRow(data as unknown as OrganizationUnitRow), error: null }
+  return { data: mapUnitRow(assertOrganizationUnitRow(data)), error: null }
 }
 
 /**
