@@ -7,6 +7,7 @@ import { useWorkspaceRoster } from '../../hooks/useWorkspaceRoster'
 import { buildUnitTree, countDescendants } from '../../utils/orgUnitTree'
 import HierarchyManager from './HierarchyManager'
 import NodeEditorModal, { type UnitEditorSubmit } from './NodeEditorModal'
+import { UnitMembersModal } from './UnitMembersModal'
 import { Button, Modal } from '../ui'
 
 /**
@@ -28,6 +29,7 @@ export default function UnitHierarchySection() {
   } = useWorkspaceUnits(workspaceId)
   const { roster } = useWorkspaceRoster(workspaceId)
 
+  const [managingMembersUnit, setManagingMembersUnit] = useState<OrgUnit | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [parentNode, setParentNode] = useState<OrgUnit | null>(null)
   const [editingUnit, setEditingUnit] = useState<OrgUnit | null>(null)
@@ -42,8 +44,15 @@ export default function UnitHierarchySection() {
   const memberCountByUnit = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const member of roster) {
-      if (!member.unitId) continue
-      counts[member.unitId] = (counts[member.unitId] ?? 0) + 1
+      const uids =
+        member.unitIds && member.unitIds.length > 0
+          ? member.unitIds
+          : member.unitId
+            ? [member.unitId]
+            : []
+      for (const uid of uids) {
+        counts[uid] = (counts[uid] ?? 0) + 1
+      }
     }
     return counts
   }, [roster])
@@ -157,6 +166,7 @@ export default function UnitHierarchySection() {
             onAddChild={openCreate}
             onEditNode={openEdit}
             onDeleteNode={setPendingDelete}
+            onManageMembers={setManagingMembersUnit}
           />
 
           {units.length === 0 && (
@@ -217,6 +227,13 @@ export default function UnitHierarchySection() {
           </div>
         )}
       </Modal>
+
+      <UnitMembersModal
+        isOpen={Boolean(managingMembersUnit)}
+        unit={managingMembersUnit}
+        workspaceId={workspaceId}
+        onClose={() => setManagingMembersUnit(null)}
+      />
     </div>
   )
 }

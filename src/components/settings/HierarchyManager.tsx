@@ -12,6 +12,7 @@ interface HierarchyManagerProps {
   onAddChild: (parent: OrgUnit | null) => void
   onEditNode: (unit: OrgUnit) => void
   onDeleteNode: (unit: OrgUnit) => void
+  onManageMembers?: (unit: OrgUnit) => void
 }
 
 export default function HierarchyManager({
@@ -21,6 +22,7 @@ export default function HierarchyManager({
   onAddChild,
   onEditNode,
   onDeleteNode,
+  onManageMembers,
 }: HierarchyManagerProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const isFiltering = searchQuery.trim().length > 0
@@ -76,6 +78,7 @@ export default function HierarchyManager({
               onAddChild={onAddChild}
               onEditNode={onEditNode}
               onDeleteNode={onDeleteNode}
+              onManageMembers={onManageMembers}
             />
           ))
         )}

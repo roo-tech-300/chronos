@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   ChevronRight, ChevronDown, Edit3, Trash2,
-  User, Users, Landmark, Building2,
+  User, Users, UserPlus, Landmark, Building2,
 } from 'lucide-react'
 import type { OrgUnit } from '../../types/organization'
 import type { OrgUnitNode } from '../../utils/orgUnitTree'
@@ -15,6 +15,7 @@ interface HierarchyNodeRowProps {
   onAddChild: (parent: OrgUnit) => void
   onEditNode: (unit: OrgUnit) => void
   onDeleteNode: (unit: OrgUnit) => void
+  onManageMembers?: (unit: OrgUnit) => void
 }
 
 function formatUnitType(unitType: string): string {
@@ -32,6 +33,7 @@ export default function HierarchyNodeRow({
   onAddChild,
   onEditNode,
   onDeleteNode,
+  onManageMembers,
 }: HierarchyNodeRowProps) {
   const { accentColor = '#7c007e' } = useWorkspace()
   const [expanded, setExpanded] = useState(depth === 0)
@@ -128,10 +130,18 @@ export default function HierarchyNodeRow({
             <User size={14} className="text-zinc-400" />
             <span>Lead: {headName ?? 'Unassigned'}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 whitespace-nowrap">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-[13px] text-zinc-600 hover:text-zinc-950 px-2 py-1 rounded-md hover:bg-zinc-100 transition-colors cursor-pointer whitespace-nowrap"
+            title="Manage unit staff"
+            onClick={(e) => {
+              e.stopPropagation()
+              onManageMembers?.(node)
+            }}
+          >
             <Users size={14} className="text-zinc-400" />
-            <span>{staffCount} staff</span>
-          </div>
+            <span className="font-medium">{staffCount} staff</span>
+          </button>
         </div>
 
         {/* Right segment: Actions */}
@@ -146,6 +156,15 @@ export default function HierarchyNodeRow({
             onClick={() => onAddChild(node)}
           >
             Add Sub-Department
+          </button>
+
+          <button
+            type="button"
+            title="Manage staff members"
+            className="p-1.5 text-zinc-500 hover:text-[#7c007e] hover:bg-[#7c007e]/10 rounded-md transition-colors cursor-pointer"
+            onClick={() => onManageMembers?.(node)}
+          >
+            <UserPlus size={15} />
           </button>
 
           <button
@@ -180,6 +199,7 @@ export default function HierarchyNodeRow({
                 onAddChild={onAddChild}
                 onEditNode={onEditNode}
                 onDeleteNode={onDeleteNode}
+                onManageMembers={onManageMembers}
               />
             </div>
           ))}
