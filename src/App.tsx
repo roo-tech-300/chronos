@@ -11,6 +11,7 @@ import AnalyticsPage from './AnalyticsPage'
 import OrgSettingsPage from './OrgSettingsPage'
 import TasksPage from './TasksPage'
 import MyTasksPage from './MyTasksPage'
+import UnitDepartmentPage from './UnitDepartmentPage'
 import TerminalPairPage from './TerminalPairPage'
 import KioskScanPage from './KioskScanPage'
 import { AuthProvider } from './context/AuthContext'
@@ -51,6 +52,7 @@ function App() {
             <Route path="/workspace/:workspaceId/settings/organization" element={<OrgSettingsPage />} />
             <Route path="/workspace/:workspaceId/tasks" element={<TasksPage />} />
             <Route path="/workspace/:workspaceId/tasks/my-tasks" element={<MyTasksPage />} />
+            <Route path="/workspace/:workspaceId/units/:unitId" element={<UnitDepartmentPage />} />
 
             {/* Legacy & Direct Default Routes */}
             <Route path="/dashboard" element={<StaffGuardedDashboard />} />
@@ -64,6 +66,7 @@ function App() {
             <Route path="/settings" element={<OrgSettingsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/tasks/my-tasks" element={<MyTasksPage />} />
+            <Route path="/units/:unitId" element={<UnitDepartmentPage />} />
 
             {/* Hardware Kiosk & Terminal Routes */}
             <Route path="/terminal/pair" element={<TerminalPairPage />} />
