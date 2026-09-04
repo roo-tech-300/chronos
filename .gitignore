@@ -36,3 +36,6 @@ opencode.json
 node-bridge/.db/
 node-bridge/.exec/
 node-bridge/.env
+
+# Temporary local scripts
+.tmp-hb.js
