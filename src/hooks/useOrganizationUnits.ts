@@ -5,16 +5,23 @@ import {
   updateOrganizationUnit,
   deleteOrganizationUnit,
 } from '../services/organizationUnitService'
-import { assignMemberToUnit, fetchMemberUnitLineage } from '../services/organizationMemberService'
-import type { CreateUnitInput, UpdateUnitInput } from '../types/organization'
+import {
+  assignMemberToUnit,
+  removeMemberFromUnit,
+  fetchMemberUnitLineage,
+  fetchMemberUnitAssignments,
+} from '../services/organizationMemberService'
+import { fetchUnitMembers } from '../services/unitMembersService'
+import type { AssignMemberInput, CreateUnitInput, UpdateUnitInput } from '../types/organization'
 
 const UNITS_QUERY_KEY = 'organization-units'
 const LINEAGE_QUERY_KEY = 'member-unit-lineage'
+const ASSIGNMENTS_QUERY_KEY = 'member-unit-assignments'
+const UNIT_MEMBERS_QUERY_KEY = 'unit-members'
 
 /**
  * Server-state access for the workspace organization tree: a flat, path-ordered
- * unit list plus create/update/delete/assign mutations. Mutations unwrap the
- * service result and throw on failure so UI callers can try/catch mutateAsync.
+ * unit list plus create/update/delete/assign mutations.
  */
 export function useWorkspaceUnits(workspaceId: string) {
   const queryClient = useQueryClient()
@@ -34,13 +41,13 @@ export function useWorkspaceUnits(workspaceId: string) {
       return data
     },
     enabled: Boolean(workspaceId),
-    staleTime: 1000 * 60 * 2, // 2 min fresh cache protects the backend
+    staleTime: 1000 * 60 * 2, // 2 min fresh cache
   })
 
   const afterUnitChange = () => {
     void queryClient.invalidateQueries({ queryKey: unitsKey })
-    // Unit renames/moves change every descendant lineage path.
     void queryClient.invalidateQueries({ queryKey: [LINEAGE_QUERY_KEY] })
+    void queryClient.invalidateQueries({ queryKey: [UNIT_MEMBERS_QUERY_KEY] })
   }
 
   const createUnitMutation = useMutation({
@@ -71,19 +78,32 @@ export function useWorkspaceUnits(workspaceId: string) {
   })
 
   const assignMemberMutation = useMutation({
-    mutationFn: async (input: { memberId: string; unitId: string; reportsTo?: string | null }) => {
-      const { data, error } = await assignMemberToUnit(input.memberId, input.unitId, input.reportsTo)
+    mutationFn: async (input: AssignMemberInput) => {
+      const { data, error } = await assignMemberToUnit(input)
       if (error) throw error
       return data
     },
     onSuccess: (_result, variables) => {
-      // Assignments only touch workspace_members; refresh just that lineage.
       void queryClient.invalidateQueries({ queryKey: [LINEAGE_QUERY_KEY, variables.memberId] })
+      void queryClient.invalidateQueries({ queryKey: [ASSIGNMENTS_QUERY_KEY, variables.memberId] })
+      void queryClient.invalidateQueries({ queryKey: [UNIT_MEMBERS_QUERY_KEY, variables.unitId] })
+    },
+  })
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: async ({ memberId, unitId }: { memberId: string; unitId: string }) => {
+      const { success, error } = await removeMemberFromUnit(memberId, unitId)
+      if (error || !success) throw error || new Error('Failed to remove assignment')
+      return success
+    },
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: [LINEAGE_QUERY_KEY, variables.memberId] })
+      void queryClient.invalidateQueries({ queryKey: [ASSIGNMENTS_QUERY_KEY, variables.memberId] })
+      void queryClient.invalidateQueries({ queryKey: [UNIT_MEMBERS_QUERY_KEY, variables.unitId] })
     },
   })
 
   return {
-    /** Flat unit list sorted by ltree path (root-first, depth-first). */
     units,
     isLoading,
     isFetching,
@@ -97,13 +117,44 @@ export function useWorkspaceUnits(workspaceId: string) {
     isDeleting: deleteUnitMutation.isPending,
     assignMember: assignMemberMutation.mutateAsync,
     isAssigning: assignMemberMutation.isPending,
+    removeAssignment: removeAssignmentMutation.mutateAsync,
+    isRemoving: removeAssignmentMutation.isPending,
   }
 }
 
-/**
- * A member's reporting chain (workspace root -> their own unit, inclusive),
- * used for breadcrumbs and "who can approve me" context.
- */
+/** Queries all department assignments for a specific member. */
+export function useMemberAssignments(memberId?: string) {
+  const cleanId = (memberId || '').trim()
+
+  return useQuery({
+    queryKey: [ASSIGNMENTS_QUERY_KEY, cleanId],
+    queryFn: async () => {
+      const { data, error } = await fetchMemberUnitAssignments(cleanId)
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(cleanId),
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
+/** Queries all staff members assigned to an organization unit. */
+export function useUnitMembers(unitId?: string) {
+  const cleanId = (unitId || '').trim()
+
+  return useQuery({
+    queryKey: [UNIT_MEMBERS_QUERY_KEY, cleanId],
+    queryFn: async () => {
+      const { data, error } = await fetchUnitMembers(cleanId)
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(cleanId),
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
+/** A member's reporting chain (workspace root -> their own unit, inclusive). */
 export function useMemberHierarchy(memberId?: string) {
   const cleanId = (memberId || '').trim()
 

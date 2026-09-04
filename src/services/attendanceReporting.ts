@@ -14,53 +14,38 @@ export interface LiveScanFeedItem {
   direction: AttendanceDirection
 }
 
-export async function resolveMemberNameMap(memberIds: string[]): Promise<Map<string, string>> {
-  const profileMap = new Map<string, string>()
-  if (!memberIds.length) return profileMap
+export async function resolveMemberNameMap(
+  memberIds: string[],
+  workspaceId?: string,
+): Promise<Map<string, string>> {
+  const nameMap = new Map<string, string>()
+  if (!memberIds.length) return nameMap
 
   const supabase = getSupabase()
   try {
-    const { data: wmList } = await supabase
-      .from('workspace_members')
-      .select('id, user_id')
-      .in('id', memberIds)
+    const identities = await Promise.all(
+      Array.from(new Set(memberIds)).map(async (memberId) => {
+        const { data } = await supabase.rpc('resolve_kiosk_identity', {
+          p_identifier: memberId,
+          p_workspace_id: workspaceId || null,
+        })
+        const identity = Array.isArray(data) ? data[0] : data
+        if (!identity || typeof identity !== 'object') return null
+        const displayName = (identity as { display_name?: unknown }).display_name
+        return typeof displayName === 'string' && displayName.trim()
+          ? { memberId, name: displayName.trim() }
+          : null
+      }),
+    )
 
-    const userIds = (wmList?.map((w) => w.user_id).filter(Boolean) as string[]) || []
-    const idsToFetch = Array.from(new Set([...userIds, ...memberIds]))
-
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', idsToFetch)
-
-    const pLookup = new Map<string, string>()
-    profiles?.forEach((p) => {
-      if (p.id) {
-        const name =
-          p.full_name ||
-          p.name ||
-          p.display_name ||
-          (p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : '') ||
-          (p.email ? p.email.split('@')[0] : '')
-        if (name) pLookup.set(p.id, name)
-      }
-    })
-
-    wmList?.forEach((w) => {
-      const name = (w.user_id ? pLookup.get(w.user_id) : undefined) || pLookup.get(w.id)
-      if (name) profileMap.set(w.id, name)
-    })
-
-    memberIds.forEach((id) => {
-      if (!profileMap.has(id) && pLookup.has(id)) {
-        profileMap.set(id, pLookup.get(id)!)
-      }
+    identities.forEach((identity) => {
+      if (identity) nameMap.set(identity.memberId, identity.name)
     })
   } catch (err) {
-    console.warn('[AttendanceReporting] Could not resolve member profiles:', err)
+    console.warn('[AttendanceReporting] Could not resolve member identities:', err)
   }
 
-  return profileMap
+  return nameMap
 }
 
 export async function fetchRecentLiveScans(
@@ -82,7 +67,7 @@ export async function fetchRecentLiveScans(
     if (error || !data || data.length === 0) return []
 
     const memberIds = Array.from(new Set(data.map((r) => r.member_id).filter(Boolean)))
-    const profileMap = await resolveMemberNameMap(memberIds)
+    const profileMap = await resolveMemberNameMap(memberIds, workspaceId)
 
     return data.map((row) => {
       const name = profileMap.get(row.member_id) || 'Staff Member'

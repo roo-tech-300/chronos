@@ -7,18 +7,21 @@ import { useAuth } from './context/useAuth'
 import { useWorkspace } from './context/useWorkspace'
 import { getUserWorkspaces } from './services/workspaces'
 import { CreateWorkspaceModal } from './components/workspaces/CreateWorkspaceModal'
+import { OrgHubHeader } from './components/workspaces/OrgHubHeader'
+import { LogoutModal } from './components/workspaces/LogoutModal'
 import type { Workspace } from './types/workspaces'
 import './styles/org-hub-grid.css'
 
 export default function OrgHubPage() {
   const navigate = useNavigate()
   const { role } = useDevPersona()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { selectWorkspace } = useWorkspace()
   const [searchTerm, setSearchTerm] = useState('')
   const [dbWorkspaces, setDbWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false)
 
   useEffect(() => {
     async function loadWorkspaces() {
@@ -49,6 +52,12 @@ export default function OrgHubPage() {
     }
   }
 
+  const handleConfirmLogout = async () => {
+    await signOut()
+    setIsLogoutOpen(false)
+    navigate('/login')
+  }
+
   const filteredWorkspaces = dbWorkspaces.filter(
     (ws) =>
       ws.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,6 +66,7 @@ export default function OrgHubPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+      <OrgHubHeader onOpenLogout={() => setIsLogoutOpen(true)} />
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10 sm:py-14 flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-zinc-200">
           <div>
@@ -169,6 +179,11 @@ export default function OrgHubPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleWorkspaceCreated}
+      />
+      <LogoutModal
+        isOpen={isLogoutOpen}
+        onClose={() => setIsLogoutOpen(false)}
+        onConfirmLogout={handleConfirmLogout}
       />
     </div>
   )

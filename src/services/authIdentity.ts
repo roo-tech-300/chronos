@@ -1,5 +1,5 @@
-// Auth-backed identity helpers: Supabase session metadata, profiles/users lookups
-// and display formatting shared by every identity resolution path.
+// Auth-backed identity helpers and display formatting shared by every identity
+// resolution path.
 import { getSupabase } from '../lib/supabase'
 
 /** Maps a raw workspace_members role value to its display label. */
@@ -75,7 +75,7 @@ export interface FetchedUserIdentity {
   department?: string
 }
 
-/** Resolves an auth user id to display identity: session metadata -> profiles -> users. */
+/** Resolves an auth user id to display identity: session metadata -> Auth RPC. */
 export async function fetchUserIdentity(userId: string): Promise<FetchedUserIdentity> {
   if (!userId) return {}
   const supabase = getSupabase()
@@ -99,56 +99,32 @@ export async function fetchUserIdentity(userId: string): Promise<FetchedUserIden
     // Non-fatal
   }
 
-  // 2. Query public.profiles table (safe wildcard to avoid column missing errors)
+  // 2. Resolve another member through the security-definer Auth lookup.
   try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data } = await supabase.rpc('resolve_kiosk_identity', {
+      p_identifier: userId,
+    })
+    const identity = Array.isArray(data) ? data[0] : data
 
-    if (profile) {
+    if (identity && typeof identity === 'object') {
+      const record = identity as Record<string, unknown>
       return {
-        name:
-          profile.full_name ||
-          profile.name ||
-          profile.display_name ||
-          (profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : '') ||
-          formatNameFromEmail(profile.email),
-        email: profile.email,
-        avatarUrl: profile.avatar_url || profile.photo || profile.picture,
-        department: profile.department,
+        name: typeof record.display_name === 'string' ? record.display_name : undefined,
+        email: typeof record.email === 'string' ? record.email : undefined,
+        avatarUrl: typeof record.avatar_url === 'string' ? record.avatar_url : undefined,
+        department: typeof record.department === 'string' ? record.department : undefined,
       }
     }
   } catch (err) {
-    console.warn('[IdentityResolver] Profiles query fallback:', err)
+    console.warn('[IdentityResolver] Auth identity lookup fallback:', err)
   }
 
-  // 3. Check public.users table if present
+  // 3. No identity is available without Auth metadata or the RPC.
   try {
-    const { data: usr } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (usr) {
-      return {
-        name:
-          usr.full_name ||
-          usr.name ||
-          usr.display_name ||
-          (usr.first_name ? `${usr.first_name} ${usr.last_name || ''}`.trim() : '') ||
-          formatNameFromEmail(usr.email),
-        email: usr.email,
-        avatarUrl: usr.avatar_url,
-      }
-    }
+    return {}
   } catch {
-    // Non-fatal
+    return {}
   }
-
-  return {}
 }
 
 export interface ProfileRecord {
@@ -158,41 +134,42 @@ export interface ProfileRecord {
   department?: string
 }
 
-/** Fetches display profiles for a batch of auth user ids (used by roster views). */
+/** Fetches Auth-backed display identities for roster members. */
 export async function fetchMemberProfilesMap(
-  userIds: string[]
+  userIds: string[],
+  workspaceId?: string,
 ): Promise<Record<string, ProfileRecord>> {
-  const profileMap: Record<string, ProfileRecord> = {}
-  if (!userIds || userIds.length === 0) return profileMap
+  const identityMap: Record<string, ProfileRecord> = {}
+  if (!userIds || userIds.length === 0) return identityMap
 
   const supabase = getSupabase()
-  try {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', userIds)
-
-    if (profiles) {
-      profiles.forEach((p) => {
-        if (p.id) {
-          const name =
-            p.full_name ||
-            p.name ||
-            p.display_name ||
-            (p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : '') ||
-            formatNameFromEmail(p.email)
-
-          profileMap[p.id] = {
-            full_name: name,
-            email: p.email,
-            avatar_url: p.avatar_url,
-            department: p.department,
-          }
+  const identities = await Promise.all(
+    Array.from(new Set(userIds)).map(async (userId) => {
+      try {
+        const { data } = await supabase.rpc('resolve_kiosk_identity', {
+          p_identifier: userId,
+          p_workspace_id: workspaceId || null,
+        })
+        const identity = Array.isArray(data) ? data[0] : data
+        if (!identity || typeof identity !== 'object') return null
+        const record = identity as Record<string, unknown>
+        return {
+          userId,
+          profile: {
+            full_name: typeof record.display_name === 'string' ? record.display_name : undefined,
+            email: typeof record.email === 'string' ? record.email : undefined,
+            avatar_url: typeof record.avatar_url === 'string' ? record.avatar_url : undefined,
+            department: typeof record.department === 'string' ? record.department : undefined,
+          },
         }
-      })
-    }
-  } catch {
-    // Non-fatal: the profiles table may not exist in this environment yet.
-  }
-  return profileMap
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  identities.forEach((identity) => {
+    if (identity) identityMap[identity.userId] = identity.profile
+  })
+  return identityMap
 }

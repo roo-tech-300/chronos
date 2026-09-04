@@ -337,7 +337,16 @@ begin
   set status = 'approved',
       verified_by_member_id = v_caller.id,
       verified_by = coalesce(
-        (select p.full_name from public.profiles p where p.id = v_caller.user_id),
+        (
+          select coalesce(
+            u.raw_user_meta_data->>'display_name',
+            u.raw_user_meta_data->>'full_name',
+            u.raw_user_meta_data->>'name',
+            split_part(coalesce(u.email, ''), '@', 1)
+          )
+          from auth.users u
+          where u.id = v_caller.user_id
+        ),
         v_task.verified_by
       )
   where id = p_task_id

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TerminalVaultService } from '../services/terminalVault'
 import { TerminalApiService } from '../services/terminalApi'
 import { TerminalHardwareService } from '../services/terminalHardware'
+import { TerminalSupabaseService } from '../services/terminalSupabase'
 import { useWorkspace } from '../context/useWorkspace'
 import type { TerminalDevice, PairingResult } from '../types/terminal'
 
@@ -41,6 +42,8 @@ export function useTerminalAuth() {
             terminalName: hardwareMatch.name,
             workspaceId: hardwareMatch.workspaceId,
           })
+          // Keep liveness consistent — conditional heartbeat (only writes if stale)
+          await TerminalSupabaseService.findByDeviceToken(hardwareMatch.deviceToken)
           return hardwareMatch
         }
       }
@@ -48,7 +51,10 @@ export function useTerminalAuth() {
       return null
     },
     staleTime: 1000 * 15,
-    refetchInterval: 30000, // 30-second live heartbeat
+    refetchInterval: (_query) => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+      return 30000
+    },
   })
 
   // Mutation: Pair this machine with an activation code

@@ -15,35 +15,19 @@ export class TerminalSupabaseService {
    * Fetches kiosks with automatic UUID resolution and logging
    */
   static async fetchKiosks(workspaceId?: string): Promise<TerminalDevice[] | null> {
-    console.group(`[Supabase:Kiosks] 🔍 Fetching kiosks (workspace: ${workspaceId || 'ALL'})`)
     try {
       const supabase = getSupabase()
       const resolvedWsUuid = await resolveWorkspaceUuid(workspaceId)
       let query = supabase.from('kiosks').select('*').order('created_at', { ascending: false })
-
-      if (resolvedWsUuid) {
-        query = query.eq('workspace_id', resolvedWsUuid)
-      }
-
+      if (resolvedWsUuid) query = query.eq('workspace_id', resolvedWsUuid)
       const { data, error } = await query
-
       if (error) {
-        console.warn('[Supabase:Kiosks] Primary query note, checking fallback:', error.message)
         const fallback = await supabase.from('kiosks').select('*').order('created_at', { ascending: false })
-        if (!fallback.error && fallback.data) {
-          console.groupEnd()
-          return (fallback.data as KioskRow[]).map(mapRowToTerminal)
-        }
-        console.groupEnd()
+        if (!fallback.error && fallback.data) return (fallback.data as KioskRow[]).map(mapRowToTerminal)
         return null
       }
-
-      console.log(`[Supabase:Kiosks] ✅ Found ${data?.length ?? 0} rows`)
-      console.groupEnd()
       return (data as KioskRow[] || []).map(mapRowToTerminal)
-    } catch (err) {
-      console.error('[Supabase:Kiosks] 💥 Exception during fetch:', err)
-      console.groupEnd()
+    } catch {
       return null
     }
   }
@@ -52,7 +36,6 @@ export class TerminalSupabaseService {
    * Saves a new kiosk with UUID validation and slug resolution
    */
   static async saveNewKiosk(terminal: TerminalDevice): Promise<{ success: boolean; error?: string }> {
-    console.group(`[Supabase:Kiosks] 🚀 Saving Kiosk [ID: ${terminal.id}]`)
     try {
       const supabase = getSupabase()
       const resolvedWsUuid = await resolveWorkspaceUuid(terminal.workspaceId)
@@ -86,19 +69,12 @@ export class TerminalSupabaseService {
 
         const baseRes = await supabase.from('kiosks').upsert(baseRow).select()
         if (baseRes.error) {
-          console.error('[Supabase:Kiosks] ❌ Upsert failed:', baseRes.error)
-          console.groupEnd()
           return { success: false, error: `Database error: ${baseRes.error.message}` }
         }
       }
-
-      console.log('[Supabase:Kiosks] ✅ Kiosk saved successfully')
-      console.groupEnd()
       return { success: true }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
-      console.error('[Supabase:Kiosks] 💥 Exception:', err)
-      console.groupEnd()
       return { success: false, error: errMsg }
     }
   }
@@ -150,7 +126,6 @@ export class TerminalSupabaseService {
     code: string,
     workspaceId?: string
   ): Promise<PairingCodeLookupResult> {
-    console.group(`[Supabase:Kiosks] 🔐 Validating pairing code within workspace: ${workspaceId || 'GLOBAL'}`)
     try {
       const supabase = getSupabase()
       const normalizedCode = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
@@ -162,8 +137,6 @@ export class TerminalSupabaseService {
         .eq('status', 'unpaired')
 
       if (error || !data) {
-        console.warn('[Supabase:Kiosks] Pairing code lookup query failed:', error?.message)
-        console.groupEnd()
         return { match: null, foundInDifferentWorkspace: false }
       }
 
@@ -173,16 +146,12 @@ export class TerminalSupabaseService {
       })
 
       if (matchingRows.length === 0) {
-        console.log('[Supabase:Kiosks] ❌ No station with this pairing code found.')
-        console.groupEnd()
         return { match: null, foundInDifferentWorkspace: false }
       }
 
       if (resolvedWsUuid) {
         const workspaceMatch = matchingRows.find((row) => row.workspace_id === resolvedWsUuid)
         if (workspaceMatch) {
-          console.log(`[Supabase:Kiosks] ✅ Found match in active workspace: "${workspaceMatch.name}"`)
-          console.groupEnd()
           return {
             match: mapRowToTerminal(workspaceMatch),
             foundInDifferentWorkspace: false,
@@ -191,10 +160,6 @@ export class TerminalSupabaseService {
         }
 
         const otherOrgRow = matchingRows[0]
-        console.warn(
-          `[Supabase:Kiosks] 🚫 Cross-workspace violation: Code exists in workspace "${otherOrgRow.workspace_id}", but active is "${resolvedWsUuid}".`
-        )
-        console.groupEnd()
         return {
           match: null,
           foundInDifferentWorkspace: true,
@@ -203,15 +168,12 @@ export class TerminalSupabaseService {
       }
 
       const primaryMatch = matchingRows[0]
-      console.groupEnd()
       return {
         match: mapRowToTerminal(primaryMatch),
         foundInDifferentWorkspace: false,
         matchedWorkspaceId: primaryMatch.workspace_id,
       }
     } catch (err) {
-      console.error('[Supabase:Kiosks] 💥 Exception validating pairing code:', err)
-      console.groupEnd()
       return { match: null, foundInDifferentWorkspace: false }
     }
   }
@@ -226,9 +188,21 @@ export class TerminalSupabaseService {
         .maybeSingle()
 
       if (error || !data) return null
-      const now = new Date().toISOString()
-      await supabase.from('kiosks').update({ last_heartbeat_at: now, status: 'online' }).eq('id', data.id)
-      return mapRowToTerminal({ ...data, last_heartbeat_at: now, status: 'online' })
+
+      const now = new Date()
+      const lastBeat = data.last_heartbeat_at ? new Date(data.last_heartbeat_at) : null
+      const HEARTBEAT_INTERVAL_MS = 25_000
+
+      if (!lastBeat || now.getTime() - lastBeat.getTime() > HEARTBEAT_INTERVAL_MS) {
+        const nowIso = now.toISOString()
+        await supabase
+          .from('kiosks')
+          .update({ last_heartbeat_at: nowIso, status: 'online' })
+          .eq('id', data.id)
+        return mapRowToTerminal({ ...data, last_heartbeat_at: nowIso, status: 'online' })
+      }
+
+      return mapRowToTerminal(data)
     } catch {
       return null
     }

@@ -129,15 +129,65 @@ export interface MemberAssignmentRow {
   job_title: string | null
 }
 
+export type AssignmentType =
+  | 'primary'
+  | 'joint'
+  | 'adjunct'
+  | 'secondment'
+  | 'affiliate'
+
+/** Raw organization_unit_members row as returned by Supabase. */
+export interface OrganizationUnitMemberRow {
+  id: string
+  workspace_id: string
+  unit_id: string
+  member_id: string
+  is_primary: boolean
+  job_title: string | null
+  assignment_type: AssignmentType
+  reports_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Domain model for a member's assignment to an organization unit. */
+export interface OrganizationUnitMember {
+  id: string
+  workspaceId: string
+  unitId: string
+  memberId: string
+  isPrimary: boolean
+  jobTitle?: string | null
+  assignmentType: AssignmentType
+  reportsTo?: string | null
+  createdAt?: string
+  updatedAt?: string
+  unit?: OrgUnit
+}
+
+/** Input for assigning a member to a unit. */
+export interface AssignMemberInput {
+  memberId: string
+  unitId: string
+  reportsTo?: string | null
+  jobTitle?: string | null
+  isPrimary?: boolean
+  assignmentType?: AssignmentType
+}
+
 /** Result of assigning a member to a unit / supervisor. */
 export interface MemberAssignment {
   memberId: string
   unitId: string | null
   reportsTo: string | null
   jobTitle: string | null
+  isPrimary?: boolean
+  assignmentType?: AssignmentType
+  assignments?: OrganizationUnitMember[]
 }
 
 /** A member's reporting chain: workspace root down to their own unit (inclusive). */
 export interface MemberUnitLineage extends MemberAssignment {
   lineage: OrgUnit[]
+  allAssignedUnits?: OrgUnit[]
 }

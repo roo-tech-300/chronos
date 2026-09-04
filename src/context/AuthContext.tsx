@@ -18,23 +18,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let avatarUrl = meta.avatar_url || meta.picture
     const email = u.email || ''
 
-    // Attempt to query Supabase profiles table for any updated user display details
-    try {
-      const supabase = getSupabase()
-      const { data: dbProfile } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('id', u.id)
-        .single()
-
-      if (dbProfile) {
-        if (dbProfile.full_name) fullName = dbProfile.full_name
-        if (dbProfile.avatar_url) avatarUrl = dbProfile.avatar_url
-      }
-    } catch {
-      // Graceful fallback to user metadata
-    }
-
     if (!fullName) {
       fullName = email ? email.split('@')[0] : 'User'
     }

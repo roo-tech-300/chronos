@@ -74,7 +74,7 @@ export async function fetchLiveHeadcount(
 
     // Resolve human names and profile metadata
     const onSiteMemberIds = onSiteRows.map((r) => r.memberId)
-    const profileMap = await resolveMemberNameMap(onSiteMemberIds)
+    const profileMap = await resolveMemberNameMap(onSiteMemberIds, workspaceId)
 
     const onSiteMembers: OnSiteMember[] = onSiteRows.map((row) => {
       const resolvedName = profileMap.get(row.memberId) || 'Staff Member'

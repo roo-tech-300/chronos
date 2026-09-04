@@ -1,3 +1,5 @@
+import type { OrganizationUnitMember } from './organization'
+
 export type TaskType = 'recurring' | 'special'
 export type TaskPriority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'not_done' | 'submitted' | 'approved'
@@ -117,6 +119,10 @@ export interface WorkspaceMemberRecord {
   department: string
   /** organization_units.id this member is placed in (null when unassigned) */
   unitId?: string
+  /** All unit IDs this member belongs to (primary and secondary) */
+  unitIds?: string[]
+  /** Detailed assignments to organization units */
+  assignments?: OrganizationUnitMember[]
   /** workspace_members.job_title */
   jobTitle?: string
 }
