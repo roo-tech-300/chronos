@@ -7,6 +7,8 @@ import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
 import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
 import AppNavbar from './components/layout/AppNavbar'
 import { UnitDepartmentHeader } from './components/unit-view/UnitDepartmentHeader'
+import { UnitMetricsBar } from './components/unit-view/UnitMetricsBar'
+import { UnitSubDepartmentsTab } from './components/unit-view/UnitSubDepartmentsTab'
 import TaskModal from './components/tasks/TaskModal'
 import { AssignMemberModal } from './components/settings/AssignMemberModal'
 import { getUnitBreadcrumb } from './utils/orgUnitTree'
@@ -94,6 +96,9 @@ export default function UnitDepartmentPage() {
           />
 
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+            {/* Scoped KPI Bar */}
+            <UnitMetricsBar memberCount={members.length} tasks={tasks} />
+
             {/* Tab Navigation */}
             <div className="flex items-center gap-2 border-b border-zinc-200 mb-6 overflow-x-auto">
               <button
@@ -151,9 +156,12 @@ export default function UnitDepartmentPage() {
                 </div>
               )}
               {activeTab === 'subunits' && (
-                <div className="bg-white rounded-xl border border-zinc-200 p-6 text-sm text-zinc-500">
-                  Sub-departments container ({childUnits.length} child units)
-                </div>
+                <UnitSubDepartmentsTab
+                  childUnits={childUnits}
+                  workspaceId={activeWorkspaceId}
+                  allUnits={units}
+                  roster={roster}
+                />
               )}
             </div>
           </main>
