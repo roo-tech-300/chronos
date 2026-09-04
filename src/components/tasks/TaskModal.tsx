@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Plus, Check, Users } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import type { TaskPriority, TaskType, CreateTaskInput } from '../../types/tasks'
 import { useWorkspaceRoster } from '../../hooks/useWorkspaceRoster'
 import { Modal, Button, Input, Select } from '../ui'
+import { TaskStaffSelector } from './TaskStaffSelector'
+import type { StaffOption } from './TaskStaffSelector'
 
 interface TaskModalProps {
   open: boolean
@@ -10,13 +12,6 @@ interface TaskModalProps {
   onCreateBatch: (tasks: CreateTaskInput[]) => void | Promise<unknown>
   workspaceId?: string
   departmentName?: string
-}
-
-interface AssigneeOption {
-  id: string
-  name: string
-  role: string
-  subDepartment: string
 }
 
 export default function TaskModal({
@@ -32,10 +27,12 @@ export default function TaskModal({
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [recurrence, setRecurrence] = useState('Every weekday at 09:00 AM')
   const [dueDate, setDueDate] = useState('Today, 05:00 PM')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const { roster } = useWorkspaceRoster(workspaceId)
 
-  const staffList = useMemo<AssigneeOption[]>(() => {
+  const staffList = useMemo<StaffOption[]>(() => {
     // Pure DB roster - never seeded with mock members.
     return roster.map((m) => ({
       id: m.memberId,
@@ -51,6 +48,8 @@ export default function TaskModal({
   const activeSelectedIds = selectedStaffIds.length > 0
     ? selectedStaffIds
     : defaultAssigneeId ? [defaultAssigneeId] : []
+
+  const isAllSelected = activeSelectedIds.length === staffList.length
 
   function toggleStaff(id: string) {
     setSelectedStaffIds((prev) => {
@@ -71,8 +70,9 @@ export default function TaskModal({
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitError(null)
     if (!title.trim() || activeSelectedIds.length === 0) return
 
     const selectedOptions = staffList.filter((s) => activeSelectedIds.includes(s.id))
@@ -94,14 +94,19 @@ export default function TaskModal({
       estimatedMins: 30,
     }))
 
-    onCreateBatch(batch)
-    setTitle('')
-    setDescription('')
-    setSelectedStaffIds([])
-    onClose()
+    setIsSubmitting(true)
+    try {
+      await onCreateBatch(batch)
+      setTitle('')
+      setDescription('')
+      setSelectedStaffIds([])
+      onClose()
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to create tasks')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-
-  const isAllSelected = activeSelectedIds.length === staffList.length
 
   return (
     <Modal
@@ -134,67 +139,13 @@ export default function TaskModal({
           />
         </div>
 
-        {/* Multi-Staff Selection Matrix */}
-        <div className="flex flex-col gap-2 p-3 rounded-xl border border-zinc-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wide">
-              <Users size={14} className="text-zinc-500" />
-              <span>Assign To Staff ({activeSelectedIds.length} selected)</span>
-            </div>
-            <button
-              type="button"
-              onClick={toggleAllStaff}
-              className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
-            >
-              {isAllSelected ? 'Deselect All' : 'Select All Staff'}
-            </button>
-          </div>
-
-          <p className="text-[11px] text-zinc-500 leading-tight">
-            Each chosen person will receive their own independent task to complete and submit.
-          </p>
-
-          {staffList.length === 0 && (
-            <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5">
-              No staff members exist in this workspace yet. Add team members to the roster before
-              assigning tasks.
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-            {staffList.map((staff) => {
-              const isChecked = activeSelectedIds.includes(staff.id)
-              return (
-                <button
-                  type="button"
-                  key={staff.id}
-                  onClick={() => toggleStaff(staff.id)}
-                  className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                    isChecked
-                      ? 'bg-white border-zinc-900 shadow-xs'
-                      : 'bg-white/60 border-zinc-200 hover:border-zinc-300'
-                  }`}
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="text-xs font-bold text-zinc-900 truncate">
-                      {staff.name}
-                    </div>
-                    <div className="text-[10.5px] text-zinc-500 truncate">
-                      {staff.subDepartment}
-                    </div>
-                  </div>
-                  <div
-                    className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${
-                      isChecked ? 'bg-zinc-900 text-white' : 'border border-zinc-300 bg-white'
-                    }`}
-                  >
-                    {isChecked && <Check size={12} strokeWidth={3} />}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <TaskStaffSelector
+          staffList={staffList}
+          selectedIds={activeSelectedIds}
+          onToggleStaff={toggleStaff}
+          onToggleAll={toggleAllStaff}
+          isAllSelected={isAllSelected}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
@@ -235,16 +186,33 @@ export default function TaskModal({
           />
         )}
 
+        {submitError && (
+          <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+            {submitError}
+          </p>
+        )}
+
         <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
           <span className="text-xs text-zinc-500">
             Creates <strong>{activeSelectedIds.length}</strong> independent{' '}
             {activeSelectedIds.length === 1 ? 'task' : 'tasks'}
           </span>
           <div className="flex items-center gap-3">
-            <Button variant="outline" type="button" onClick={onClose}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button variant="primary" type="submit" leftIcon={<Plus size={16} />}>
+            <Button
+              variant="primary"
+              type="submit"
+              leftIcon={<Plus size={16} />}
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
+            >
               Create{' '}
               {activeSelectedIds.length > 1 ? `${activeSelectedIds.length} Tasks` : 'Task'}
             </Button>
