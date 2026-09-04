@@ -173,7 +173,7 @@ export class TerminalSupabaseService {
         foundInDifferentWorkspace: false,
         matchedWorkspaceId: primaryMatch.workspace_id,
       }
-    } catch (err) {
+    } catch {
       return { match: null, foundInDifferentWorkspace: false }
     }
   }

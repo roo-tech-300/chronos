@@ -4,7 +4,9 @@ import { ShieldCheck, LogOut } from 'lucide-react'
 import { useTerminalAuth } from './hooks/useTerminalAuth'
 import { useTauriEnvironment } from './hooks/useTauriEnvironment'
 import { useKioskScan } from './hooks/useKioskScan'
+import { useOfflineSync } from './hooks/useOfflineSync'
 import { KioskHeader } from './components/kiosk/KioskHeader'
+import { KioskOfflineBanner } from './components/kiosk/KioskOfflineBanner'
 import { KioskScanSensor } from './components/kiosk/KioskScanSensor'
 import { KioskSuccessCard } from './components/kiosk/KioskSuccessCard'
 import { KioskUnpairModal } from './components/kiosk/KioskUnpairModal'
@@ -33,6 +35,9 @@ export default function KioskScanPage() {
     triggerScan,
   } = useKioskScan(activeTerminal)
 
+  const { isOnline, queuedCount, isSyncing, lastFlushedCount, flushNow } =
+    useOfflineSync(activeTerminal.workspaceId)
+
   const [currentTime, setCurrentTime] = useState(new Date())
   const [unpairModalOpen, setUnpairModalOpen] = useState(false)
 
@@ -49,6 +54,14 @@ export default function KioskScanPage() {
         isWindowsApp={isWindowsApp}
         devBypassActive={devBypassActive}
         onOpenOptions={() => setUnpairModalOpen(true)}
+      />
+
+      <KioskOfflineBanner
+        isOnline={isOnline}
+        queuedCount={queuedCount}
+        isSyncing={isSyncing}
+        lastFlushedCount={lastFlushedCount}
+        onFlushNow={flushNow}
       />
 
       {/* Centerpiece Scanner / Confirmation Feed */}

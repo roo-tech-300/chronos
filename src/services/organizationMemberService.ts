@@ -7,11 +7,11 @@ import type {
   MemberUnitLineage,
   OrganizationUnitMember,
   OrganizationUnitMemberRow,
-  OrganizationUnitRow,
   OrgUnit,
 } from '../types/organization'
 import { mapUnitRow } from './organizationUnitService'
 import {
+  assertOrganizationUnitMemberRow,
   assertOrganizationUnitMemberRows,
   assertOrganizationUnitRow,
   assertOrganizationUnitRows,

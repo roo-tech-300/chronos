@@ -15,7 +15,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const meta = (u.user_metadata || {}) as Record<string, string | undefined>
     const role: PersonaRole = (meta.role as PersonaRole) || 'staff'
     let fullName = meta.full_name || meta.name || meta.user_name || ''
-    let avatarUrl = meta.avatar_url || meta.picture
+    const avatarUrl = meta.avatar_url || meta.picture
     const email = u.email || ''
 
     if (!fullName) {

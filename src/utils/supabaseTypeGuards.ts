@@ -1,4 +1,5 @@
 import type {
+  AssignmentType,
   OrganizationUnitMemberRow,
   OrganizationUnitRow,
 } from '../types/organization'
@@ -23,13 +24,13 @@ function isString(value: unknown): value is string {
 /** Asserts a value is a valid OrganizationUnitRow (snake_case DB shape). */
 export function assertOrganizationUnitRow(value: unknown): OrganizationUnitRow {
   if (!isObject(value)) throw new TypeError('Expected object for OrganizationUnitRow')
-  return value as OrganizationUnitRow
+  return value as unknown as OrganizationUnitRow
 }
 
 /** Asserts a value is a valid OrganizationUnitMemberRow. */
 export function assertOrganizationUnitMemberRow(value: unknown): OrganizationUnitMemberRow {
   if (!isObject(value)) throw new TypeError('Expected object for OrganizationUnitMemberRow')
-  return value as OrganizationUnitMemberRow
+  return value as unknown as OrganizationUnitMemberRow
 }
 
 /** Asserts an array of OrganizationUnitRow from a Supabase query. */
@@ -81,7 +82,7 @@ export interface MemberWithAssignmentRow {
   unit_id: string
   member_id: string
   is_primary: boolean
-  assignment_type: string
+  assignment_type: AssignmentType
   job_title: string | null
   reports_to: string | null
   member: {
@@ -125,7 +126,7 @@ export interface WorkspaceProfileUpdateResult {
 /** Asserts a value is a valid WorkspaceProfileUpdateResult. */
 export function assertWorkspaceProfileUpdateResult(value: unknown): WorkspaceProfileUpdateResult {
   if (!isObject(value)) throw new TypeError('Expected object for WorkspaceProfileUpdateResult')
-  return value as WorkspaceProfileUpdateResult
+  return value as unknown as WorkspaceProfileUpdateResult
 }
 
 /** Raw workspace row shape from nested relation selects with count aggregates. */
@@ -146,5 +147,5 @@ export interface WorkspaceWithCounts {
 /** Asserts a value is a valid WorkspaceWithCounts (nested relation shape). */
 export function assertWorkspaceWithCounts(value: unknown): WorkspaceWithCounts {
   if (!isObject(value)) throw new TypeError('Expected object for WorkspaceWithCounts')
-  return value as WorkspaceWithCounts
+  return value as unknown as WorkspaceWithCounts
 }

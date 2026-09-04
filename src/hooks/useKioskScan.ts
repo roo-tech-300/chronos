@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { futronicBridge } from '../services/futronicBridge'
 import { logAttendanceScan } from '../services/attendanceService'
 import { resolveStaffByMemberId } from '../services/identityResolver'
+import { getMemberTodayTaskBrief, type MemberTaskBrief } from '../services/attendanceTaskLinker'
 import type { TerminalDevice, NodeBridgeMatch } from '../types/terminal'
 import type { AttendanceDirection } from '../types/attendance'
 
@@ -15,6 +16,7 @@ export interface ScannedStaffResult {
   type: 'Check-In' | 'Check-Out'
   statusMessage?: string
   dbSaved?: boolean
+  taskBrief?: MemberTaskBrief
 }
 
 export function useKioskScan(terminal: TerminalDevice | null) {
@@ -76,6 +78,9 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           second: '2-digit',
         })
 
+        // Fetch today's pending tasks brief for the scanned member
+        const taskBrief = await getMemberTodayTaskBrief(resolved.memberId, workspaceId)
+
         setLastScannedStaff({
           name: resolved.name,
           id: resolved.memberId,
@@ -86,6 +91,7 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           type: resolvedDirection === 'in' ? 'Check-In' : 'Check-Out',
           statusMessage: result.message,
           dbSaved: result.dbSaved,
+          taskBrief,
         })
         setScanStatus('success')
       } catch (err) {

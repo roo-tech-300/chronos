@@ -3,11 +3,18 @@ import { Download, MoreVertical } from 'lucide-react'
 import { analyticsEntries } from './dummy/analytics-mock'
 import AppNavbar from './components/layout/AppNavbar'
 import { Button, Select, Badge, Pagination, Modal, Toolbar } from './components/ui'
+import { evaluatePunctuality } from './services/shiftPolicyService'
+import { PunctualityBadge } from './components/analytics/PunctualityBadge'
+import { useWorkspace } from './context/useWorkspace'
+import { useRealtimeAttendance } from './hooks/useRealtimeAttendance'
 import './styles/analytics-page.css'
 import './styles/analytics-table.css'
 import './styles/analytics-modal.css'
 
 export default function AnalyticsPage() {
+  const { currentWorkspace } = useWorkspace()
+  useRealtimeAttendance(currentWorkspace?.id)
+
   const [exportOpen, setExportOpen] = useState(false)
   const [format, setFormat] = useState<'excel' | 'csv'>('excel')
   const [currentPage, setCurrentPage] = useState(1)
@@ -88,37 +95,53 @@ export default function AnalyticsPage() {
                 <th>Staff ID</th>
                 <th>Staff Name / Dept</th>
                 <th>Log Type</th>
+                <th>Punctuality</th>
                 <th>Station ID</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {analyticsEntries.map((e, i) => (
-                <tr key={i}>
-                  <td>
-                    <div>{e.date}</div>
-                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{e.time}</div>
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{e.staffId}</td>
-                  <td>
-                    <div className="an-cell-staff">
-                      <span className="an-staff-name">{e.staffName}</span>
-                      <span className="an-staff-dept">{e.department}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <Badge variant={getLogBadgeVariant(e.logType)} showDot>
-                      {e.logType}
-                    </Badge>
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 500 }}>{e.stationId}</td>
-                  <td>
-                    <button className="an-action-btn" aria-label="More options">
-                      <MoreVertical size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {analyticsEntries.map((e, i) => {
+                const isEntry = e.logType.toLowerCase().includes('in') || e.logType.toLowerCase().includes('arrival')
+                const [timePart, modifier] = e.time.split(' ')
+                const [hStr, mStr] = timePart.split(':')
+                let h = parseInt(hStr, 10)
+                if (modifier === 'PM' && h < 12) h += 12
+                if (modifier === 'AM' && h === 12) h = 0
+                const fakeDate = new Date()
+                fakeDate.setHours(h, parseInt(mStr, 10), 0)
+                const punct = evaluatePunctuality(fakeDate, isEntry ? 'in' : 'out')
+
+                return (
+                  <tr key={i}>
+                    <td>
+                      <div>{e.date}</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af' }}>{e.time}</div>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{e.staffId}</td>
+                    <td>
+                      <div className="an-cell-staff">
+                        <span className="an-staff-name">{e.staffName}</span>
+                        <span className="an-staff-dept">{e.department}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <Badge variant={getLogBadgeVariant(e.logType)} showDot>
+                        {e.logType}
+                      </Badge>
+                    </td>
+                    <td>
+                      <PunctualityBadge evaluation={punct} />
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontWeight: 500 }}>{e.stationId}</td>
+                    <td>
+                      <button className="an-action-btn" aria-label="More options">
+                        <MoreVertical size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
 

@@ -1,5 +1,6 @@
 import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
+import { enqueueOfflineScan } from './terminalOfflineQueue'
 import type {
   AttendanceLog,
   AttendanceDirection,
@@ -160,6 +161,17 @@ export async function logAttendanceScan(
     }
   }
 
+  // If device is offline, enqueue directly to local storage queue
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    enqueueOfflineScan(params)
+    return {
+      success: true,
+      log: buildSyntheticLog(cleanMemberId, cleanWorkspaceId, validTerminalId, direction, scanIso, verificationMode, confidenceScore),
+      dbSaved: false,
+      message: `${directionLabel(direction)} verified (Offline mode - queued for auto-sync).`,
+    }
+  }
+
   const insertPayload = {
     workspace_id: cleanWorkspaceId,
     member_id: cleanMemberId,
@@ -182,23 +194,14 @@ export async function logAttendanceScan(
 
     if (error) {
       console.warn('[Attendance] Supabase insert warning (RLS or policy):', error.message)
+      enqueueOfflineScan(params)
       return {
         success: true,
-        log: buildSyntheticLog(
-          cleanMemberId,
-          cleanWorkspaceId,
-          validTerminalId,
-          direction,
-          scanIso,
-          verificationMode,
-          confidenceScore
-        ),
+        log: buildSyntheticLog(cleanMemberId, cleanWorkspaceId, validTerminalId, direction, scanIso, verificationMode, confidenceScore),
         dbSaved: false,
-        message: `${directionLabel(direction)} verified (Buffer: ${error.message})`,
+        message: `${directionLabel(direction)} verified (Buffered offline: ${error.message})`,
       }
     }
-
-    console.log('[Attendance] Successfully saved attendance log to Supabase:', data?.id)
 
     return {
       success: true,
@@ -219,7 +222,13 @@ export async function logAttendanceScan(
     }
   } catch (err) {
     console.error('[Attendance] Exception in logAttendanceScan:', err)
-    return { success: false, message: err instanceof Error ? err.message : 'Unknown scan error' }
+    enqueueOfflineScan(params)
+    return {
+      success: true,
+      log: buildSyntheticLog(cleanMemberId, cleanWorkspaceId, validTerminalId, direction, scanIso, verificationMode, confidenceScore),
+      dbSaved: false,
+      message: `${directionLabel(direction)} verified (Buffered offline after network error).`,
+    }
   }
 }
 

@@ -51,7 +51,7 @@ export function useTerminalAuth() {
       return null
     },
     staleTime: 1000 * 15,
-    refetchInterval: (_query) => {
+    refetchInterval: () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
       return 30000
     },

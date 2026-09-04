@@ -7,12 +7,13 @@ import UnitHierarchySection from './components/settings/UnitHierarchySection'
 import RoleList from './components/settings/RoleList'
 import RoleModal from './components/settings/RoleModal'
 import OrgGeneralCard from './components/settings/OrgGeneralCard'
+import ShiftPolicyCard from './components/settings/ShiftPolicyCard'
 import './styles/org-settings.css'
 
 export default function OrgSettingsPage() {
   const { accentColor = '#7c007e' } = useWorkspace()
   const [roles, setRoles] = useState<OrgRole[]>(initialRoles)
-  const [activeTab, setActiveTab] = useState<'overview' | 'hierarchy' | 'roles'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'hierarchy' | 'roles' | 'shifts'>('overview')
 
   // Role Modal State
   const [roleModalOpen, setRoleModalOpen] = useState(false)
@@ -116,6 +117,24 @@ export default function OrgSettingsPage() {
           >
             Roles & Permissions
           </button>
+          <button
+            type="button"
+            style={{
+              padding: '10px 0',
+              fontSize: 13.5,
+              fontWeight: activeTab === 'shifts' ? 700 : 500,
+              color: activeTab === 'shifts' ? accentColor : '#4b5563',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'shifts' ? `2.5px solid ${accentColor}` : '2.5px solid transparent',
+              cursor: 'pointer',
+              marginBottom: -1,
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setActiveTab('shifts')}
+          >
+            Shift Schedules
+          </button>
         </div>
 
         {activeTab === 'hierarchy' && <UnitHierarchySection />}
@@ -136,6 +155,8 @@ export default function OrgSettingsPage() {
         )}
 
         {activeTab === 'overview' && <OrgGeneralCard />}
+
+        {activeTab === 'shifts' && <ShiftPolicyCard />}
       </main>
 
       <RoleModal

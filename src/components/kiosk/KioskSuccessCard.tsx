@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, Database, CloudOff } from 'lucide-react'
+import { AlertCircle, Clock, Database, CloudOff, CheckSquare } from 'lucide-react'
 import { getInitials } from '../../dummy/roster-mock'
 import type { ScannedStaffResult } from '../../hooks/useKioskScan'
 
@@ -81,6 +81,18 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
 
       {staff.dept && (
         <p className="text-xs font-mono text-zinc-500 mt-1.5 font-medium">{staff.dept}</p>
+      )}
+
+      {staff.taskBrief && staff.taskBrief.openTasks > 0 && (
+        <div className="mt-3.5 px-3.5 py-2 rounded-xl bg-purple-50 border border-purple-200/70 text-xs text-purple-900 flex items-center justify-center gap-2">
+          <CheckSquare size={14} className="text-[#7c007e] shrink-0" />
+          <span>
+            <strong>{staff.taskBrief.openTasks} open task{staff.taskBrief.openTasks > 1 ? 's' : ''}</strong> assigned for today
+            {staff.taskBrief.highPriorityTasks > 0 && (
+              <span className="text-rose-700 font-bold ml-1">({staff.taskBrief.highPriorityTasks} High Priority)</span>
+            )}
+          </span>
+        </div>
       )}
 
       <div className="mt-5 pt-4 border-t border-zinc-100 flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-mono font-bold">

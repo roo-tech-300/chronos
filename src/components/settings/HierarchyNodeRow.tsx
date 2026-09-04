@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ChevronRight, ChevronDown, Edit3, Trash2,
-  User, Users, UserPlus, Landmark, Building2,
+  User, Users, UserPlus, Landmark, Building2, ExternalLink,
 } from 'lucide-react'
 import type { OrgUnit } from '../../types/organization'
 import type { OrgUnitNode } from '../../utils/orgUnitTree'
@@ -35,7 +36,9 @@ export default function HierarchyNodeRow({
   onDeleteNode,
   onManageMembers,
 }: HierarchyNodeRowProps) {
-  const { accentColor = '#7c007e' } = useWorkspace()
+  const { accentColor = '#7c007e', currentWorkspace } = useWorkspace()
+  const workspaceId = currentWorkspace?.id
+  const unitPath = workspaceId ? `/workspace/${workspaceId}/units/${node.id}` : `/units/${node.id}`
   const [expanded, setExpanded] = useState(depth === 0)
   const hasChildren = node.children.length > 0
   const isApex = depth === 0
@@ -88,9 +91,14 @@ export default function HierarchyNodeRow({
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className={`text-zinc-900 ${isApex ? 'text-[15px] font-bold' : 'text-[14px] font-semibold'}`}>
+            <Link
+              to={unitPath}
+              onClick={(e) => e.stopPropagation()}
+              className={`text-zinc-900 hover:text-[#7c007e] transition-colors ${isApex ? 'text-[15px] font-bold' : 'text-[14px] font-semibold'}`}
+              title="Open Department Workspace"
+            >
               {node.name} {node.code ? `(${node.code})` : ''}
-            </span>
+            </Link>
 
             <span
               className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
@@ -149,6 +157,14 @@ export default function HierarchyNodeRow({
           className="flex items-center gap-1.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end"
           onClick={(e) => e.stopPropagation()}
         >
+          <Link
+            to={unitPath}
+            title="Open Department Workspace"
+            className="p-1.5 text-zinc-500 hover:text-[#7c007e] hover:bg-[#7c007e]/10 rounded-md transition-colors"
+          >
+            <ExternalLink size={15} />
+          </Link>
+
           <button
             type="button"
             className="text-[12px] font-bold px-2.5 py-1 rounded transition-colors whitespace-nowrap cursor-pointer"

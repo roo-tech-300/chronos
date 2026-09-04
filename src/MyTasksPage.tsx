@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import AppNavbar from './components/layout/AppNavbar'
 import { useWorkspace } from './context/useWorkspace'
 import { useCurrentWorkspaceMember } from './hooks/useCurrentWorkspaceMember'
 import { useMyDayTasks } from './hooks/useMyDayTasks'
+import { getLastScanToday } from './services/attendanceService'
+import { evaluatePunctuality } from './services/shiftPolicyService'
 import { orderDayTasks } from './utils/dayTasks'
 import { getInitials } from './utils/taskAggregation'
 import type { TaskItem, TaskSubmissionPayload } from './types/tasks'
@@ -21,6 +24,27 @@ export default function MyTasksPage() {
 
   // Real signed-in identity for this workspace (DB record, never a persona).
   const { member } = useCurrentWorkspaceMember(activeWorkspaceId)
+
+  // Verified attendance record today
+  const { data: todayScan } = useQuery({
+    queryKey: ['member-last-scan', member?.memberId],
+    queryFn: () => (member?.memberId ? getLastScanToday(member.memberId) : null),
+    enabled: Boolean(member?.memberId),
+    refetchInterval: 30000,
+  })
+
+  const punctuality = useMemo(() => {
+    if (!todayScan?.scanTimestamp) return null
+    return evaluatePunctuality(todayScan.scanTimestamp, todayScan.direction || 'in')
+  }, [todayScan])
+
+  const clockInTimeStr = useMemo(() => {
+    if (!todayScan?.scanTimestamp) return undefined
+    return new Date(todayScan.scanTimestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }, [todayScan])
 
   const { tasks, submitCompletion } = useMyDayTasks(member?.memberId)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
@@ -68,6 +92,9 @@ export default function MyTasksPage() {
             role={member?.roleLabel || 'Staff Member'}
             subDepartment={member?.department || 'General Staff'}
             initials={getInitials(member?.name || 'Staff')}
+            clockInTime={clockInTimeStr}
+            punctualityLabel={punctuality?.statusLabel}
+            shiftName={punctuality?.shiftName}
           />
 
           <MyDaySummary tasks={tasks} />

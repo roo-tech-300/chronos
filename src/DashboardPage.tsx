@@ -1,4 +1,5 @@
 import { useWorkspace } from './context/useWorkspace'
+import { useRealtimeAttendance } from './hooks/useRealtimeAttendance'
 import AppNavbar from './components/layout/AppNavbar'
 import { DashboardMetrics } from './components/dashboard/DashboardMetrics'
 import { AttendanceChartCard } from './components/dashboard/AttendanceChartCard'
@@ -10,6 +11,9 @@ import './styles/dashboard-widgets.css'
 export default function DashboardPage() {
   const { currentWorkspace, accentColor } = useWorkspace()
   const brandTitle = currentWorkspace?.name || 'Natale'
+
+  // Subscribes to live Supabase telemetry websocket events for instant UI synchronization
+  useRealtimeAttendance(currentWorkspace?.id)
 
   return (
     <div

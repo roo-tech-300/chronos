@@ -61,3 +61,32 @@ export function buildUnitOverviews(
     }
   })
 }
+
+/** Filters tasks belonging to a specific unit (or its subtree). */
+export function filterTasksByUnit(
+  tasks: TaskItem[],
+  unitId: string,
+  units: OrgUnit[],
+  roster: WorkspaceMemberRecord[],
+  includeSubtree: boolean,
+): TaskItem[] {
+  const current = units.find((u) => u.id === unitId)
+  if (!current) return []
+  const subtreeIds = new Set(includeSubtree ? collectSubtreeIds(units, unitId) : [unitId])
+  const unitNames = new Set(
+    units.filter((u) => subtreeIds.has(u.id)).map((u) => u.name.toLowerCase())
+  )
+  const assigneeIds = resolveScopeAssigneeIds(
+    units,
+    roster,
+    unitId,
+    includeSubtree ? 'subtree' : 'direct'
+  )
+
+  return tasks.filter((t) => {
+    if (t.assigneeMemberId && assigneeIds?.has(t.assigneeMemberId)) return true
+    if (t.department && unitNames.has(t.department.toLowerCase())) return true
+    if (t.subDepartment && unitNames.has(t.subDepartment.toLowerCase())) return true
+    return false
+  })
+}
