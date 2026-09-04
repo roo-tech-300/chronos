@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
-import { CheckSquare, Users, GitFork, ArrowLeft } from 'lucide-react'
+import { CheckSquare, Users, GitFork, ArrowLeft, AlertCircle } from 'lucide-react'
 import { useWorkspace } from './context/useWorkspace'
 import { useWorkspaceUnits, useUnitMembers } from './hooks/useOrganizationUnits'
 import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
@@ -9,6 +9,7 @@ import AppNavbar from './components/layout/AppNavbar'
 import { UnitDepartmentHeader } from './components/unit-view/UnitDepartmentHeader'
 import TaskModal from './components/tasks/TaskModal'
 import { AssignMemberModal } from './components/settings/AssignMemberModal'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { getUnitBreadcrumb } from './utils/orgUnitTree'
 import { Button } from './components/ui'
 import type { CreateTaskInput } from './types/tasks'
@@ -28,6 +29,7 @@ export default function UnitDepartmentPage() {
   const [activeTab, setActiveTab] = useState<UnitDepartmentTab>('tasks')
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const currentUnit = useMemo(() => {
     return units.find((u) => u.id === unitId) ?? null
@@ -54,8 +56,13 @@ export default function UnitDepartmentPage() {
   }
 
   const handleCreateTasks = async (newTasks: CreateTaskInput[]) => {
-    await createBatch(newTasks)
-    setIsTaskModalOpen(false)
+    setCreateError(null)
+    try {
+      await createBatch(newTasks)
+      setIsTaskModalOpen(false)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create tasks. Please try again.')
+    }
   }
 
   return (
@@ -83,7 +90,22 @@ export default function UnitDepartmentPage() {
           </Button>
         </div>
       ) : (
-        <>
+        <ErrorBoundary>
+          {createError && (
+            <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{createError}</span>
+                <button
+                  type="button"
+                  onClick={() => setCreateError(null)}
+                  className="ml-auto font-semibold hover:text-rose-900 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           <UnitDepartmentHeader
             unit={currentUnit}
             breadcrumbs={breadcrumbs}
@@ -173,7 +195,7 @@ export default function UnitDepartmentPage() {
             onClose={() => setIsStaffModalOpen(false)}
             onSuccess={() => refetchMembers()}
           />
-        </>
+        </ErrorBoundary>
       )}
     </div>
   )

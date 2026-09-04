@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, UserPlus } from 'lucide-react'
+import { Users, UserPlus, AlertCircle } from 'lucide-react'
 import type { OrgUnit } from '../../types/organization'
 import { useUnitMembers, useWorkspaceUnits } from '../../hooks/useOrganizationUnits'
 import { Modal, Button, Badge } from '../ui'
@@ -20,13 +20,19 @@ export function UnitMembersModal({
   onClose,
 }: UnitMembersModalProps) {
   const [isAssignOpen, setIsAssignOpen] = useState(false)
+  const [removeError, setRemoveError] = useState<string | null>(null)
   const { data: members = [], isLoading } = useUnitMembers(unit?.id)
   const { removeAssignment, isRemoving } = useWorkspaceUnits(workspaceId)
 
   if (!isOpen || !unit) return null
 
   const handleRemoveMember = async (memberId: string) => {
-    await removeAssignment({ memberId, unitId: unit.id })
+    setRemoveError(null)
+    try {
+      await removeAssignment({ memberId, unitId: unit.id })
+    } catch (err) {
+      setRemoveError(err instanceof Error ? err.message : 'Failed to remove staff member.')
+    }
   }
 
   return (
@@ -55,6 +61,19 @@ export function UnitMembersModal({
         }
       >
         <div className="space-y-4 pt-1">
+          {removeError && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+              <AlertCircle size={15} className="shrink-0" />
+              <span>{removeError}</span>
+              <button
+                type="button"
+                onClick={() => setRemoveError(null)}
+                className="ml-auto font-semibold hover:text-rose-900 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
             <p className="text-xs text-zinc-500">
               Staff members placed in this unit gain hierarchy-scoped access and approval routing.
