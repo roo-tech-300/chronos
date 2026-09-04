@@ -1,0 +1,2 @@
+﻿# Prevent CRLF conversion that corrupts Cargo.lock on Windows
+src-tauri/Cargo.lock text eol=lf
