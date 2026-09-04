@@ -19,6 +19,7 @@ const EMPTY_FORM: WorkspaceProfileUpdates = { name: '', slug: '', category: 'Tec
  * the updateWorkspaceProfile mutation. Falls back to clear states while the
  * row loads, when no workspace is selected, or when the fetch fails.
  */
+
 export default function OrgGeneralCard() {
   const {
     currentWorkspace,
@@ -27,20 +28,35 @@ export default function OrgGeneralCard() {
     accentColor = '#7c007e',
   } = useWorkspace()
   const { saveProfile, isSaving, saveError } = useUpdateWorkspaceProfile()
-  const [formData, setFormData] = useState<WorkspaceProfileUpdates>(EMPTY_FORM)
+  const [formData, setFormData] = useState<WorkspaceProfileUpdates>(() =>
+    currentWorkspace
+      ? {
+          name: currentWorkspace.name,
+          slug: currentWorkspace.slug,
+          category: currentWorkspace.category || 'Technology',
+        }
+      : EMPTY_FORM
+  )
+  const [lastSyncedKey, setLastSyncedKey] = useState<string>(() =>
+    currentWorkspace ? `${currentWorkspace.id}-${currentWorkspace.name}-${currentWorkspace.slug}-${currentWorkspace.category}` : ''
+  )
   const [savedSuccess, setSavedSuccess] = useState(false)
   const successTimerRef = useRef<number | null>(null)
 
-  // Re-sync the editable fields whenever the database row (re)loads or is
-  // refreshed after a save, so normalized values (e.g. slug casing) show up.
-  useEffect(() => {
-    if (!currentWorkspace) return
-    setFormData({
-      name: currentWorkspace.name,
-      slug: currentWorkspace.slug,
-      category: currentWorkspace.category || 'Technology',
-    })
-  }, [currentWorkspace?.id, currentWorkspace?.name, currentWorkspace?.slug, currentWorkspace?.category])
+  // Re-sync the editable fields during render whenever the database row changes
+  const currentKey = currentWorkspace
+    ? `${currentWorkspace.id}-${currentWorkspace.name}-${currentWorkspace.slug}-${currentWorkspace.category}`
+    : ''
+  if (currentKey !== lastSyncedKey) {
+    setLastSyncedKey(currentKey)
+    if (currentWorkspace) {
+      setFormData({
+        name: currentWorkspace.name,
+        slug: currentWorkspace.slug,
+        category: currentWorkspace.category || 'Technology',
+      })
+    }
+  }
 
   // Clear the autonomous success timer on unmount.
   useEffect(() => {
