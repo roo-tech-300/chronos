@@ -78,8 +78,14 @@ export function useKioskScan(terminal: TerminalDevice | null) {
           second: '2-digit',
         })
 
-        // Fetch today's pending tasks brief for the scanned member
-        const taskBrief = await getMemberTodayTaskBrief(resolved.memberId, workspaceId)
+        // Fetch today's pending tasks brief for the scanned member.
+        // The kiosk's device token routes through the anon-safe RPC;
+        // dashboard contexts without a token use the RLS-scoped query.
+        const taskBrief = await getMemberTodayTaskBrief(
+          resolved.memberId,
+          workspaceId,
+          terminal?.deviceToken
+        )
 
         setLastScannedStaff({
           name: resolved.name,
