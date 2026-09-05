@@ -5,7 +5,8 @@ import type { OrgUnit } from '../../types/organization'
 import TaskCard from '../tasks/TaskCard'
 import TaskDetailView from '../tasks/TaskDetailView'
 import { useTaskFilters } from '../../hooks/useTaskFilters'
-import { Button, Modal, SearchInput } from '../ui'
+import { useWorkspace } from '../../context/useWorkspace'
+import { Button, Modal, SearchInput, Tabs } from '../ui'
 
 interface UnitTasksTabProps {
   tasks: TaskItem[]
@@ -29,6 +30,7 @@ export function UnitTasksTab({
   includeSubtree,
   onToggleSubtree,
 }: UnitTasksTabProps) {
+  const { accentColor = '#7c007e' } = useWorkspace()
   const {
     statusFilter,
     setStatusFilter,
@@ -55,71 +57,30 @@ export function UnitTasksTab({
       {/* Control bar: Tabs, Search, Subtree toggle, and Assign Task */}
       <div className="bg-white p-4 rounded-xl border border-zinc-200 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Status filter tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-zinc-100/80 rounded-lg overflow-x-auto max-w-full">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'all'
-                  ? 'bg-white text-zinc-900 shadow-2xs'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              All ({counts.all})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('submitted')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                statusFilter === 'submitted'
-                  ? 'bg-purple-50 text-[#7c007e] shadow-2xs'
-                  : counts.submitted > 0
-                  ? 'text-[#7c007e] font-bold'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              <span>Waiting Approval</span>
-              {counts.submitted > 0 && (
-                <span className="bg-[#7c007e] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                  {counts.submitted}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('approved')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'approved'
-                  ? 'bg-emerald-50 text-emerald-800 shadow-2xs'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              Approved ({counts.approved})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('not_done')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'not_done'
-                  ? 'bg-white text-zinc-900 shadow-2xs'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              Open ({counts.not_done})
-            </button>
-          </div>
+          {/* Status filter tabs — design-system pills, same as the /tasks page */}
+          <Tabs
+            tabs={[
+              { id: 'all', label: 'All', count: counts.all },
+              { id: 'submitted', label: 'Waiting Approval', count: counts.submitted },
+              { id: 'approved', label: 'Approved', count: counts.approved },
+              { id: 'not_done', label: 'Open', count: counts.not_done },
+            ]}
+            activeTab={statusFilter}
+            onChange={(id) => setStatusFilter(id as 'all' | 'submitted' | 'approved' | 'not_done')}
+            variant="pill"
+          />
 
           <div className="flex items-center gap-2">
             {hasSubUnits && (
               <button
                 type="button"
                 onClick={() => onToggleSubtree(!includeSubtree)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   includeSubtree
-                    ? 'bg-zinc-900 text-white border-zinc-900'
-                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                    ? 'text-white shadow-sm ring-1 ring-black/5'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900'
                 }`}
+                style={includeSubtree ? { backgroundColor: accentColor } : undefined}
                 title="Toggle including tasks from sub-departments"
               >
                 <Layers size={14} />

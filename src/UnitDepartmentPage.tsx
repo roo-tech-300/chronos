@@ -8,6 +8,7 @@ import './styles/dashboard-layout.css'
 import './styles/dashboard-widgets.css'
 import { UnitDepartmentHeader } from './components/unit-view/UnitDepartmentHeader'
 import { UnitDashboardGrid } from './components/unit-view/UnitDashboardGrid'
+import { KioskStationCard } from './components/dashboard/KioskStationCard'
 import { UnitStaffTab } from './components/unit-view/UnitStaffTab'
 import { UnitTasksTab } from './components/unit-view/UnitTasksTab'
 import { UnitSubDepartmentsTab } from './components/unit-view/UnitSubDepartmentsTab'
@@ -186,6 +187,11 @@ export default function UnitDepartmentPage() {
                   roster={roster}
                 />
               )}
+            </div>
+
+            {/* Enrolled terminal station — last section on the page */}
+            <div className="mt-6">
+              <KioskStationCard />
             </div>
           </main>
 

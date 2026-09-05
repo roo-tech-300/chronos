@@ -1,6 +1,5 @@
 import { DashboardMetrics } from '../dashboard/DashboardMetrics'
 import { AttendanceChartCard } from '../dashboard/AttendanceChartCard'
-import { KioskStationCard } from '../dashboard/KioskStationCard'
 import { LiveHeadcard } from '../dashboard/LiveHeadcard'
 
 interface UnitDashboardGridProps {
@@ -11,8 +10,9 @@ interface UnitDashboardGridProps {
 
 /**
  * 1:1 replica of the HOD persona dashboard grid: the same dash-grid layout
- * and the same four widget cards the HOD sees on the Dashboard page, scoped
- * to a real organization unit. Tasks / staff / sub-unit tabs render below it.
+ * and widget cards the HOD sees on the Dashboard page, scoped to a real
+ * organization unit. Tasks / staff / sub-unit tabs render below it, with the
+ * enrolled-terminal card closing the page.
  */
 export function UnitDashboardGrid({ unitName, memberCount, subUnitNames }: UnitDashboardGridProps) {
   return (
@@ -20,7 +20,6 @@ export function UnitDashboardGrid({ unitName, memberCount, subUnitNames }: UnitD
       <div className="dash-main-col">
         <DashboardMetrics unitScope={{ name: unitName, memberCount, subUnitNames }} />
         <AttendanceChartCard scopeName={unitName} />
-        <KioskStationCard />
       </div>
       <div className="dash-side-col">
         <LiveHeadcard scopeName={unitName} />
