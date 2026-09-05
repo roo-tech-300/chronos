@@ -23,7 +23,7 @@ export function UnitDepartmentHeader({
   const wsPrefix = workspaceId ? `/workspace/${workspaceId}` : ''
 
   return (
-    <div className="bg-white border-b border-zinc-200 px-6 py-5">
+    <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-sm border-b border-zinc-200 px-6 py-5 shadow-sm">
       {/* Top breadcrumb & back row */}
       <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
         <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium overflow-x-auto">
