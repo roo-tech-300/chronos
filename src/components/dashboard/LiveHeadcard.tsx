@@ -4,13 +4,19 @@ import { useDevPersona } from '../../context/DevPersonaContext'
 import { useWorkspace } from '../../context/useWorkspace'
 import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 
-export function LiveHeadcard() {
+interface LiveHeadcardProps {
+  /** When set, labels the live feed for a real unit instead of the dev persona. */
+  scopeName?: string
+}
+
+export function LiveHeadcard({ scopeName }: LiveHeadcardProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, stats, accentColor } = useWorkspace()
   const { summary, onSiteMembers, liveScans } = useAttendanceMetrics(
     currentWorkspace?.id,
     stats.totalStaff || 1
   )
+  const isUnitScope = Boolean(scopeName)
 
   const displayList = useMemo(() => {
     if (onSiteMembers && onSiteMembers.length > 0) {
@@ -36,9 +42,11 @@ export function LiveHeadcard() {
       </div>
 
       <p className="dash-headcard-count" style={{ color: accentColor }}>
-        {role === 'admin'
-          ? `${liveOnSiteCount} Staff ${liveOnSiteCount === 1 ? 'Member' : 'Members'} On-Site`
-          : `${liveOnSiteCount} Department ${liveOnSiteCount === 1 ? 'Member' : 'Members'} On-Site`}
+        {isUnitScope
+          ? `${liveOnSiteCount} Unit ${liveOnSiteCount === 1 ? 'Member' : 'Members'} On-Site`
+          : role === 'admin'
+            ? `${liveOnSiteCount} Staff ${liveOnSiteCount === 1 ? 'Member' : 'Members'} On-Site`
+            : `${liveOnSiteCount} Department ${liveOnSiteCount === 1 ? 'Member' : 'Members'} On-Site`}
       </p>
 
       <div className="dash-headcard-list">
@@ -80,7 +88,7 @@ export function LiveHeadcard() {
 
       <div className="dash-headcard-footer">
         <div className="dash-headcard-total">
-          <span>{role === 'admin' ? 'Total in building' : 'Dept on-site'}</span>
+          <span>{isUnitScope ? 'Unit on-site' : role === 'admin' ? 'Total in building' : 'Dept on-site'}</span>
           <span>{liveOnSiteCount} / {totalExpected}</span>
         </div>
         <div className="dash-headcard-bar">
@@ -93,9 +101,11 @@ export function LiveHeadcard() {
           />
         </div>
         <p className="dash-headcard-occupancy">
-          {role === 'admin'
-            ? `Building occupancy is at ${occupancyPercent}%`
-            : `${currentDepartment.name} occupancy is at ${occupancyPercent}%`}
+          {isUnitScope
+            ? `${scopeName} occupancy is at ${occupancyPercent}%`
+            : role === 'admin'
+              ? `Building occupancy is at ${occupancyPercent}%`
+              : `${currentDepartment.name} occupancy is at ${occupancyPercent}%`}
         </p>
       </div>
     </div>

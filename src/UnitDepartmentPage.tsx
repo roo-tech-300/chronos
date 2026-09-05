@@ -4,8 +4,10 @@ import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { useWorkspace } from './context/useWorkspace'
 import { useUnitDepartmentData } from './hooks/useUnitDepartmentData'
 import AppNavbar from './components/layout/AppNavbar'
+import './styles/dashboard-layout.css'
+import './styles/dashboard-widgets.css'
 import { UnitDepartmentHeader } from './components/unit-view/UnitDepartmentHeader'
-import { UnitMetricsBar } from './components/unit-view/UnitMetricsBar'
+import { UnitDashboardGrid } from './components/unit-view/UnitDashboardGrid'
 import { UnitStaffTab } from './components/unit-view/UnitStaffTab'
 import { UnitTasksTab } from './components/unit-view/UnitTasksTab'
 import { UnitSubDepartmentsTab } from './components/unit-view/UnitSubDepartmentsTab'
@@ -79,8 +81,13 @@ export default function UnitDepartmentPage() {
 
   return (
     <div
-      className="min-h-screen bg-zinc-50 flex flex-col"
-      style={{ '--workspace-accent': accentColor } as React.CSSProperties}
+      className="dash-page flex flex-col"
+      style={
+        {
+          '--dash-primary': accentColor,
+          '--workspace-accent': accentColor,
+        } as React.CSSProperties
+      }
     >
       <AppNavbar />
 
@@ -128,8 +135,12 @@ export default function UnitDepartmentPage() {
           />
 
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
-            {/* Scoped KPI Bar */}
-            <UnitMetricsBar memberCount={members.length} tasks={scopedTasks} />
+            {/* HOD Dashboard replica: same widget grid the persona view renders */}
+            <UnitDashboardGrid
+              unitName={currentUnit.name}
+              memberCount={members.length}
+              subUnitNames={childUnits.map((u) => u.name)}
+            />
 
             {/* Tab Navigation */}
             <UnitTabNav

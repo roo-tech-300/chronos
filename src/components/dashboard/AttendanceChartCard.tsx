@@ -7,7 +7,12 @@ import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 import { useAttendanceVolume } from '../../hooks/useAttendanceVolume'
 import type { AttendancePeriod } from '../../types/attendance'
 
-export function AttendanceChartCard() {
+interface AttendanceChartCardProps {
+  /** When set, titles the chart for a real unit instead of the dev persona's department. */
+  scopeName?: string
+}
+
+export function AttendanceChartCard({ scopeName }: AttendanceChartCardProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, accentColor } = useWorkspace()
   const { exportReport } = useAttendanceMetrics(currentWorkspace?.id)
@@ -25,8 +30,9 @@ export function AttendanceChartCard() {
     }
   }
 
-  const title =
-    role === 'admin'
+  const title = scopeName
+    ? `${scopeName} Attendance Volume`
+    : role === 'admin'
       ? 'Daily Attendance Volume'
       : `${currentDepartment.name} Attendance Volume`
 
@@ -37,7 +43,7 @@ export function AttendanceChartCard() {
           <h2>{title}</h2>
           <p>
             {volumeData.periodDescription}
-            {role === 'hod' ? ' • Department Scope' : ''}
+            {scopeName ? ' • Unit Scope' : role === 'hod' ? ' • Department Scope' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">

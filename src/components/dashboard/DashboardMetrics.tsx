@@ -3,13 +3,47 @@ import { useDevPersona } from '../../context/DevPersonaContext'
 import { useWorkspace } from '../../context/useWorkspace'
 import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 
-export function DashboardMetrics() {
+/** Real-unit scope: renders the same three-card grid with actual unit numbers. */
+export interface DashboardUnitScope {
+  name: string
+  memberCount: number
+  subUnitNames: string[]
+}
+
+interface DashboardMetricsProps {
+  unitScope?: DashboardUnitScope
+}
+
+export function DashboardMetrics({ unitScope }: DashboardMetricsProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, stats } = useWorkspace()
   const { summary } = useAttendanceMetrics(currentWorkspace?.id, stats.totalStaff || 1)
 
   const displayMetrics = useMemo(() => {
     const todayScansDisplay = summary.totalScansToday.toLocaleString()
+
+    if (unitScope) {
+      return [
+        {
+          label: 'UNIT HEADCOUNT',
+          value: unitScope.memberCount.toLocaleString(),
+          description: `Registered in ${unitScope.name}`,
+        },
+        {
+          label: 'UNIT ON-SITE',
+          value: `${summary.currentlyOnSite}`,
+          description: `${summary.attendanceRate}% live unit occupancy`,
+        },
+        {
+          label: 'SUB-UNITS READY',
+          value: `${unitScope.subUnitNames.length} / ${unitScope.subUnitNames.length}`,
+          description:
+            unitScope.subUnitNames.length > 0
+              ? unitScope.subUnitNames.join(', ')
+              : 'No sub-units yet',
+        },
+      ]
+    }
 
     if (role === 'admin') {
       return [
@@ -48,7 +82,7 @@ export function DashboardMetrics() {
         description: currentDepartment.subDepartments.join(', '),
       },
     ]
-  }, [role, currentDepartment, stats, summary])
+  }, [role, currentDepartment, stats, summary, unitScope])
 
   return (
     <div className="dash-metrics">
