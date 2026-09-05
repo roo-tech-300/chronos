@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, UserPlus, Trash2, ExternalLink, ShieldCheck, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import type { UnitMemberItem } from '../../services/unitMembersService'
 import type { OrgUnit } from '../../types/organization'
 import type { TaskItem } from '../../types/tasks'
 import type { BadgeVariant } from '../ui/Badge'
+import { useStaffWorkload } from '../../hooks/useStaffWorkload'
 import { Badge, Button, SearchInput } from '../ui'
 
 interface UnitStaffTabProps {
@@ -39,32 +40,7 @@ export function UnitStaffTab({
   const [searchQuery, setSearchQuery] = useState('')
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
-
-  const memberTasksMap = useMemo(() => {
-    const map = new Map<string, { total: number; approved: number; submitted: number; open: number }>()
-    for (const t of tasks) {
-      if (!t.assigneeMemberId) continue
-      const current = map.get(t.assigneeMemberId) ?? { total: 0, approved: 0, submitted: 0, open: 0 }
-      current.total += 1
-      if (t.status === 'approved') current.approved += 1
-      else if (t.status === 'submitted') current.submitted += 1
-      else current.open += 1
-      map.set(t.assigneeMemberId, current)
-    }
-    return map
-  }, [tasks])
-
-  const filteredMembers = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    if (!q) return members
-    return members.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        (m.email && m.email.toLowerCase().includes(q)) ||
-        (m.jobTitle && m.jobTitle.toLowerCase().includes(q)) ||
-        m.roleLabel.toLowerCase().includes(q)
-    )
-  }, [members, searchQuery])
+  const { memberTasksMap, filteredMembers } = useStaffWorkload(members, tasks, searchQuery)
 
   const handleRemove = async (memberId: string) => {
     setRemoveError(null)

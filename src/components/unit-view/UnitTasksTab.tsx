@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Plus, AlertTriangle, CheckSquare, Layers } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
 import type { OrgUnit } from '../../types/organization'
 import TaskCard from '../tasks/TaskCard'
 import TaskDetailView from '../tasks/TaskDetailView'
+import { useTaskFilters } from '../../hooks/useTaskFilters'
 import { Button, Modal, SearchInput } from '../ui'
 
 interface UnitTasksTabProps {
@@ -18,8 +19,6 @@ interface UnitTasksTabProps {
   onToggleSubtree: (include: boolean) => void
 }
 
-type TaskStatusFilter = 'all' | 'submitted' | 'approved' | 'not_done'
-
 export function UnitTasksTab({
   tasks,
   unit,
@@ -30,31 +29,15 @@ export function UnitTasksTab({
   includeSubtree,
   onToggleSubtree,
 }: UnitTasksTabProps) {
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const {
+    statusFilter,
+    setStatusFilter,
+    searchQuery,
+    setSearchQuery,
+    counts,
+    filteredTasks,
+  } = useTaskFilters(tasks)
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
-
-  const counts = useMemo(() => {
-    return {
-      all: tasks.length,
-      submitted: tasks.filter((t) => t.status === 'submitted').length,
-      approved: tasks.filter((t) => t.status === 'approved').length,
-      not_done: tasks.filter((t) => t.status === 'not_done').length,
-    }
-  }, [tasks])
-
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      if (statusFilter !== 'all' && t.status !== statusFilter) return false
-      if (!searchQuery.trim()) return true
-      const q = searchQuery.toLowerCase().trim()
-      return (
-        t.title.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q) ||
-        t.assigneeName.toLowerCase().includes(q)
-      )
-    })
-  }, [tasks, statusFilter, searchQuery])
 
   return (
     <div className="space-y-4">

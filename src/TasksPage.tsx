@@ -93,10 +93,15 @@ export default function TasksPage() {
   }
 
   async function handleApproveTask(taskToApprove: TaskItem) {
-    await approveTaskMutation({
-      taskId: taskToApprove.id,
-      verifiedBy: profile?.fullName || '',
-    })
+    try {
+      await approveTaskMutation({
+        taskId: taskToApprove.id,
+        verifiedBy: profile?.fullName || '',
+      })
+    } catch {
+      // Approval failures roll back the optimistic cache via the mutation's
+      // onError handler; the rejection must not escape as unhandled.
+    }
   }
 
   return (

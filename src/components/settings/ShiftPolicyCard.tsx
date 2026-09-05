@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Clock, Plus, Check, Shield } from 'lucide-react'
 import { useWorkspace } from '../../context/useWorkspace'
 import {
@@ -14,6 +14,14 @@ export default function ShiftPolicyCard() {
 
   const [shifts, setShifts] = useState<ShiftProfile[]>(() => getWorkspaceShifts(workspaceId))
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const savedTimerRef = useRef<number | null>(null)
+
+  // Clear the transient "saved" banner timer if the card unmounts first.
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current !== null) window.clearTimeout(savedTimerRef.current)
+    }
+  }, [])
 
   const handleUpdateShift = (index: number, updates: Partial<ShiftProfile>) => {
     const updated = [...shifts]
@@ -40,7 +48,8 @@ export default function ShiftPolicyCard() {
   const handleSave = () => {
     saveWorkspaceShifts(workspaceId, shifts)
     setSavedSuccess(true)
-    setTimeout(() => setSavedSuccess(false), 2500)
+    if (savedTimerRef.current !== null) window.clearTimeout(savedTimerRef.current)
+    savedTimerRef.current = window.setTimeout(() => setSavedSuccess(false), 2500)
   }
 
   return (

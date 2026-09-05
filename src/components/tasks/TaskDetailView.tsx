@@ -6,8 +6,8 @@ interface TaskDetailViewProps {
   task: TaskItem
   /** Returns to the owning staff member's workload panel. */
   onBack: () => void
-  /** Marks a submitted task as approved in the page-level state. */
-  onApprove: (task: TaskItem) => void
+  /** Marks a submitted task as approved. May be async (mutation-backed). */
+  onApprove: (task: TaskItem) => void | Promise<void>
 }
 
 /**
@@ -18,10 +18,18 @@ interface TaskDetailViewProps {
 export default function TaskDetailView({ task, onBack, onApprove }: TaskDetailViewProps) {
   const isSubmitted = task.status === 'submitted'
 
-  function handleApprove() {
-    onApprove(task)
-    // Return to the refreshed workload panel once approval lands.
-    onBack()
+  async function handleApprove() {
+    try {
+      // Wait for the approval to settle so the modal never closes before the
+      // optimistic cache has been committed or rolled back on failure.
+      await onApprove(task)
+    } catch {
+      // Parent pages render their own approval error state (e.g. the
+      // approveError banner) - the rejection must not escape unhandled.
+    } finally {
+      // Return to the refreshed workload panel once approval lands or fails.
+      onBack()
+    }
   }
 
   return (

@@ -6,6 +6,12 @@ import type {
   AttendanceDirection,
   LogAttendanceParams,
 } from '../types/attendance'
+import {
+  buildSyntheticLog,
+  determineDirection,
+  directionLabel,
+  DEFAULT_WORKSPACE_UUID,
+} from './attendanceScanHelpers'
 
 // Re-export reporting utilities
 export {
@@ -20,80 +26,9 @@ export {
 // In-memory cache for anti-double-scan protection (15s)
 const recentScansDebounce = new Map<string, number>()
 
-const DEFAULT_WORKSPACE_UUID = '00000000-0000-0000-0000-000000000000'
-
-export async function getLastScanToday(memberId: string): Promise<AttendanceLog | null> {
-  try {
-    const supabase = getSupabase()
-    const validMemberId = (memberId || '').trim()
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
-
-    const { data, error } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('member_id', validMemberId)
-      .gte('scan_timestamp', startOfDay.toISOString())
-      .order('scan_timestamp', { ascending: false })
-      .limit(1)
-
-    if (error || !data || data.length === 0) return null
-
-    const row = data[0]
-    return {
-      id: row.id,
-      workspaceId: row.workspace_id,
-      memberId: row.member_id,
-      terminalId: row.terminal_id ?? undefined,
-      direction: row.direction as AttendanceDirection,
-      scanTimestamp: row.scan_timestamp,
-      verificationMode: row.verification_mode,
-      confidenceScore: row.confidence_score,
-      status: row.status,
-      createdAt: row.created_at,
-    }
-  } catch (err) {
-    console.warn('[Attendance] Failed to query last scan:', err)
-    return null
-  }
-}
-
-export async function determineDirection(
-  memberId: string,
-  explicitDirection?: AttendanceDirection
-): Promise<AttendanceDirection> {
-  if (explicitDirection && (explicitDirection === 'in' || explicitDirection === 'out')) {
-    return explicitDirection
-  }
-  const lastScan = await getLastScanToday(memberId)
-  return !lastScan || lastScan.direction === 'out' ? 'in' : 'out'
-}
-
-function directionLabel(direction: AttendanceDirection): string {
-  return direction === 'in' ? 'Check-In (Arrival)' : 'Check-Out (Departure)'
-}
-
-function buildSyntheticLog(
-  memberId: string,
-  workspaceId: string,
-  terminalId: string | null,
-  direction: AttendanceDirection,
-  scanIso: string,
-  verificationMode: string,
-  confidenceScore: number
-): AttendanceLog {
-  return {
-    id: `att_${Date.now()}`,
-    workspaceId,
-    memberId,
-    terminalId: terminalId ?? undefined,
-    direction,
-    scanTimestamp: scanIso,
-    verificationMode,
-    confidenceScore,
-    status: 'verified',
-  }
-}
+// Scan helpers (direction detection, synthetic logs) were extracted to
+// attendanceScanHelpers.ts. Public re-exports keep existing import paths stable.
+export { getLastScanToday, determineDirection } from './attendanceScanHelpers'
 
 export async function logAttendanceScan(
   params: LogAttendanceParams
@@ -221,13 +156,25 @@ export async function logAttendanceScan(
       message: `${directionLabel(direction)} successfully recorded in database.`,
     }
   } catch (err) {
-    console.error('[Attendance] Exception in logAttendanceScan:', err)
-    enqueueOfflineScan(params)
+    // Only genuine network/environment failures are buffered for offline
+    // replay. Unexpected programming errors must fail loudly instead of
+    // being masked as a successful scan (silent-failure protection).
+    const isNetworkFailure =
+      (typeof navigator !== 'undefined' && !navigator.onLine) || err instanceof TypeError
+    if (isNetworkFailure) {
+      console.warn('[Attendance] Network failure during scan insert - buffering offline:', err)
+      enqueueOfflineScan(params)
+      return {
+        success: true,
+        log: buildSyntheticLog(cleanMemberId, cleanWorkspaceId, validTerminalId, direction, scanIso, verificationMode, confidenceScore),
+        dbSaved: false,
+        message: `${directionLabel(direction)} verified (Buffered offline after network error).`,
+      }
+    }
+    console.error('[Attendance] Unexpected exception in logAttendanceScan:', err)
     return {
-      success: true,
-      log: buildSyntheticLog(cleanMemberId, cleanWorkspaceId, validTerminalId, direction, scanIso, verificationMode, confidenceScore),
-      dbSaved: false,
-      message: `${directionLabel(direction)} verified (Buffered offline after network error).`,
+      success: false,
+      message: 'Scan could not be recorded due to an unexpected error. Please try again.',
     }
   }
 }

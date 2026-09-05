@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   getOfflineQueueCount,
   flushOfflineQueue,
@@ -11,6 +11,7 @@ export function useOfflineSync(workspaceId?: string) {
   const [queuedCount, setQueuedCount] = useState(getOfflineQueueCount())
   const [isSyncing, setIsSyncing] = useState(false)
   const [lastFlushedCount, setLastFlushedCount] = useState<number | null>(null)
+  const flushTimerRef = useRef<number | null>(null)
 
   const handleFlush = useCallback(async () => {
     if (isSyncing || getOfflineQueueCount() === 0) return
@@ -20,8 +21,13 @@ export function useOfflineSync(workspaceId?: string) {
       setQueuedCount(res.remaining)
       if (res.flushed > 0) {
         setLastFlushedCount(res.flushed)
-        setTimeout(() => setLastFlushedCount(null), 3000)
+        if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current)
+        flushTimerRef.current = window.setTimeout(() => setLastFlushedCount(null), 3000)
       }
+    } catch (err) {
+      // Flush failures are non-fatal: the queue persists in localStorage and
+      // the next online event or 30s interval tick retries automatically.
+      console.warn('[OfflineSync] Flush attempt failed:', err)
     } finally {
       setIsSyncing(false)
     }
@@ -55,6 +61,10 @@ export function useOfflineSync(workspaceId?: string) {
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('chronos:offline-queue-changed', handleQueueChange)
       clearInterval(timer)
+      if (flushTimerRef.current !== null) {
+        window.clearTimeout(flushTimerRef.current)
+        flushTimerRef.current = null
+      }
     }
   }, [handleFlush])
 
