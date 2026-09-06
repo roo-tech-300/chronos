@@ -17,12 +17,32 @@ export function resolveScopeAssigneeIds(
   mode: UnitScopeMode,
 ): Set<string> | undefined {
   if (!scopeUnitId) return undefined
+  const targetUnit = units.find((u) => u.id === scopeUnitId)
   if (mode === 'direct') {
-    return new Set(roster.filter((m) => m.unitId === scopeUnitId).map((m) => m.memberId))
+    return new Set(
+      roster
+        .filter(
+          (m) =>
+            m.unitId === scopeUnitId ||
+            m.unitIds?.includes(scopeUnitId) ||
+            (targetUnit && m.department && m.department.toLowerCase() === targetUnit.name.toLowerCase())
+        )
+        .map((m) => m.memberId)
+    )
   }
   const subtreeIds = new Set(collectSubtreeIds(units, scopeUnitId))
+  const subtreeNames = new Set(
+    units.filter((u) => subtreeIds.has(u.id)).map((u) => u.name.toLowerCase())
+  )
   return new Set(
-    roster.filter((m) => m.unitId && subtreeIds.has(m.unitId)).map((m) => m.memberId),
+    roster
+      .filter(
+        (m) =>
+          (m.unitId && subtreeIds.has(m.unitId)) ||
+          m.unitIds?.some((uid) => subtreeIds.has(uid)) ||
+          (m.department && subtreeNames.has(m.department.toLowerCase()))
+      )
+      .map((m) => m.memberId)
   )
 }
 
@@ -43,7 +63,15 @@ export function buildUnitOverviews(
 ): UnitOverview[] {
   return units.map((unit) => {
     const subtreeIds = new Set(collectSubtreeIds(units, unit.id))
-    const unitRoster = roster.filter((m) => m.unitId && subtreeIds.has(m.unitId))
+    const subtreeNames = new Set(
+      units.filter((u) => subtreeIds.has(u.id)).map((u) => u.name.toLowerCase())
+    )
+    const unitRoster = roster.filter(
+      (m) =>
+        (m.unitId && subtreeIds.has(m.unitId)) ||
+        m.unitIds?.some((uid) => subtreeIds.has(uid)) ||
+        (m.department && subtreeNames.has(m.department.toLowerCase()))
+    )
     const memberIds = new Set(unitRoster.map((m) => m.memberId))
     const unitTasks = filteredTasks.filter((t) =>
       t.assigneeMemberId ? memberIds.has(t.assigneeMemberId) : false,

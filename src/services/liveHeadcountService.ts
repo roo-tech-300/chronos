@@ -13,7 +13,8 @@ export interface LiveHeadcountResult {
  */
 export async function fetchLiveHeadcount(
   workspaceId?: string,
-  totalStaffCount = 50
+  totalStaffCount = 50,
+  memberIds?: string[]
 ): Promise<LiveHeadcountResult> {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
@@ -30,16 +31,34 @@ export async function fetchLiveHeadcount(
     return { summary: emptySummary, onSiteMembers: [] }
   }
 
+  // Scoped unit with no assigned members yet
+  if (memberIds && memberIds.length === 0) {
+    return { summary: emptySummary, onSiteMembers: [] }
+  }
+
   try {
     const supabase = getSupabase()
-    const { data: logs, error } = await supabase
+    let query = supabase
       .from('attendance_logs')
       .select('id, member_id, terminal_id, direction, scan_timestamp')
       .eq('workspace_id', workspaceId)
       .gte('scan_timestamp', startOfDay.toISOString())
       .order('scan_timestamp', { ascending: false })
 
+    if (memberIds && memberIds.length > 0) {
+      query = query.in('member_id', memberIds)
+    }
+
+    const { data: logs, error } = await query
+
     if (error || !logs || logs.length === 0) {
+      return { summary: emptySummary, onSiteMembers: [] }
+    }
+
+    const idSet = memberIds ? new Set(memberIds) : null
+    const scopedLogs = idSet ? logs.filter((r) => idSet.has(r.member_id)) : logs
+
+    if (scopedLogs.length === 0) {
       return { summary: emptySummary, onSiteMembers: [] }
     }
 
@@ -49,7 +68,7 @@ export async function fetchLiveHeadcount(
       { id: string; memberId: string; terminalId: string; direction: string; scanTimestamp: string }
     >()
 
-    logs.forEach((row) => {
+    scopedLogs.forEach((row) => {
       if (!latestScanByMember.has(row.member_id)) {
         latestScanByMember.set(row.member_id, {
           id: row.id,
@@ -108,7 +127,7 @@ export async function fetchLiveHeadcount(
       totalExpected: totalStaffCount,
       currentlyOnSite: onSiteRows.length,
       departedToday: departedCount,
-      totalScansToday: logs.length,
+      totalScansToday: scopedLogs.length,
       attendanceRate: totalStaffCount > 0 ? Math.min(100, Math.round((latestScanByMember.size / totalStaffCount) * 100)) : 0,
     }
 

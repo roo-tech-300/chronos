@@ -163,6 +163,12 @@ export async function createTaskBatch(
     return { success: true, data: [] }
   }
 
+  for (const t of tasks) {
+    if (!t.assigneeMemberId || !t.assigneeMemberId.trim()) {
+      return { success: false, error: 'Every task must have an assigned unit staff member.' }
+    }
+  }
+
   const rows = tasks.map((t) => ({
     workspace_id: cleanId,
     title: t.title,

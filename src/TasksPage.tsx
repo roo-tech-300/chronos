@@ -5,11 +5,13 @@ import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
 import { useWorkspaceUnits } from './hooks/useOrganizationUnits'
 import { useWorkspace } from './context/useWorkspace'
 import { useAuth } from './context/useAuth'
+import { useDevPersona } from './context/DevPersonaContext'
 import AppNavbar from './components/layout/AppNavbar'
 import TasksMetrics from './components/tasks/TasksMetrics'
 import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
 import StaffDirectoryModal from './components/tasks/StaffDirectoryModal'
 import TaskModal from './components/tasks/TaskModal'
+import TasksFooter from './components/tasks/TasksFooter'
 import UnitScopeToggle from './components/tasks/UnitScopeToggle'
 import { Button, Toolbar } from './components/ui'
 import {
@@ -30,6 +32,7 @@ import './styles/tasks-directory.css'
 export default function TasksPage() {
   const { currentWorkspace, accentColor = '#7c007e' } = useWorkspace()
   const { profile } = useAuth()
+  const { role, currentDepartment } = useDevPersona()
   const activeWorkspaceId = currentWorkspace?.id || ''
   const workspaceName = currentWorkspace?.name || 'Workspace'
 
@@ -86,6 +89,11 @@ export default function TasksPage() {
     ? unitOverviews.find((u) => u.id === scopedUnitId) ?? null
     : null
   const activeUnit = unitOverviews.find((u) => u.id === activeUnitId) ?? null
+
+  const hodUnit = useMemo(() => {
+    if (role !== 'hod') return null
+    return units.find((u) => u.name.toLowerCase() === currentDepartment.name.toLowerCase()) || null
+  }, [role, currentDepartment.name, units])
 
   async function handleCreateBatch(newTasks: CreateTaskInput[]) {
     await createBatch(newTasks)
@@ -208,29 +216,18 @@ export default function TasksPage() {
         </div>
       </main>
 
-      <footer className="tasks-footer">
-        <div className="tasks-footer-inner">
-          <div>
-            <div className="tasks-footer-label">Natale Identity</div>
-            <p className="tasks-footer-copy">
-              &copy; 2025 Natale Identity Corp. All rights reserved.
-            </p>
-          </div>
-          <div className="tasks-footer-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">API Documentation</a>
-            <a href="#">Support</a>
-          </div>
-        </div>
-      </footer>
+      <TasksFooter />
 
       <TaskModal
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreateBatch={handleCreateBatch}
         workspaceId={activeWorkspaceId}
-        departmentName={workspaceName}
+        departmentName={scopedUnit?.name || hodUnit?.name || workspaceName}
+        unitId={scopedUnitId || hodUnit?.id || undefined}
+        unitName={scopedUnit?.name || hodUnit?.name || undefined}
+        allowedMemberIds={scopeAssigneeIds ? Array.from(scopeAssigneeIds) : undefined}
+        allowUnitChange={role !== 'hod' && !scopedUnitId}
       />
 
       {activeUnit && (

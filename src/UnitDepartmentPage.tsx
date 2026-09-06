@@ -34,6 +34,7 @@ export default function UnitDepartmentPage() {
     breadcrumbs,
     childUnits,
     scopedTasks,
+    scopedMemberIds,
     members,
     membersLoading,
     refetchMembers,
@@ -141,6 +142,7 @@ export default function UnitDepartmentPage() {
               unitName={currentUnit.name}
               memberCount={members.length}
               subUnitNames={childUnits.map((u) => u.name)}
+              memberIds={scopedMemberIds}
             />
 
             {/* Tab Navigation */}
@@ -201,6 +203,10 @@ export default function UnitDepartmentPage() {
             onCreateBatch={handleCreateTasks}
             workspaceId={activeWorkspaceId}
             departmentName={currentUnit.name}
+            unitId={currentUnit.id}
+            unitName={currentUnit.name}
+            allowedMemberIds={scopedMemberIds}
+            allowUnitChange={false}
           />
 
           <AssignMemberModal

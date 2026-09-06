@@ -10,21 +10,25 @@ import type { AttendancePeriod } from '../../types/attendance'
 interface AttendanceChartCardProps {
   /** When set, titles the chart for a real unit instead of the dev persona's department. */
   scopeName?: string
+  /** Scoped member IDs belonging to this department/unit. */
+  memberIds?: string[]
 }
 
-export function AttendanceChartCard({ scopeName }: AttendanceChartCardProps) {
+export function AttendanceChartCard({ scopeName, memberIds }: AttendanceChartCardProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, accentColor } = useWorkspace()
-  const { exportReport } = useAttendanceMetrics(currentWorkspace?.id)
+  const { exportReport } = useAttendanceMetrics(currentWorkspace?.id, 50, memberIds)
   const [chartPeriod, setChartPeriod] = useState<AttendancePeriod>('Week')
   const [isExporting, setIsExporting] = useState(false)
 
-  const { volumeData } = useAttendanceVolume(currentWorkspace?.id, chartPeriod)
+  const { volumeData } = useAttendanceVolume(currentWorkspace?.id, chartPeriod, memberIds)
 
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      await exportReport(currentWorkspace?.name || 'Academic Workspace')
+      const baseName = currentWorkspace?.name || 'Academic Workspace'
+      const reportName = scopeName ? `${baseName}_${scopeName}` : baseName
+      await exportReport(reportName)
     } finally {
       setIsExporting(false)
     }

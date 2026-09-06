@@ -1,9 +1,10 @@
 import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
-import { downloadCsv } from '../utils/csvExport'
 import { resolveAttendanceMemberId } from './attendanceMemberResolver'
 import type { AttendanceDirection, AttendanceSummary } from '../types/attendance'
 import type { ScanActivity } from '../dummy/profile-mock'
+
+export { exportStaffAttendanceLogs, exportWorkspaceAttendanceLogs } from './attendanceExport'
 
 export interface LiveScanFeedItem {
   id: string
@@ -50,26 +51,40 @@ export async function resolveMemberNameMap(
 
 export async function fetchRecentLiveScans(
   workspaceId?: string,
-  limit = 6
+  limit = 6,
+  memberIds?: string[]
 ): Promise<LiveScanFeedItem[]> {
   if (!workspaceId || !isUuid(workspaceId)) return []
+  if (memberIds && memberIds.length === 0) return []
 
   try {
     const supabase = getSupabase()
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('attendance_logs')
       .select('id, member_id, terminal_id, direction, scan_timestamp')
       .eq('workspace_id', workspaceId)
       .order('scan_timestamp', { ascending: false })
-      .limit(limit)
+
+    if (memberIds && memberIds.length > 0) {
+      query = query.in('member_id', memberIds)
+    }
+
+    const { data, error } = await query.limit(limit * 2)
 
     if (error || !data || data.length === 0) return []
 
-    const memberIds = Array.from(new Set(data.map((r) => r.member_id).filter(Boolean)))
-    const profileMap = await resolveMemberNameMap(memberIds, workspaceId)
+    const memberIdSet = memberIds ? new Set(memberIds) : null
+    const scopedRows = memberIdSet
+      ? data.filter((r) => memberIdSet.has(r.member_id)).slice(0, limit)
+      : data.slice(0, limit)
 
-    return data.map((row) => {
+    if (scopedRows.length === 0) return []
+
+    const activeMemberIds = Array.from(new Set(scopedRows.map((r) => r.member_id).filter(Boolean)))
+    const profileMap = await resolveMemberNameMap(activeMemberIds, workspaceId)
+
+    return scopedRows.map((row) => {
       const name = profileMap.get(row.member_id) || 'Staff Member'
       const initials = name
         .split(' ')
@@ -127,92 +142,6 @@ export async function fetchStaffAttendanceHistory(memberId: string): Promise<Sca
   } catch (err) {
     console.warn('Error fetching member attendance history:', err)
     return []
-  }
-}
-
-export async function exportStaffAttendanceLogs(memberId: string, staffName: string): Promise<void> {
-  try {
-    const supabase = getSupabase()
-
-    // Resolve staff ids / CHR codes to the canonical workspace_members.id
-    const canonicalId = await resolveAttendanceMemberId(supabase, memberId)
-
-    // member_id is a workspace_members UUID - unresolvable codes can never match a row
-    if (!canonicalId) {
-      downloadCsv(`attendance_log_${staffName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}.csv`, [
-        { 'Staff ID': memberId, 'Staff Name': staffName, 'Notice': 'No records logged.' },
-      ])
-      return
-    }
-
-    const { data } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('member_id', canonicalId)
-      .order('scan_timestamp', { ascending: false })
-
-    const rows = (data && data.length > 0)
-      ? data.map((row) => ({
-          'Log ID': row.id,
-          'Staff ID': row.member_id,
-          'Staff Name': staffName,
-          'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
-          'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
-          'Terminal Station': row.terminal_id,
-          'Mode': row.verification_mode,
-          'Confidence': `${row.confidence_score}%`,
-          'Status': row.status,
-        }))
-      : [{ 'Staff ID': memberId, 'Staff Name': staffName, 'Notice': 'No records logged.' }]
-
-    const safeName = staffName.toLowerCase().replace(/[^a-z0-9]/g, '_')
-    downloadCsv(`attendance_log_${safeName}_${Date.now()}.csv`, rows)
-  } catch (err) {
-    console.error('Failed to export CSV logs:', err)
-  }
-}
-
-export async function exportWorkspaceAttendanceLogs(
-  workspaceId?: string,
-  workspaceName = 'Workspace'
-): Promise<void> {
-  try {
-    const supabase = getSupabase()
-
-    if (!workspaceId || !isUuid(workspaceId)) {
-      downloadCsv(`attendance_report_${workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}.csv`, [
-        { 'Workspace': workspaceName, 'Notice': 'No workspace selected.' },
-      ])
-      return
-    }
-
-    const { data } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('scan_timestamp', { ascending: false })
-
-    const memberIds = Array.from(new Set(data?.map((r) => r.member_id).filter(Boolean) || []))
-    const profileMap = await resolveMemberNameMap(memberIds)
-
-    const rows = (data && data.length > 0)
-      ? data.map((row) => ({
-          'Log ID': row.id,
-          'Staff ID': row.member_id,
-          'Staff Name': profileMap.get(row.member_id) || 'Staff Member',
-          'Direction': row.direction === 'in' ? 'Arrival (Check-In)' : 'Departure (Check-Out)',
-          'Timestamp': new Date(row.scan_timestamp).toLocaleString(),
-          'Terminal Station': row.terminal_id,
-          'Verification Mode': row.verification_mode,
-          'Confidence': `${row.confidence_score}%`,
-          'Status': row.status,
-        }))
-      : [{ 'Workspace': workspaceName, 'Notice': 'No scans recorded.' }]
-
-    const safeName = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '_')
-    downloadCsv(`attendance_report_${safeName}_${Date.now()}.csv`, rows)
-  } catch (err) {
-    console.error('Failed to export workspace CSV logs:', err)
   }
 }
 

@@ -12,7 +12,8 @@ function formatDateKey(d: Date): string {
 
 export async function fetchAttendanceVolume(
   workspaceId?: string,
-  period: AttendancePeriod = 'Week'
+  period: AttendancePeriod = 'Week',
+  memberIds?: string[]
 ): Promise<AttendanceVolumeData> {
   const supabase = getSupabase()
   const now = new Date()
@@ -35,18 +36,30 @@ export async function fetchAttendanceVolume(
 
   let scans: RawScanTimestamp[] = []
 
-  if (workspaceId && isUuid(workspaceId)) {
+  // If scoped to a department with 0 enrolled members, avoid query and return empty data
+  if (memberIds && memberIds.length === 0) {
+    scans = []
+  } else if (workspaceId && isUuid(workspaceId)) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance_logs')
-        .select('scan_timestamp')
+        .select('scan_timestamp, member_id')
         .eq('workspace_id', workspaceId)
         .gte('scan_timestamp', startDate.toISOString())
         .lte('scan_timestamp', now.toISOString())
         .order('scan_timestamp', { ascending: true })
 
+      if (memberIds && memberIds.length > 0) {
+        query = query.in('member_id', memberIds)
+      }
+
+      const { data, error } = await query
+
       if (!error && data) {
-        scans = data
+        const idSet = memberIds ? new Set(memberIds) : null
+        scans = idSet
+          ? data.filter((row: { scan_timestamp: string; member_id?: string }) => !row.member_id || idSet.has(row.member_id))
+          : data
       }
     } catch (err) {
       console.warn('[AttendanceVolume] Query error:', err)

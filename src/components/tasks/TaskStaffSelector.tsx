@@ -13,6 +13,7 @@ interface TaskStaffSelectorProps {
   onToggleStaff: (id: string) => void
   onToggleAll: () => void
   isAllSelected: boolean
+  unitName?: string
 }
 
 export function TaskStaffSelector({
@@ -21,32 +22,46 @@ export function TaskStaffSelector({
   onToggleStaff,
   onToggleAll,
   isAllSelected,
+  unitName,
 }: TaskStaffSelectorProps) {
   return (
     <div className="flex flex-col gap-2 p-3 rounded-xl border border-zinc-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wide">
           <Users size={14} className="text-zinc-500" />
-          <span>Assign To Staff ({selectedIds.length} selected)</span>
+          <span>
+            {unitName ? `${unitName} Staff` : 'Assign To Staff'} ({selectedIds.length} selected)
+          </span>
         </div>
-        <button
-          type="button"
-          onClick={onToggleAll}
-          className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
-        >
-          {isAllSelected ? 'Deselect All' : 'Select All Staff'}
-        </button>
+        {staffList.length > 0 && (
+          <button
+            type="button"
+            onClick={onToggleAll}
+            className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+          >
+            {isAllSelected ? 'Deselect All' : 'Select All Staff'}
+          </button>
+        )}
       </div>
 
       <p className="text-[11px] text-zinc-500 leading-tight">
-        Each chosen person will receive their own independent task to complete and submit.
+        {unitName
+          ? `Only personnel enrolled in ${unitName} are displayed. Each selected member receives their own independent task.`
+          : 'Each chosen person will receive their own independent task to complete and submit.'}
       </p>
 
       {staffList.length === 0 && (
-        <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5">
-          No staff members exist in this workspace yet. Add team members to the roster before
-          assigning tasks.
-        </p>
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 space-y-1">
+          <p className="font-semibold">
+            {unitName
+              ? `No staff members are assigned to ${unitName} yet.`
+              : 'No staff members belong to this unit.'}
+          </p>
+          <p className="text-[11px] text-amber-700">
+            Personnel outside this unit cannot be assigned tasks. Please enroll staff members into this
+            unit before creating tasks.
+          </p>
+        </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">

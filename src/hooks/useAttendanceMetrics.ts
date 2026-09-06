@@ -15,7 +15,13 @@ const DEFAULT_SUMMARY: AttendanceSummary = {
   attendanceRate: 0,
 }
 
-export function useAttendanceMetrics(workspaceId?: string, totalStaffCount = 50) {
+export function useAttendanceMetrics(
+  workspaceId?: string,
+  totalStaffCount = 50,
+  memberIds?: string[]
+) {
+  const memberKey = memberIds ? memberIds.slice().sort().join(',') : 'all'
+
   // 1. Fetch real-time live headcount and on-site staff from database
   const {
     data: headcountData = {
@@ -25,8 +31,8 @@ export function useAttendanceMetrics(workspaceId?: string, totalStaffCount = 50)
     isLoading: isHeadcountLoading,
     refetch: refetchSummary,
   } = useQuery<LiveHeadcountResult>({
-    queryKey: ['liveHeadcount', workspaceId, totalStaffCount],
-    queryFn: () => fetchLiveHeadcount(workspaceId, totalStaffCount),
+    queryKey: ['liveHeadcount', workspaceId, totalStaffCount, memberKey],
+    queryFn: () => fetchLiveHeadcount(workspaceId, totalStaffCount, memberIds),
     refetchInterval: 5000,
     staleTime: 2500,
   })
@@ -37,14 +43,14 @@ export function useAttendanceMetrics(workspaceId?: string, totalStaffCount = 50)
     isLoading: isLiveScansLoading,
     refetch: refetchLiveScans,
   } = useQuery<LiveScanFeedItem[]>({
-    queryKey: ['liveScansFeed', workspaceId],
-    queryFn: () => fetchRecentLiveScans(workspaceId, 6),
+    queryKey: ['liveScansFeed', workspaceId, memberKey],
+    queryFn: () => fetchRecentLiveScans(workspaceId, 6, memberIds),
     refetchInterval: 5000,
     staleTime: 2500,
   })
 
   const exportReport = async (workspaceName?: string) => {
-    await exportWorkspaceAttendanceLogs(workspaceId, workspaceName)
+    await exportWorkspaceAttendanceLogs(workspaceId, workspaceName, memberIds)
   }
 
   return {

@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import type { TaskPriority, TaskType, CreateTaskInput } from '../../types/tasks'
-import { useWorkspaceRoster } from '../../hooks/useWorkspaceRoster'
 import { Modal, Button, Input, Select } from '../ui'
 import { TaskStaffSelector } from './TaskStaffSelector'
-import type { StaffOption } from './TaskStaffSelector'
+import { TaskUnitScopePicker } from './TaskUnitScopePicker'
+import { useTaskAssigneeScope } from '../../hooks/useTaskAssigneeScope'
 
 interface TaskModalProps {
   open: boolean
@@ -12,6 +12,10 @@ interface TaskModalProps {
   onCreateBatch: (tasks: CreateTaskInput[]) => void | Promise<unknown>
   workspaceId?: string
   departmentName?: string
+  unitId?: string
+  unitName?: string
+  allowedMemberIds?: string[]
+  allowUnitChange?: boolean
 }
 
 export default function TaskModal({
@@ -20,6 +24,10 @@ export default function TaskModal({
   onCreateBatch,
   workspaceId = '',
   departmentName = 'Workspace',
+  unitId,
+  unitName,
+  allowedMemberIds,
+  allowUnitChange = true,
 }: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -30,50 +38,37 @@ export default function TaskModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const { roster } = useWorkspaceRoster(workspaceId)
-
-  const staffList = useMemo<StaffOption[]>(() => {
-    // Pure DB roster - never seeded with mock members.
-    return roster.map((m) => ({
-      id: m.memberId,
-      name: m.name,
-      role: m.roleLabel,
-      subDepartment: m.department,
-    }))
-  }, [roster])
-
-  const defaultAssigneeId = staffList[0]?.id || ''
-  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
-
-  const activeSelectedIds = selectedStaffIds.length > 0
-    ? selectedStaffIds
-    : defaultAssigneeId ? [defaultAssigneeId] : []
-
-  const isAllSelected = activeSelectedIds.length === staffList.length
-
-  function toggleStaff(id: string) {
-    setSelectedStaffIds((prev) => {
-      const current = prev.length > 0 ? prev : [defaultAssigneeId]
-      return current.includes(id)
-        ? current.length > 1
-          ? current.filter((item) => item !== id)
-          : current
-        : [...current, id]
-    })
-  }
-
-  function toggleAllStaff() {
-    if (activeSelectedIds.length === staffList.length) {
-      setSelectedStaffIds([defaultAssigneeId])
-    } else {
-      setSelectedStaffIds(staffList.map((s) => s.id))
-    }
-  }
+  const {
+    availableUnits,
+    selectedUnitId,
+    setSelectedUnitId,
+    effectiveUnitName,
+    staffList,
+    activeSelectedIds,
+    toggleStaff,
+    toggleAllStaff,
+    isAllSelected,
+    validateAssignees,
+    canChangeUnit,
+  } = useTaskAssigneeScope({
+    workspaceId,
+    initialUnitId: unitId,
+    initialUnitName: unitName || departmentName,
+    allowedMemberIds,
+    allowUnitChange,
+  })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
-    if (!title.trim() || activeSelectedIds.length === 0) return
+
+    const validation = validateAssignees()
+    if (!validation.valid) {
+      setSubmitError(validation.error || 'Assignee validation failed.')
+      return
+    }
+
+    if (!title.trim()) return
 
     const selectedOptions = staffList.filter((s) => activeSelectedIds.includes(s.id))
 
@@ -86,7 +81,7 @@ export default function TaskModal({
       assigneeMemberId: staff.id,
       assigneeName: staff.name,
       assigneeRole: staff.role,
-      department: departmentName,
+      department: effectiveUnitName,
       subDepartment: staff.subDepartment,
       recurrence: type === 'recurring' ? recurrence : undefined,
       dueDate,
@@ -99,7 +94,6 @@ export default function TaskModal({
       await onCreateBatch(batch)
       setTitle('')
       setDescription('')
-      setSelectedStaffIds([])
       onClose()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create tasks')
@@ -108,15 +102,24 @@ export default function TaskModal({
     }
   }
 
+  const isSubmitDisabled = isSubmitting || staffList.length === 0 || activeSelectedIds.length === 0
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Assign Departmental Tasks"
-      subtitle="Mass-produce independent task instances for multiple staff members"
+      title={`Assign Tasks — ${effectiveUnitName}`}
+      subtitle={`Create and assign tasks to ${effectiveUnitName} personnel`}
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <TaskUnitScopePicker
+          units={availableUnits}
+          selectedUnitId={selectedUnitId}
+          onSelectUnit={setSelectedUnitId}
+          canChangeUnit={canChangeUnit}
+        />
+
         <Input
           label="Task Title"
           placeholder="e.g. Conduct Laboratory Inspection or Sensor Recalibration"
@@ -145,6 +148,7 @@ export default function TaskModal({
           onToggleStaff={toggleStaff}
           onToggleAll={toggleAllStaff}
           isAllSelected={isAllSelected}
+          unitName={effectiveUnitName}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -198,12 +202,7 @@ export default function TaskModal({
             {activeSelectedIds.length === 1 ? 'task' : 'tasks'}
           </span>
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
+            <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
@@ -211,10 +210,9 @@ export default function TaskModal({
               type="submit"
               leftIcon={<Plus size={16} />}
               isLoading={isSubmitting}
-              disabled={isSubmitting}
+              disabled={isSubmitDisabled}
             >
-              Create{' '}
-              {activeSelectedIds.length > 1 ? `${activeSelectedIds.length} Tasks` : 'Task'}
+              Create {activeSelectedIds.length > 1 ? `${activeSelectedIds.length} Tasks` : 'Task'}
             </Button>
           </div>
         </div>

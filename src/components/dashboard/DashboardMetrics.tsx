@@ -8,16 +8,27 @@ export interface DashboardUnitScope {
   name: string
   memberCount: number
   subUnitNames: string[]
+  memberIds?: string[]
 }
 
 interface DashboardMetricsProps {
   unitScope?: DashboardUnitScope
+  memberIds?: string[]
 }
 
-export function DashboardMetrics({ unitScope }: DashboardMetricsProps) {
+export function DashboardMetrics({ unitScope, memberIds }: DashboardMetricsProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, stats } = useWorkspace()
-  const { summary } = useAttendanceMetrics(currentWorkspace?.id, stats.totalStaff || 1)
+  const activeMemberIds = unitScope?.memberIds ?? memberIds
+  const defaultTotal = unitScope
+    ? unitScope.memberCount
+    : (activeMemberIds ? activeMemberIds.length : (stats.totalStaff || 1))
+
+  const { summary } = useAttendanceMetrics(
+    currentWorkspace?.id,
+    defaultTotal,
+    activeMemberIds
+  )
 
   const displayMetrics = useMemo(() => {
     const todayScansDisplay = summary.totalScansToday.toLocaleString()
@@ -68,7 +79,7 @@ export function DashboardMetrics({ unitScope }: DashboardMetricsProps) {
     return [
       {
         label: 'DEPT HEADCOUNT',
-        value: stats.totalStaff.toLocaleString(),
+        value: (activeMemberIds ? activeMemberIds.length : stats.totalStaff).toLocaleString(),
         description: `Registered in ${currentDepartment.name}`,
       },
       {
@@ -82,7 +93,7 @@ export function DashboardMetrics({ unitScope }: DashboardMetricsProps) {
         description: currentDepartment.subDepartments.join(', '),
       },
     ]
-  }, [role, currentDepartment, stats, summary, unitScope])
+  }, [role, currentDepartment, stats, summary, unitScope, activeMemberIds])
 
   return (
     <div className="dash-metrics">

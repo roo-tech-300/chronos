@@ -54,6 +54,35 @@ export function useUnitDepartmentData() {
     [tasks, unitId, units, roster, includeSubtree]
   )
 
+  const scopedMemberIds = useMemo(() => {
+    if (!unitId) return []
+    const ids = new Set<string>()
+
+    // 1. Members directly belonging to this unit from useUnitMembers
+    members.forEach((m) => {
+      if (m.memberId) ids.add(m.memberId)
+      if (m.userId) ids.add(m.userId)
+    })
+
+    // 2. If includeSubtree is true, also include members of descendant units
+    if (includeSubtree && childUnits.length > 0) {
+      const subtreeUnitIds = new Set(
+        units.filter((u) => u.id === unitId || u.ancestorIds.includes(unitId)).map((u) => u.id)
+      )
+      roster.forEach((m) => {
+        const belongsToSubtree =
+          (m.unitId && subtreeUnitIds.has(m.unitId)) ||
+          m.unitIds?.some((uid) => subtreeUnitIds.has(uid))
+        if (belongsToSubtree) {
+          if (m.memberId) ids.add(m.memberId)
+          if (m.userId) ids.add(m.userId)
+        }
+      })
+    }
+
+    return Array.from(ids)
+  }, [unitId, members, includeSubtree, childUnits.length, units, roster])
+
   return {
     unitId,
     activeWorkspaceId,
@@ -65,6 +94,7 @@ export function useUnitDepartmentData() {
     breadcrumbs,
     childUnits,
     scopedTasks,
+    scopedMemberIds,
     members,
     membersLoading,
     refetchMembers,

@@ -7,16 +7,25 @@ import { useAttendanceMetrics } from '../../hooks/useAttendanceMetrics'
 interface LiveHeadcardProps {
   /** When set, labels the live feed for a real unit instead of the dev persona. */
   scopeName?: string
+  /** Scoped member IDs belonging to this department/unit. */
+  memberIds?: string[]
+  /** Expected total member count in this department */
+  expectedCount?: number
 }
 
-export function LiveHeadcard({ scopeName }: LiveHeadcardProps) {
+export function LiveHeadcard({ scopeName, memberIds, expectedCount }: LiveHeadcardProps) {
   const { role, currentDepartment } = useDevPersona()
   const { currentWorkspace, stats, accentColor } = useWorkspace()
+  const isUnitScope = Boolean(scopeName)
+  const defaultTotal = isUnitScope
+    ? (expectedCount !== undefined ? expectedCount : memberIds ? memberIds.length : 0)
+    : stats.totalStaff || 1
+
   const { summary, onSiteMembers, liveScans } = useAttendanceMetrics(
     currentWorkspace?.id,
-    stats.totalStaff || 1
+    defaultTotal,
+    memberIds
   )
-  const isUnitScope = Boolean(scopeName)
 
   const displayList = useMemo(() => {
     if (onSiteMembers && onSiteMembers.length > 0) {
@@ -29,7 +38,9 @@ export function LiveHeadcard({ scopeName }: LiveHeadcardProps) {
   }, [onSiteMembers, liveScans])
 
   const liveOnSiteCount = summary.currentlyOnSite
-  const totalExpected = summary.totalExpected || stats.totalStaff || 1
+  const totalExpected = isUnitScope
+    ? (expectedCount !== undefined ? expectedCount : memberIds ? memberIds.length : 0)
+    : (summary.totalExpected || stats.totalStaff || 1)
   const occupancyPercent = totalExpected > 0 ? Math.min(100, Math.round((liveOnSiteCount / totalExpected) * 100)) : 0
 
   return (
@@ -78,9 +89,13 @@ export function LiveHeadcard({ scopeName }: LiveHeadcardProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <p className="text-xs font-semibold text-zinc-700 m-0">No personnel on-site yet today</p>
-            <p className="text-[11px] text-zinc-400 mt-1 mb-0 max-w-[200px]">
-              Scanned arrivals from kiosk terminals will stream here in real time.
+            <p className="text-xs font-semibold text-zinc-700 m-0">
+              {isUnitScope ? 'No department members on-site yet' : 'No personnel on-site yet today'}
+            </p>
+            <p className="text-[11px] text-zinc-400 mt-1 mb-0 max-w-[220px]">
+              {isUnitScope
+                ? 'Only check-ins from members assigned to this department appear here.'
+                : 'Scanned arrivals from kiosk terminals will stream here in real time.'}
             </p>
           </div>
         )}
