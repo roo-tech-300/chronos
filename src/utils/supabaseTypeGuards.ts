@@ -145,3 +145,24 @@ export function assertWorkspaceWithCounts(value: unknown): WorkspaceWithCounts {
   if (!isObject(value)) throw new TypeError('Expected object for WorkspaceWithCounts')
   return value as unknown as WorkspaceWithCounts
 }
+
+/** Raw workspace_join_requests row shape with optional nested relations. */
+export interface JoinRequestRow {
+  id: string
+  workspace_id: string
+  user_id: string
+  request_message: string | null
+  status: string
+  requested_at: string | null
+  reviewed_at: string | null
+  reviewer_id: string | null
+  workspace?: { name?: string }
+  user?: { full_name?: string; email?: string }
+}
+
+/** Asserts a value is a valid JoinRequestRow (snake_case DB shape). */
+export function assertJoinRequestRow(value: unknown): JoinRequestRow {
+  if (!isObject(value)) throw new TypeError('Expected object for JoinRequestRow')
+  return value as unknown as JoinRequestRow
+}
+

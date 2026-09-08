@@ -33,3 +33,22 @@ export interface WorkspaceDraft {
   accentColor: string
   avatarUrl?: string
 }
+
+
+/** Status of a join request */
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected'
+
+/** A pending or resolved request to join a workspace */
+export interface WorkspaceJoinRequest {
+  id: string
+  workspaceId: string
+  userId: string
+  workspaceName?: string
+  userFullName?: string
+  userEmail?: string
+  requestMessage?: string | null
+  status: JoinRequestStatus
+  requestedAt: string | null
+  reviewedAt: string | null
+  reviewerId: string | null
+}
