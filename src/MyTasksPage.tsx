@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { CalendarDays, ListTodo } from 'lucide-react'
 import AppNavbar from './components/layout/AppNavbar'
 import { useWorkspace } from './context/useWorkspace'
+
 import { useCurrentWorkspaceMember } from './hooks/useCurrentWorkspaceMember'
 import { useMyDayTasks } from './hooks/useMyDayTasks'
-import { getLastScanToday } from './services/attendanceService'
+import { useMemberClockIn, formatClockInTime } from './hooks/useMemberClockIn'
 import { evaluatePunctuality } from './services/shiftPolicyService'
 import { orderDayTasks } from './utils/dayTasks'
 import { getInitials } from './utils/taskAggregation'
@@ -25,26 +25,16 @@ export default function MyTasksPage() {
   // Real signed-in identity for this workspace (DB record, never a persona).
   const { member } = useCurrentWorkspaceMember(activeWorkspaceId)
 
-  // Verified attendance record today
-  const { data: todayScan } = useQuery({
-    queryKey: ['member-last-scan', member?.memberId],
-    queryFn: () => (member?.memberId ? getLastScanToday(member.memberId) : null),
-    enabled: Boolean(member?.memberId),
-    refetchInterval: 30000,
-  })
+  // Verified attendance record today (live DB read, 30s polling)
+  const { data: todayScan } = useMemberClockIn(member?.memberId)
+  const isClockedIn = todayScan?.direction === 'in'
 
   const punctuality = useMemo(() => {
     if (!todayScan?.scanTimestamp) return null
     return evaluatePunctuality(todayScan.scanTimestamp, todayScan.direction || 'in')
   }, [todayScan])
 
-  const clockInTimeStr = useMemo(() => {
-    if (!todayScan?.scanTimestamp) return undefined
-    return new Date(todayScan.scanTimestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }, [todayScan])
+  const clockInTimeStr = isClockedIn ? formatClockInTime(todayScan?.scanTimestamp) : undefined
 
   const { tasks, submitCompletion } = useMyDayTasks(member?.memberId)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
@@ -80,6 +70,13 @@ export default function MyTasksPage() {
                 estimated duration.
               </p>
             </div>
+            <a
+              href={`/workspace/${activeWorkspaceId}/tasks`}
+              className="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <ListTodo size={12} />
+              All Tasks
+            </a>
             <span className="tasks-badge">
               <CalendarDays size={13} /> {todayLabel}
             </span>
@@ -89,9 +86,8 @@ export default function MyTasksPage() {
         <div className="flex flex-col gap-6">
           <ClockInStatusCard
             name={member?.name || 'Signed-in Staff'}
-            role={member?.roleLabel || 'Staff Member'}
-            subDepartment={member?.department || 'General Staff'}
             initials={getInitials(member?.name || 'Staff')}
+            isClockedIn={isClockedIn}
             clockInTime={clockInTimeStr}
             punctualityLabel={punctuality?.statusLabel}
             shiftName={punctuality?.shiftName}

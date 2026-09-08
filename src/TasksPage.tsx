@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { AlertTriangle, Plus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { AlertTriangle, Plus, ListTodo } from 'lucide-react'
 import { useWorkspaceTasks } from './hooks/useWorkspaceTasks'
 import { useWorkspaceRoster } from './hooks/useWorkspaceRoster'
 import { useWorkspaceUnits } from './hooks/useOrganizationUnits'
@@ -25,7 +26,9 @@ import {
   buildUnitOverviews,
   type UnitScopeMode,
 } from './utils/taskUnitScoping'
+import { collectSubtreeIds } from './utils/orgUnitTree'
 import type { TaskItem, CreateTaskInput, TaskFilters } from './types/tasks'
+import type { OrgUnit } from './types/organization'
 import './styles/tasks-layout.css'
 import './styles/tasks-directory.css'
 
@@ -35,6 +38,11 @@ export default function TasksPage() {
   const { role, currentDepartment } = useDevPersona()
   const activeWorkspaceId = currentWorkspace?.id || ''
   const workspaceName = currentWorkspace?.name || 'Workspace'
+
+  const navigate = useNavigate()
+  const myTasksPath = activeWorkspaceId
+    ? `/workspace/${activeWorkspaceId}/tasks/my-tasks`
+    : '/tasks/my-tasks'
 
   const [filters, setFilters] = useState<TaskFilters>({ unit: 'all' })
   const {
@@ -51,11 +59,65 @@ export default function TasksPage() {
   const [activeUnitId, setActiveUnitId] = useState<string | null>(null)
   const [scopeMode, setScopeMode] = useState<UnitScopeMode>('subtree')
 
-  // Lifecycle anchors stay unfiltered across the full task set for stable headline totals
-  const overall = useMemo(() => summarizeStatuses(tasks), [tasks])
+  // HODs are locked to their department subtree; admins see the whole workspace.
+  const hodUnits = useMemo<OrgUnit[] | null>(() => {
+    if (role !== 'hod') return null
+    const deptName = currentDepartment.name.toLowerCase()
+    const subNames = new Set(currentDepartment.subDepartments.map((s) => s.toLowerCase()))
+    const roots = units.filter(
+      (u) => u.name.toLowerCase() === deptName || subNames.has(u.name.toLowerCase())
+    )
+    if (roots.length === 0) return null
+    const ids = new Set<string>()
+    for (const root of roots) {
+      collectSubtreeIds(units, root.id).forEach((id) => ids.add(id))
+    }
+    return units.filter((u) => roots.some((r) => r.id === u.id) || ids.has(u.id))
+  }, [role, currentDepartment, units])
+  const isHodScoped = hodUnits !== null
 
-  // Unit scope resolves to real organization_units subtree membership
-  const scopedUnitId = filters.unit && filters.unit !== 'all' ? filters.unit : null
+  // HOD-visible assignees: everyone inside their department subtree.
+  const hodAssigneeIds = useMemo(() => {
+    if (!hodUnits) return null
+    const hodUnitIds = new Set(hodUnits.map((u) => u.id))
+    const subtreeNames = new Set(hodUnits.map((u) => u.name.toLowerCase()))
+    return new Set(
+      roster
+        .filter(
+          (m) =>
+            (m.unitId && hodUnitIds.has(m.unitId)) ||
+            m.unitIds?.some((uid) => hodUnitIds.has(uid)) ||
+            (m.department && subtreeNames.has(m.department.toLowerCase()))
+        )
+        .map((m) => m.memberId)
+    )
+  }, [hodUnits, roster])
+
+  // HOD task lens: only tasks assigned inside their department ever surface.
+  const visibleTasks = useMemo(() => {
+    if (!hodAssigneeIds) return tasks
+    return tasks.filter((t) =>
+      t.assigneeMemberId ? hodAssigneeIds.has(t.assigneeMemberId) : false
+    )
+  }, [tasks, hodAssigneeIds])
+
+  // Lifecycle anchors follow the viewer's visible task set
+  const overall = useMemo(() => summarizeStatuses(visibleTasks), [visibleTasks])
+
+  // Unit scope resolves to real organization_units subtree membership.
+  // HODs are pinned to their department: an out-of-scope or 'all' selection
+  // derives to their department unit during render (no state ping-pong).
+  const effectiveUnit = useMemo(() => {
+    if (!isHodScoped) return filters.unit || 'all'
+    const allowed = new Set(hodUnits.map((u) => u.id))
+    const current = filters.unit || 'all'
+    if (current === 'all' || !allowed.has(current)) {
+      return hodUnits[0]?.id ?? 'all'
+    }
+    return current
+  }, [isHodScoped, hodUnits, filters.unit])
+
+  const scopedUnitId = effectiveUnit !== 'all' ? effectiveUnit : null
   const scopeAssigneeIds = useMemo(
     () => resolveScopeAssigneeIds(units, roster, scopedUnitId, scopeMode),
     [units, roster, scopedUnitId, scopeMode],
@@ -63,22 +125,25 @@ export default function TasksPage() {
 
   // Everything below honours the toolbar filter (status tab + search + unit scope)
   const filteredTasks = useMemo(
-    () => filterReviewTasks(tasks, activeTab, searchQuery, scopeAssigneeIds),
-    [tasks, activeTab, searchQuery, scopeAssigneeIds],
+    () => filterReviewTasks(visibleTasks, activeTab, searchQuery, scopeAssigneeIds),
+    [visibleTasks, activeTab, searchQuery, scopeAssigneeIds],
   )
 
   const unitOverviews = useMemo(
-    () => buildUnitOverviews(units, roster, filteredTasks),
-    [units, roster, filteredTasks],
+    () => buildUnitOverviews(hodUnits ?? units, roster, filteredTasks),
+    [hodUnits, units, roster, filteredTasks],
   )
 
   const unitScopeOptions = useMemo(() => {
-    return units.map((unit) => ({
-      id: unit.id,
-      name: unit.name,
-      memberCount: roster.filter((m) => m.unitId === unit.id).length,
-    }))
-  }, [units, roster])
+    const allowed = hodUnits ? new Set(hodUnits.map((u) => u.id)) : null
+    return units
+      .filter((unit) => !allowed || allowed.has(unit.id))
+      .map((unit) => ({
+        id: unit.id,
+        name: unit.name,
+        memberCount: roster.filter((m) => m.unitId === unit.id).length,
+      }))
+  }, [units, roster, hodUnits])
 
   const displayedUnits = useMemo(() => {
     if (!scopedUnitId) return unitOverviews
@@ -96,7 +161,10 @@ export default function TasksPage() {
   }, [role, currentDepartment.name, units])
 
   async function handleCreateBatch(newTasks: CreateTaskInput[]) {
-    await createBatch(newTasks)
+    const result = await createBatch(newTasks)
+    if (result.success === false) {
+      throw new Error(result.error || 'Failed to create tasks.')
+    }
     setIsCreateOpen(false)
   }
 
@@ -164,19 +232,31 @@ export default function TasksPage() {
             onChange: (id) => setActiveTab(id as TasksFilterTab),
             variant: 'pill',
           }}
+          rightContent={
+            <button
+              type="button"
+              onClick={() => navigate(myTasksPath)}
+              title="Open your personal workspace to submit your own tasks"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-700 bg-white border border-zinc-300 hover:border-[#7c007e]/50 hover:text-[#7c007e] transition-colors cursor-pointer"
+            >
+              <ListTodo size={14} />
+              My Tasks
+            </button>
+          }
         />
 
         {/* Unit scope toggle wired to real organization_units */}
         <UnitScopeToggle
-          activeUnit={filters.unit || 'all'}
+          activeUnit={effectiveUnit}
           units={unitScopeOptions}
-          totalTaskCount={tasks.length}
+          totalTaskCount={visibleTasks.length}
           onSelectUnit={(selectedUnitId) =>
             setFilters((prev) => ({ ...prev, unit: selectedUnitId }))
           }
           scopeMode={scopeMode}
           onScopeModeChange={setScopeMode}
           accentColor={accentColor}
+          hideAllUnits={isHodScoped}
         />
 
         {/* Approval authority feedback (DB-enforced via approve_task_if_authorized) */}

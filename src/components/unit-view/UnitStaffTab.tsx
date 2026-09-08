@@ -4,9 +4,8 @@ import { Users, UserPlus, Trash2, ExternalLink, ShieldCheck, CheckCircle2, Clock
 import type { UnitMemberItem } from '../../services/unitMembersService'
 import type { OrgUnit } from '../../types/organization'
 import type { TaskItem } from '../../types/tasks'
-import type { BadgeVariant } from '../ui/Badge'
 import { useStaffWorkload } from '../../hooks/useStaffWorkload'
-import { Badge, Button, SearchInput } from '../ui'
+import { Button, SearchInput } from '../ui'
 
 interface UnitStaffTabProps {
   members: UnitMemberItem[]
@@ -17,14 +16,6 @@ interface UnitStaffTabProps {
   onAddStaff: () => void
   onRemoveMember: (memberId: string) => Promise<void>
   isRemoving: boolean
-}
-
-const TYPE_BADGE_VARIANTS: Record<string, BadgeVariant> = {
-  primary: 'purple',
-  joint: 'info',
-  adjunct: 'success',
-  secondment: 'warning',
-  affiliate: 'neutral',
 }
 
 export function UnitStaffTab({
@@ -112,7 +103,6 @@ export function UnitStaffTab({
       <div className="bg-white rounded-xl border border-zinc-200 divide-y divide-zinc-100 overflow-hidden">
         {filteredMembers.map((m) => {
           const initials = m.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || 'U'
-          const badgeVariant = TYPE_BADGE_VARIANTS[m.assignmentType] || 'neutral'
           const isHOD = unit.headMemberId === m.memberId
           const workload = memberTasksMap.get(m.memberId) ?? { total: 0, approved: 0, submitted: 0, open: 0 }
           const profileLink = workspaceId ? `/workspace/${workspaceId}/staff/${m.memberId}` : `/staff/${m.memberId}`
@@ -137,9 +127,6 @@ export function UnitStaffTab({
                         <ShieldCheck size={11} /> HOD
                       </span>
                     )}
-                    <Badge variant={badgeVariant} size="sm">
-                      {m.assignmentType.toUpperCase()}
-                    </Badge>
                   </div>
                   <div className="text-xs text-zinc-500 mt-0.5 truncate">
                     {m.jobTitle ? `${m.jobTitle} • ` : ''}{m.roleLabel}{m.email ? ` • ${m.email}` : ''}

@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
+import { getInitials } from '../../utils/taskAggregation'
+import { useWorkspace } from '../../context/useWorkspace'
 import { Button } from '../ui'
+import { TaskStatusPill, TaskTypePill } from './TaskPills'
 
 interface TaskCardProps {
   task: TaskItem
@@ -9,126 +11,81 @@ interface TaskCardProps {
   onViewDetails?: (task: TaskItem) => void
 }
 
+/**
+ * Compact single-row task entry for admin review lists (unit tab + staff panel).
+ * Assignee identity, due rule and status scan in one glance; the full breakdown
+ * (description, completion links, notes) lives in TaskDetailView so the list
+ * stays a scannable stack of slim rows instead of tall cards.
+ */
 export default function TaskCard({ task, onApprove, onViewDetails }: TaskCardProps) {
-  const [isCommentOpen, setIsCommentOpen] = useState(true)
-  const [isDifficultyOpen, setIsDifficultyOpen] = useState(true)
-
-  const isSubmitted = task.status === 'submitted'
-  const isApproved = task.status === 'approved'
-  const isNotDone = task.status === 'not_done'
+  const { accentColor = '#7c007e' } = useWorkspace()
+  const staffNote = task.proofNote
 
   return (
-    <div className="tasks-task">
-      <div>
-        {/* Top Pills matching the departmental status colors */}
-        <div className="tasks-task-top mb-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            {isApproved && (
-              <span className="tasks-pill tasks-status--approved">Approved</span>
-            )}
-            {isSubmitted && (
-              <span className="tasks-pill tasks-status--submitted">
-                Submitted (Waiting Approval)
-              </span>
-            )}
-            {isNotDone && (
-              <span className="tasks-pill tasks-status--notdone">Not Done</span>
-            )}
+    <div className="group flex items-stretch bg-white border border-zinc-200 rounded-xl overflow-hidden transition-all hover:border-zinc-300 hover:shadow-sm cursor-pointer">
+      {/* Organization branding rail (stretches full row height) */}
+      <div className="w-1 shrink-0" style={{ backgroundColor: accentColor }} />
+
+      {/* Clickable summary — avatar anchors the row, one shared center axis */}
+      <div
+        className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3"
+        onClick={() => onViewDetails?.(task)}
+      >
+        {task.assigneeAvatar ? (
+          <img
+            src={task.assigneeAvatar}
+            alt=""
+            className="w-9 h-9 rounded-full object-cover shrink-0"
+          />
+        ) : (
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+            style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
+          >
+            {getInitials(task.assigneeName)}
+          </span>
+        )}
+
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-sm font-bold text-zinc-900 truncate min-w-0">
+              {task.title}
+            </h3>
+            <TaskStatusPill status={task.status} />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="tasks-pill tasks-type-pill">
-              {task.type === 'recurring' ? 'Recurring Routine' : 'Special Assignment'}
+          <div className="flex items-center gap-2 min-w-0 flex-wrap text-xs text-zinc-500">
+            <span className="font-semibold text-zinc-700 truncate max-w-[10rem]">
+              {task.assigneeName}
             </span>
-            <span className={`tasks-pill tasks-priority--${task.priority}`}>
-              {task.priority}
-            </span>
+            <span className="text-zinc-300">·</span>
+            <span className="truncate">{task.dueDate}</span>
+            <TaskTypePill type={task.type} />
           </div>
+
+          {staffNote && (
+            <p className="text-xs italic text-zinc-500 truncate">&ldquo;{staffNote}&rdquo;</p>
+          )}
         </div>
-
-        <h3 className="tasks-task-title">{task.title}</h3>
-        <p className="tasks-task-desc">{task.description}</p>
-
-        {task.recurrence && (
-          <div className="tasks-task-recurrence mt-3">{task.recurrence}</div>
-        )}
-
-        {/* Staff's completion comment dropdown (submitted / approved tasks) */}
-        {task.proofNote && (
-          <div className="tasks-note mt-3">
-            <button
-              type="button"
-              onClick={() => setIsCommentOpen(!isCommentOpen)}
-              className="tasks-note-toggle"
-            >
-              <span>Staff's comment</span>
-              {isCommentOpen ? (
-                <ChevronUp size={14} />
-              ) : (
-                <ChevronDown size={14} />
-              )}
-            </button>
-            {isCommentOpen && (
-              <div className="tasks-note-body">
-                <p className="italic">&quot;{task.proofNote}&quot;</p>
-                {task.completedAt && (
-                  <span className="tasks-note-time">Submitted: {task.completedAt}</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Staff's reason / difficulty note (not done tasks) */}
-        {task.difficultyNote && (
-          <div className="tasks-note mt-2.5">
-            <button
-              type="button"
-              onClick={() => setIsDifficultyOpen(!isDifficultyOpen)}
-              className="tasks-note-toggle"
-            >
-              <span>Reason / Difficulty Note</span>
-              {isDifficultyOpen ? (
-                <ChevronUp size={14} />
-              ) : (
-                <ChevronDown size={14} />
-              )}
-            </button>
-            {isDifficultyOpen && (
-              <div className="tasks-note-body">
-                <p className="italic">&quot;{task.difficultyNote}&quot;</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      <div className="tasks-task-meta">
-        <div className="tasks-task-due">
-          Due: <strong>{task.dueDate}</strong>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isSubmitted && onApprove && (
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<CheckCircle2 size={14} />}
-              onClick={() => onApprove(task)}
-            >
-              Approve Done
-            </Button>
-          )}
-          {onViewDetails && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetails(task)}
-            >
-              Details
-            </Button>
-          )}
-        </div>
+      {/* Actions (outside the clickable summary so no propagation handling is needed) */}
+      <div className="flex items-center gap-2 pr-3.5 shrink-0">
+        {task.status === 'submitted' && onApprove && (
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<CheckCircle2 size={14} />}
+            onClick={() => onApprove(task)}
+          >
+            Approve
+          </Button>
+        )}
+        {onViewDetails && (
+          <Button variant="outline" size="sm" onClick={() => onViewDetails(task)}>
+            Details
+          </Button>
+        )}
       </div>
     </div>
   )

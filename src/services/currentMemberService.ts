@@ -130,3 +130,58 @@ export async function fetchWorkspaceRoster(
     return []
   }
 }
+
+/**
+ * Server-side paginated search for workspace members by display name or email.
+ * Queries the public.profiles table first (RLS: "viewable by everyone"),
+ * then restricts results to workspace_members to enforce scope.
+ *
+ * @param workspaceId - The workspace to scope results to
+ * @param searchTerm  - Minimum 2 characters to trigger a search
+ * @param limit       - Page size (default 20)
+ * @returns Up to `limit` WorkspaceMemberRecords matching the search
+ */
+export async function searchWorkspaceMembers(
+  workspaceId: string,
+  searchTerm: string,
+  limit: number = 20
+): Promise<WorkspaceMemberRecord[]> {
+  const cleanId = (workspaceId || '').trim().toLowerCase()
+  if (!isRealWorkspaceUuid(cleanId)) return []
+
+  const trimmed = (searchTerm || '').trim()
+  if (trimmed.length < 2) return []
+
+  const supabase = getSupabase()
+  try {
+    // 1. Match names/emails via profiles (public select is allowed by RLS)
+    const { data: profileRows, error: profileErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, avatar_url')
+      .or(`full_name.ilike.*${trimmed}*,email.ilike.*${trimmed}*`)
+      .limit(limit)
+
+    if (profileErr || !profileRows || profileRows.length === 0) return []
+
+    // 2. Intersect with workspace_members to enforce workspace scope
+    const userIds = profileRows
+      .map((p) => p.id)
+      .filter((id): id is string => Boolean(id))
+
+    if (userIds.length === 0) return []
+
+    const { data: memberRows, error: memberErr } = await supabase
+      .from('workspace_members')
+      .select('id, role, department, user_id, unit_id, job_title')
+      .eq('workspace_id', cleanId)
+      .in('user_id', userIds)
+
+    if (memberErr || !memberRows || memberRows.length === 0) return []
+
+    // 3. Hydrate with full profile data + unit assignments
+    return await hydrateMembers(memberRows, cleanId)
+  } catch (err) {
+    console.warn('[currentMemberService] Staff search error:', err)
+    return []
+  }
+}

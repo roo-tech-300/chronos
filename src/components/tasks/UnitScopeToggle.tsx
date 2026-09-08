@@ -18,6 +18,8 @@ interface UnitScopeToggleProps {
   scopeMode?: UnitScopeMode
   onScopeModeChange?: (mode: UnitScopeMode) => void
   accentColor?: string
+  /** HODs are locked to their department - hides the All Units escape hatch. */
+  hideAllUnits?: boolean
 }
 
 export default function UnitScopeToggle({
@@ -28,6 +30,7 @@ export default function UnitScopeToggle({
   scopeMode,
   onScopeModeChange,
   accentColor = '#7c007e',
+  hideAllUnits = false,
 }: UnitScopeToggleProps) {
   const isAll = activeUnit === 'all' || !activeUnit
 
@@ -39,18 +42,20 @@ export default function UnitScopeToggle({
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
-        <button
-          type="button"
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            isAll
-              ? 'text-white shadow-sm ring-1 ring-black/5'
-              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900'
-          }`}
-          style={isAll ? { backgroundColor: accentColor } : undefined}
-          onClick={() => onSelectUnit('all')}
-        >
-          All Units ({totalTaskCount})
-        </button>
+        {!hideAllUnits && (
+          <button
+            type="button"
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              isAll
+                ? 'text-white shadow-sm ring-1 ring-black/5'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900'
+            }`}
+            style={isAll ? { backgroundColor: accentColor } : undefined}
+            onClick={() => onSelectUnit('all')}
+          >
+            All Units ({totalTaskCount})
+          </button>
+        )}
 
         {units.map((unit) => {
           const isSelected = activeUnit === unit.id

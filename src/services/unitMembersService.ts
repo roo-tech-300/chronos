@@ -2,7 +2,6 @@ import { getSupabase } from '../lib/supabase'
 import { isUuid } from '../utils/uuid'
 import { fetchMemberProfilesMap, formatRole } from './identityResolver'
 import { assertMemberWithAssignmentRows } from '../utils/supabaseTypeGuards'
-import type { AssignmentType } from '../types/organization'
 
 export interface UnitMemberItem {
   id: string
@@ -14,9 +13,6 @@ export interface UnitMemberItem {
   role?: string
   roleLabel: string
   jobTitle?: string
-  isPrimary: boolean
-  assignmentType: AssignmentType
-  reportsTo?: string | null
 }
 
 /**
@@ -30,11 +26,10 @@ export async function fetchUnitMembers(
   if (!isUuid(cleanId)) return { data: [], error: new Error('Invalid unit id.') }
 
   const supabase = getSupabase()
-  const { data, error } = await supabase
+    const { data, error } = await supabase
     .from('organization_unit_members')
-    .select('id, unit_id, member_id, is_primary, assignment_type, job_title, reports_to, member:workspace_members!inner(id, user_id, role, department, workspace_id)')
+    .select('id, unit_id, member_id, job_title, member:workspace_members!inner(id, user_id, role, department, workspace_id)')
     .eq('unit_id', cleanId)
-    .order('is_primary', { ascending: false })
 
   if (error) {
     console.warn('[unitMembersService] Unit members fetch failed:', error.message)
@@ -58,9 +53,6 @@ export async function fetchUnitMembers(
       role: row.member.role || undefined,
       roleLabel: formatRole(row.member.role || undefined),
       jobTitle: row.job_title || undefined,
-      isPrimary: row.is_primary,
-      assignmentType: row.assignment_type,
-      reportsTo: row.reports_to,
     }
   })
 

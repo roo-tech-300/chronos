@@ -88,7 +88,7 @@ export default function StaffDirectoryModal({
     liveStep.level === 'members'
       ? 'Pick a team member to walk through their day.'
       : liveStep.level === 'person'
-        ? `${liveStep.member.role} · ${liveStep.member.subDepartment}`
+        ? liveStep.member.role
         : 'Full deliverable overview and verification status.'
 
   return (

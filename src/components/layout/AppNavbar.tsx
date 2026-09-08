@@ -35,7 +35,6 @@ export default function AppNavbar({
     profile,
     displayName,
     initials,
-    currentStaff,
     activeBrandName,
     activeBrandLogo,
     homePath,
@@ -81,13 +80,7 @@ export default function AppNavbar({
             </span>
           </Link>
 
-          {role === 'staff' ? (
-            <div className="hidden sm:flex items-center gap-6">
-              <Link to={`${prefix}/tasks/my-tasks`} className={navLinkClass(isTasksActive)}>
-                My Tasks
-              </Link>
-            </div>
-          ) : role === 'hod' ? (
+          {role === 'staff' ? null : role === 'hod' ? (
             <div className="hidden sm:flex items-center gap-6">
               <Link to={`${prefix}/dashboard`} className={navLinkClass(isDashboardActive)}>
                 Dashboard
@@ -164,7 +157,7 @@ export default function AppNavbar({
             initials={initials}
             accentColor={accentColor}
             role={role}
-            currentStaffRole={currentStaff.role}
+            workspaceId={currentWorkspace?.id}
             homePath={homePath}
             prefix={prefix}
             onSignOut={signOut}

@@ -1,10 +1,10 @@
-import { LogIn, MapPin } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 
 interface ClockInStatusCardProps {
   name: string
-  role: string
-  subDepartment: string
   initials: string
+  /** True when the member's LATEST scan today is a check-in. */
+  isClockedIn?: boolean
   /** Real clock-in time when known; the segment is hidden when absent. */
   clockInTime?: string
   punctualityLabel?: string
@@ -13,9 +13,8 @@ interface ClockInStatusCardProps {
 
 export default function ClockInStatusCard({
   name,
-  role,
-  subDepartment,
   initials,
+  isClockedIn,
   clockInTime,
   punctualityLabel,
   shiftName,
@@ -26,16 +25,16 @@ export default function ClockInStatusCard({
         <div className="tasks-clock-avatar">{initials}</div>
         <div>
           <h2 className="tasks-clock-name">{name}</h2>
-          <p className="tasks-clock-role">
-            {role} · {subDepartment}
-          </p>
         </div>
       </div>
 
       <div className="tasks-clock-status flex-wrap">
         <span className="tasks-clock-live">
-          <span className="tasks-live-dot" />
-          On the clock
+          <span
+            className="tasks-live-dot"
+            style={isClockedIn ? undefined : { background: '#a1a1aa', animation: 'none' }}
+          />
+          {isClockedIn ? 'On the clock' : 'Off the clock'}
         </span>
         {clockInTime && (
           <>
@@ -61,10 +60,6 @@ export default function ClockInStatusCard({
             </span>
           </>
         )}
-        <span className="tasks-clock-sep">·</span>
-        <span className="tasks-clock-meta">
-          <MapPin size={12} /> {subDepartment}
-        </span>
       </div>
     </section>
   )

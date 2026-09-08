@@ -125,16 +125,8 @@ export interface UpdateUnitInput {
 export interface MemberAssignmentRow {
   id: string
   unit_id: string | null
-  reports_to: string | null
   job_title: string | null
 }
-
-export type AssignmentType =
-  | 'primary'
-  | 'joint'
-  | 'adjunct'
-  | 'secondment'
-  | 'affiliate'
 
 /** Raw organization_unit_members row as returned by Supabase. */
 export interface OrganizationUnitMemberRow {
@@ -142,10 +134,7 @@ export interface OrganizationUnitMemberRow {
   workspace_id: string
   unit_id: string
   member_id: string
-  is_primary: boolean
   job_title: string | null
-  assignment_type: AssignmentType
-  reports_to: string | null
   created_at: string
   updated_at: string
 }
@@ -156,10 +145,7 @@ export interface OrganizationUnitMember {
   workspaceId: string
   unitId: string
   memberId: string
-  isPrimary: boolean
   jobTitle?: string | null
-  assignmentType: AssignmentType
-  reportsTo?: string | null
   createdAt?: string
   updatedAt?: string
   unit?: OrgUnit
@@ -169,20 +155,14 @@ export interface OrganizationUnitMember {
 export interface AssignMemberInput {
   memberId: string
   unitId: string
-  reportsTo?: string | null
   jobTitle?: string | null
-  isPrimary?: boolean
-  assignmentType?: AssignmentType
 }
 
 /** Result of assigning a member to a unit / supervisor. */
 export interface MemberAssignment {
   memberId: string
   unitId: string | null
-  reportsTo: string | null
   jobTitle: string | null
-  isPrimary?: boolean
-  assignmentType?: AssignmentType
   assignments?: OrganizationUnitMember[]
 }
 

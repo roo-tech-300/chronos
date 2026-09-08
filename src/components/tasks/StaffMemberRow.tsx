@@ -29,7 +29,7 @@ export default function StaffMemberRow({ member, onSelect }: StaffMemberRowProps
           {member.isLead && <span className="hod-pill">HOD</span>}
         </span>
         <p className="member-row-role">
-          {member.role} · {member.subDepartment}
+          {member.role}
         </p>
       </span>
 

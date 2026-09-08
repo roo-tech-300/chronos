@@ -23,10 +23,7 @@ export function mapUnitMemberRow(
     workspaceId: row.workspace_id,
     unitId: row.unit_id,
     memberId: row.member_id,
-    isPrimary: row.is_primary,
     jobTitle: row.job_title,
-    assignmentType: row.assignment_type,
-    reportsTo: row.reports_to,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     unit,
@@ -41,11 +38,10 @@ export async function fetchMemberUnitAssignments(
   if (!isUuid(cleanId)) return { data: [], error: new Error('Invalid member id.') }
 
   const supabase = getSupabase()
-  const { data, error } = await supabase
+    const { data, error } = await supabase
     .from('organization_unit_members')
     .select('*, unit:organization_units(*)')
     .eq('member_id', cleanId)
-    .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
 
   if (error) {
@@ -73,7 +69,7 @@ export async function fetchMemberUnitLineage(
   const supabase = getSupabase()
   const { data: memberRow, error: memberError } = await supabase
     .from('workspace_members')
-    .select('id, unit_id, reports_to, job_title')
+        .select('id, unit_id, job_title')
     .eq('id', cleanId)
     .maybeSingle()
 
@@ -81,10 +77,9 @@ export async function fetchMemberUnitLineage(
     return { data: null, error: new Error(memberError?.message || 'Member not found.') }
   }
 
-  const base: MemberAssignment = {
+    const base: MemberAssignment = {
     memberId: memberRow.id,
     unitId: memberRow.unit_id,
-    reportsTo: memberRow.reports_to,
     jobTitle: memberRow.job_title,
   }
 
@@ -92,7 +87,7 @@ export async function fetchMemberUnitLineage(
   const { data: assignments } = await fetchMemberUnitAssignments(cleanId)
   base.assignments = assignments
 
-  const activeUnitId = memberRow.unit_id || assignments.find((a) => a.isPrimary)?.unitId
+    const activeUnitId = memberRow.unit_id || assignments[0]?.unitId
   if (!activeUnitId) {
     return { data: { ...base, lineage: [], allAssignedUnits: [] }, error: null }
   }

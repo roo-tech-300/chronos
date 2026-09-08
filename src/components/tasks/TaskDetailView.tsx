@@ -1,6 +1,7 @@
-import { ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
 import { Button } from '../ui'
+import { TaskStatusPill, TaskTypePill } from './TaskPills'
 
 interface TaskDetailViewProps {
   task: TaskItem
@@ -11,9 +12,8 @@ interface TaskDetailViewProps {
 }
 
 /**
- * Step 3 of the directory modal: the full breakdown for one task.
- * Replaces the old standalone details dialog so reviewers never lose
- * their browsing context (back-forward navigation instead).
+ * The full breakdown for one task. The back affordance is owned by the host
+ * (modal header / breadcrumb), so this component renders only the content.
  */
 export default function TaskDetailView({ task, onBack, onApprove }: TaskDetailViewProps) {
   const isSubmitted = task.status === 'submitted'
@@ -34,31 +34,14 @@ export default function TaskDetailView({ task, onBack, onApprove }: TaskDetailVi
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <button type="button" className="drill-back" onClick={onBack}>
-          <ArrowLeft size={14} />
-          Back to {task.assigneeName.split(' ')[0]}&apos;s tasks
-        </button>
-        <span className="font-mono text-[11px] font-semibold text-zinc-400">{task.id}</span>
-      </div>
+      <h2 className="text-xl font-bold text-zinc-900 tracking-tight leading-snug mb-3">
+        {task.title}
+      </h2>
 
       {/* Status / classification pills — identical visual language to TaskCard */}
       <div className="flex items-center gap-2 flex-wrap mb-4">
-        {task.status === 'approved' && (
-          <span className="tasks-pill tasks-status--approved">Approved</span>
-        )}
-        {task.status === 'submitted' && (
-          <span className="tasks-pill tasks-status--submitted">Submitted (Waiting Approval)</span>
-        )}
-        {task.status === 'not_done' && (
-          <span className="tasks-pill tasks-status--notdone">Not Done</span>
-        )}
-        <span className="tasks-pill tasks-type-pill">
-          {task.type === 'recurring' ? 'Recurring Routine' : 'Special Assignment'}
-        </span>
-        <span className={`tasks-pill tasks-priority--${task.priority}`}>
-          {task.priority} priority
-        </span>
+        <TaskStatusPill status={task.status} />
+        <TaskTypePill type={task.type} />
       </div>
 
       <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 text-sm text-zinc-700 leading-relaxed">
@@ -82,31 +65,18 @@ export default function TaskDetailView({ task, onBack, onApprove }: TaskDetailVi
         </div>
       )}
 
-      {task.difficultyNote && (
-        <div className="mt-3.5 p-3.5 bg-zinc-50 rounded-xl border border-zinc-200">
-          <span className="text-xs font-bold text-zinc-500 block uppercase tracking-wider mb-1">
-            Reason / Difficulty Note
-          </span>
-          <p className="italic text-xs leading-relaxed text-zinc-700">
-            &quot;{task.difficultyNote}&quot;
-          </p>
-        </div>
-      )}
-
       <div className="detail-meta-grid mt-5 pt-5 border-t border-zinc-100">
         <div>
           <span className="text-zinc-400 block font-medium text-xs">Assignee</span>
           <span className="font-bold text-sm text-zinc-900 block mt-0.5">
             {task.assigneeName}
           </span>
-          <span className="text-xs text-zinc-500">{task.assigneeRole}</span>
         </div>
         <div>
           <span className="text-zinc-400 block font-medium text-xs">Due Date / Cadence</span>
           <span className="font-bold text-sm text-zinc-900 block mt-0.5">
             {task.recurrence || task.dueDate}
           </span>
-          <span className="text-xs text-zinc-500">{task.subDepartment}</span>
         </div>
         {(task.completedAt || task.verifiedBy) && (
           <div>
@@ -115,17 +85,6 @@ export default function TaskDetailView({ task, onBack, onApprove }: TaskDetailVi
               {task.verifiedBy ?? 'Pending review'}
             </span>
             <span className="text-xs text-zinc-500">{task.completedAt}</span>
-          </div>
-        )}
-        {(task.estimatedMins !== undefined || task.actualMins !== undefined) && (
-          <div>
-            <span className="text-zinc-400 block font-medium text-xs">Time Budget</span>
-            <span className="font-bold text-sm text-zinc-900 block mt-0.5">
-              {task.actualMins !== undefined ? `${task.actualMins} min logged` : 'Not logged yet'}
-            </span>
-            <span className="text-xs text-zinc-500">
-              {task.estimatedMins !== undefined ? `~${task.estimatedMins} min planned` : ''}
-            </span>
           </div>
         )}
       </div>

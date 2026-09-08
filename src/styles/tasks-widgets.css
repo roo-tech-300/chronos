@@ -54,20 +54,20 @@
   color: var(--tasks-on-surface);
 }
 
-/* Tinted accent variants for the review metric anchors */
+/* Semantic accent variants for the review metric anchors (token-driven) */
 .tasks-metric-icon--ok {
-  background: #ecfdf5;
-  color: #059669;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-success);
 }
 
 .tasks-metric-icon--warn {
-  background: #fffbeb;
-  color: #d97706;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-warning);
 }
 
 .tasks-metric-icon--muted {
-  background: #f4f4f5;
-  color: #71717a;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-on-surface-variant);
 }
 
 .tasks-metric-value {
@@ -97,14 +97,14 @@
   letter-spacing: 0.02em;
 }
 
-.tasks-priority--high { background: #fef2f2; color: #b91c1c; }
-.tasks-priority--medium { background: #fffbeb; color: #b45309; }
-.tasks-priority--low { background: #f0f9ff; color: #0369a1; }
+.tasks-priority--high { background: var(--tasks-surface-container); color: var(--tasks-danger); }
+.tasks-priority--medium { background: var(--tasks-surface-container); color: var(--tasks-warning); }
+.tasks-priority--low { background: var(--tasks-surface-container); color: var(--tasks-on-surface-variant); }
 
-.tasks-status--approved { background: #f0fdf4; color: var(--tasks-success); }
-.tasks-status--submitted { background: #fef3c7; color: #92400e; }
-.tasks-status--notdone { background: #f4f4f5; color: #71717a; }
-.tasks-type-pill { background: #f4f4f5; color: var(--tasks-on-surface-variant); }
+.tasks-status--approved { background: var(--tasks-surface-container); color: var(--tasks-success); }
+.tasks-status--submitted { background: var(--tasks-surface-container); color: var(--tasks-warning); }
+.tasks-status--notdone { background: var(--tasks-surface-container); color: var(--tasks-on-surface-variant); }
+.tasks-type-pill { background: var(--tasks-surface-container); color: var(--tasks-on-surface-variant); }
 
 .tasks-count {
   display: inline-flex;
@@ -113,14 +113,14 @@
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 9999px;
-  background: #f4f4f5;
-  color: #71717a;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-on-surface-variant);
   white-space: nowrap;
 }
 
 .tasks-count--warn {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--tasks-surface-container);
+  color: var(--tasks-warning);
 }
 /* ---------------- Departmental group accordions ---------------- */
 

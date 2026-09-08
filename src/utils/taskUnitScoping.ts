@@ -114,7 +114,6 @@ export function filterTasksByUnit(
   return tasks.filter((t) => {
     if (t.assigneeMemberId && assigneeIds?.has(t.assigneeMemberId)) return true
     if (t.department && unitNames.has(t.department.toLowerCase())) return true
-    if (t.subDepartment && unitNames.has(t.subDepartment.toLowerCase())) return true
     return false
   })
 }

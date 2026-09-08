@@ -1,5 +1,4 @@
 import type {
-  AssignmentType,
   OrganizationUnitMemberRow,
   OrganizationUnitRow,
 } from '../types/organization'
@@ -81,10 +80,7 @@ export interface MemberWithAssignmentRow {
   id: string
   unit_id: string
   member_id: string
-  is_primary: boolean
-  assignment_type: AssignmentType
   job_title: string | null
-  reports_to: string | null
   member: {
     id: string
     user_id: string | null

@@ -1,9 +1,10 @@
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { UserPlus, AlertCircle } from 'lucide-react'
-import type { OrgUnit, AssignmentType } from '../../types/organization'
-import { useWorkspaceRoster } from '../../hooks/useWorkspaceRoster'
+import type { OrgUnit } from '../../types/organization'
+import type { WorkspaceMemberRecord } from '../../types/tasks'
 import { useWorkspaceUnits } from '../../hooks/useOrganizationUnits'
-import { Modal, Button, Input, Select } from '../ui'
+import { Modal, Button, Input } from '../ui'
+import { StaffSearchCombobox } from './StaffSearchCombobox'
 
 interface AssignMemberModalProps {
   isOpen: boolean
@@ -13,14 +14,11 @@ interface AssignMemberModalProps {
   onSuccess?: () => void
 }
 
-const ASSIGNMENT_TYPES: { value: AssignmentType; label: string }[] = [
-  { value: 'primary', label: 'Primary Department (Home Unit)' },
-  { value: 'joint', label: 'Joint Appointment (Shared Division)' },
-  { value: 'adjunct', label: 'Adjunct / Cross-Functional' },
-  { value: 'secondment', label: 'Secondment (Internal Transfer)' },
-  { value: 'affiliate', label: 'Affiliate Member' },
-]
-
+/**
+ * Modal for placing a staff member into an organization unit.
+ * Uses StaffSearchCombobox for lazy, server-side staff search —
+ * no full-roster fetch, no appointment type / supervisor / primary checkbox.
+ */
 export function AssignMemberModal({
   isOpen,
   unit,
@@ -28,41 +26,15 @@ export function AssignMemberModal({
   onClose,
   onSuccess,
 }: AssignMemberModalProps) {
-  const { roster } = useWorkspaceRoster(workspaceId)
   const { assignMember, isAssigning } = useWorkspaceUnits(workspaceId)
 
-  const [selectedMemberId, setSelectedMemberId] = useState('')
-  const [assignmentType, setAssignmentType] = useState<AssignmentType>('primary')
+  const [selectedMember, setSelectedMember] = useState<WorkspaceMemberRecord | null>(null)
   const [jobTitle, setJobTitle] = useState('')
-  const [reportsTo, setReportsTo] = useState('')
-  const [isPrimary, setIsPrimary] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const primaryCheckId = useId()
-
-  const memberOptions = roster.map((m) => ({
-    value: m.memberId,
-    label: `${m.name} (${m.roleLabel || m.department})`,
-  }))
-
-  const supervisorOptions = [
-    { value: '', label: 'None / Department Head Default' },
-    ...roster
-      .filter((m) => m.memberId !== selectedMemberId)
-      .map((m) => ({ value: m.memberId, label: m.name })),
-  ]
-
-  const handleTypeChange = (type: AssignmentType) => {
-    setAssignmentType(type)
-    if (type === 'primary') {
-      setIsPrimary(true)
-    } else {
-      setIsPrimary(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!unit || !selectedMemberId) {
+    if (!unit || !selectedMember) {
       setErrorMsg('Please select a staff member.')
       return
     }
@@ -70,18 +42,12 @@ export function AssignMemberModal({
     try {
       setErrorMsg(null)
       await assignMember({
-        memberId: selectedMemberId,
+        memberId: selectedMember.memberId,
         unitId: unit.id,
-        assignmentType,
         jobTitle: jobTitle.trim() || undefined,
-        reportsTo: reportsTo || null,
-        isPrimary,
       })
-      setSelectedMemberId('')
+      setSelectedMember(null)
       setJobTitle('')
-      setReportsTo('')
-      setAssignmentType('primary')
-      setIsPrimary(true)
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -112,19 +78,13 @@ export function AssignMemberModal({
           </div>
         )}
 
-        <Select
-          label="Staff Member *"
-          value={selectedMemberId}
-          onChange={(e) => setSelectedMemberId(e.target.value)}
-          options={[{ value: '', label: 'Select staff member...' }, ...memberOptions]}
+        <StaffSearchCombobox
+          workspaceId={workspaceId}
+          selectedMember={selectedMember}
+          onSelect={setSelectedMember}
+          label="Staff Member"
+          placeholder="Type to search staff..."
           required
-        />
-
-        <Select
-          label="Appointment / Assignment Type"
-          value={assignmentType}
-          onChange={(e) => handleTypeChange(e.target.value as AssignmentType)}
-          options={ASSIGNMENT_TYPES}
         />
 
         <Input
@@ -134,26 +94,6 @@ export function AssignMemberModal({
           onChange={(e) => setJobTitle(e.target.value)}
         />
 
-        <Select
-          label="Line Supervisor in Unit (Optional)"
-          value={reportsTo}
-          onChange={(e) => setReportsTo(e.target.value)}
-          options={supervisorOptions}
-        />
-
-        <div className="flex items-center gap-2.5 pt-1">
-          <input
-            id={primaryCheckId}
-            type="checkbox"
-            checked={isPrimary}
-            onChange={(e) => setIsPrimary(e.target.checked)}
-            className="w-4 h-4 rounded text-[#7c007e] focus:ring-[#7c007e] border-zinc-300"
-          />
-          <label htmlFor={primaryCheckId} className="text-xs font-medium text-zinc-700 cursor-pointer">
-            Mark as primary home department for this staff member
-          </label>
-        </div>
-
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100">
           <Button type="button" variant="outline" onClick={onClose} disabled={isAssigning}>
             Cancel
@@ -162,7 +102,7 @@ export function AssignMemberModal({
             type="submit"
             variant="primary"
             isLoading={isAssigning}
-            disabled={!selectedMemberId}
+            disabled={!selectedMember}
           >
             Assign to Unit
           </Button>

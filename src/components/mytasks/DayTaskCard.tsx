@@ -1,4 +1,4 @@
-import { Clock3, ExternalLink, PenLine, Send, ShieldCheck } from 'lucide-react'
+import { PenLine, Send, ShieldCheck } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
 import { Button } from '../ui'
 import TaskStatusBadge from './TaskStatusBadge'
@@ -17,7 +17,6 @@ export default function DayTaskCard({ task, hodName, onOpenDrawer }: DayTaskCard
   return (
     <article className="tasks-day-card">
       <div className="tasks-day-card-top">
-        <span className={`tasks-pill tasks-priority--${task.priority}`}>{task.priority}</span>
         <TaskStatusBadge task={task} hodName={hodName} />
       </div>
 
@@ -27,30 +26,8 @@ export default function DayTaskCard({ task, hodName, onOpenDrawer }: DayTaskCard
       </div>
 
       <div className="tasks-day-meta">
-        {task.estimatedMins !== undefined && (
-          <span className="inline-flex items-center gap-1 font-semibold text-zinc-600">
-            <Clock3 size={13} /> Est. {task.estimatedMins} min
-          </span>
-        )}
-        <span className="tasks-clock-sep">·</span>
         <span>Due {task.dueDate}</span>
       </div>
-
-      {task.completionLinks && task.completionLinks.length > 0 && (
-        <div className="tasks-day-links">
-          {task.completionLinks.map((link) => (
-            <a
-              key={link}
-              href={link}
-              target="_blank"
-              rel="noreferrer"
-              className="tasks-day-link"
-            >
-              <ExternalLink size={12} /> {link}
-            </a>
-          ))}
-        </div>
-      )}
 
       {task.proofNote && task.status !== 'not_done' && (
         <p className="tasks-day-proof">&quot;{task.proofNote}&quot;</p>

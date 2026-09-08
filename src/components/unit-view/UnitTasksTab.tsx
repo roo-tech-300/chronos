@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, AlertTriangle, CheckSquare, Layers } from 'lucide-react'
+import { Plus, AlertTriangle, CheckSquare, Layers, ArrowLeft } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
 import type { OrgUnit } from '../../types/organization'
 import TaskCard from '../tasks/TaskCard'
@@ -65,6 +65,7 @@ export function UnitTasksTab({
               { id: 'approved', label: 'Approved', count: counts.approved },
               { id: 'not_done', label: 'Open', count: counts.not_done },
             ]}
+            
             activeTab={statusFilter}
             onChange={(id) => setStatusFilter(id as 'all' | 'submitted' | 'approved' | 'not_done')}
             variant="pill"
@@ -114,11 +115,11 @@ export function UnitTasksTab({
       {filteredTasks.length === 0 ? (
         <div className="bg-white rounded-2xl border border-zinc-200 p-12 text-center">
           <CheckSquare size={36} className="mx-auto text-zinc-300 mb-3" />
-          <h3 className="text-base font-bold text-zinc-900">No deliverables found</h3>
+          <h3 className="text-base font-bold text-zinc-900">No tasks found</h3>
           <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto mb-5">
             {tasks.length === 0
               ? `No tasks have been assigned to ${unit.name} yet.`
-              : 'No deliverables match the selected filters.'}
+              : 'No tasks match the selected filters.'}
           </p>
           <Button variant="primary" size="sm" leftIcon={<Plus size={15} />} onClick={onAssignTask}>
             Assign New Task
@@ -137,23 +138,31 @@ export function UnitTasksTab({
         </div>
       )}
 
-      {/* Task Full Breakdown Modal */}
+      {/* Task Full Breakdown Modal — back affordance lives in the header */}
       {selectedTask && (
         <Modal
           open={Boolean(selectedTask)}
           onClose={() => setSelectedTask(null)}
           maxWidth="lg"
+          title={
+            <button
+              type="button"
+              onClick={() => setSelectedTask(null)}
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer rounded-lg"
+            >
+              <ArrowLeft size={16} />
+              Back to Tasks
+            </button>
+          }
         >
-          <div className="p-6">
-            <TaskDetailView
-              task={selectedTask}
-              onBack={() => setSelectedTask(null)}
-              onApprove={async (t) => {
-                await onApproveTask(t)
-                setSelectedTask(null)
-              }}
-            />
-          </div>
+          <TaskDetailView
+            task={selectedTask}
+            onBack={() => setSelectedTask(null)}
+            onApprove={async (t) => {
+              await onApproveTask(t)
+              setSelectedTask(null)
+            }}
+          />
         </Modal>
       )}
     </div>

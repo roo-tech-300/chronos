@@ -3,7 +3,7 @@
 -- ============================================================================
 -- Resolves member display names without a profiles table. The hierarchy lead
 -- picker, task review grid, and roster views all depend on fetchMemberProfilesMap
--- (src/services/authIdentity.ts) querying public.profiles — which did not exist.
+-- (src/services/authIdentity.ts) querying public.profiles - which did not exist.
 -- This migration creates the table, backfills existing auth users, and installs
 -- a trigger so future signups auto-create a profile row.
 -- ============================================================================
@@ -43,9 +43,17 @@ begin
   insert into public.profiles (id, full_name, email, avatar_url)
   values (
     new.id,
-    new.user_metadata->>'full_name',
+    coalesce(
+      new.raw_user_meta_data->>'display_name',
+      new.raw_user_meta_data->>'full_name',
+      new.raw_user_meta_data->>'name',
+      split_part(COALESCE(new.email, ''), '@', 1)
+    ),
     new.email,
-    new.user_metadata->>'avatar_url'
+    coalesce(
+      new.raw_user_meta_data->>'avatar_url',
+      new.raw_user_meta_data->>'picture'
+    )
   );
   return new;
 end;
@@ -60,9 +68,17 @@ create trigger on_auth_user_created
 insert into public.profiles (id, full_name, email, avatar_url)
 select
   u.id,
-  u.user_metadata->>'full_name',
+  coalesce(
+    u.raw_user_meta_data->>'display_name',
+    u.raw_user_meta_data->>'full_name',
+    u.raw_user_meta_data->>'name',
+    split_part(COALESCE(u.email, ''), '@', 1)
+  ),
   u.email,
-  u.user_metadata->>'avatar_url'
+  coalesce(
+    u.raw_user_meta_data->>'avatar_url',
+    u.raw_user_meta_data->>'picture'
+  )
 from auth.users u
 where not exists (
   select 1 from public.profiles p where p.id = u.id

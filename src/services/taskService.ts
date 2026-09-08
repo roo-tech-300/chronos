@@ -18,24 +18,17 @@ export function mapTaskRowToItem(row: TaskRow & { workspace_members?: { id: stri
     title: row.title,
     description: row.description || '',
     type: row.type,
-    priority: row.priority,
     status: row.status,
     assigneeName,
     assigneeRole,
     assigneeMemberId: row.assignee_member_id,
     assigneeAvatar,
     department: row.department,
-    subDepartment: row.sub_department || '',
     recurrence: row.recurrence || undefined,
     dueDate: row.due_date,
-    isToday: row.is_today,
-    estimatedMins: row.estimated_mins || 30,
-    actualMins: row.actual_mins ?? undefined,
     completedAt: row.completed_at || undefined,
     verifiedBy: row.verified_by || undefined,
     proofNote: row.proof_note || undefined,
-    difficultyNote: row.difficulty_note || undefined,
-    completionLinks: Array.isArray(row.completion_links) ? row.completion_links : [],
   }
 }
 
@@ -57,7 +50,7 @@ export async function fetchWorkspaceTasks(
   try {
     let query = supabase
       .from('tasks')
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
+      .select('*, workspace_members!assignee_member_id(id, role, profiles(full_name, avatar_url, email))')
       .eq('workspace_id', cleanId)
       .order('due_date', { ascending: false })
 
@@ -72,9 +65,6 @@ export async function fetchWorkspaceTasks(
     }
     if (filters?.assigneeMemberId) {
       query = query.eq('assignee_member_id', filters.assigneeMemberId)
-    }
-    if (filters?.onlyToday) {
-      query = query.eq('is_today', true)
     }
 
     const { data, error } = await query
@@ -110,10 +100,7 @@ export async function fetchWorkspaceTasks(
 /**
  * 2. Fetches assigned tasks for a specific member (e.g. My Day / Staff Workspace).
  */
-export async function fetchMemberTasks(
-  memberId: string,
-  options?: { onlyToday?: boolean }
-): Promise<TaskItem[]> {
+export async function fetchMemberTasks(memberId: string): Promise<TaskItem[]> {
   const cleanMemberId = (memberId || '').trim()
   const supabase = getSupabase()
 
@@ -122,15 +109,11 @@ export async function fetchMemberTasks(
   }
 
   try {
-    let query = supabase
+    const query = supabase
       .from('tasks')
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
+      .select('*, workspace_members!assignee_member_id(id, role, profiles(full_name, avatar_url, email))')
       .eq('assignee_member_id', cleanMemberId)
       .order('due_date', { ascending: false })
-
-    if (options?.onlyToday) {
-      query = query.eq('is_today', true)
-    }
 
     const { data, error } = await query
 
@@ -174,23 +157,18 @@ export async function createTaskBatch(
     title: t.title,
     description: t.description || '',
     type: t.type,
-    priority: t.priority,
     status: 'not_done' as const,
     assignee_member_id: t.assigneeMemberId,
     department: t.department,
-    sub_department: t.subDepartment || '',
     recurrence: t.recurrence || null,
     due_date: t.dueDate,
-    is_today: t.isToday ?? true,
-    estimated_mins: t.estimatedMins || 30,
-    completion_links: [],
   }))
 
   try {
     const { data, error } = await supabase
       .from('tasks')
       .insert(rows)
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
+      .select('*, workspace_members!assignee_member_id(id, role, profiles(full_name, avatar_url, email))')
 
     if (error) {
       console.warn('[taskService] Failed to insert task batch:', error.message)

@@ -23,15 +23,15 @@ function matchesSearch(task: TaskItem, searchQuery: string): boolean {
   const query = searchQuery.toLowerCase()
   return (
     task.title.toLowerCase().includes(query) ||
-    task.assigneeName.toLowerCase().includes(query) ||
-    task.subDepartment.toLowerCase().includes(query)
+    task.assigneeName.toLowerCase().includes(query)
   )
 }
 
 export function taskMatchesTab(task: TaskItem, tab: TasksFilterTab): boolean {
   switch (tab) {
     case "Today's Tasks":
-      return task.isToday !== false
+      // is_today was removed from the schema - every task is in view.
+      return true
     case 'Submitted (Waiting Approval)':
       return task.status === 'submitted'
     case 'Approved':
@@ -100,7 +100,6 @@ export function buildStaffGroups(
       map.set(entry.name, {
         name: entry.name,
         role: entry.roleLabel,
-        subDepartment: entry.department,
         initials: getInitials(entry.name),
         isLead: entry.role === 'hod' || entry.role === 'owner' || entry.role === 'admin',
         tasks: [],
@@ -116,7 +115,6 @@ export function buildStaffGroups(
       map.set(task.assigneeName, {
         name: task.assigneeName,
         role: task.assigneeRole,
-        subDepartment: task.subDepartment,
         initials: getInitials(task.assigneeName),
         tasks: [],
       })

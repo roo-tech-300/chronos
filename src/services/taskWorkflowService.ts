@@ -22,9 +22,6 @@ export async function submitTaskCompletion(
   const updateFields = {
     status: 'submitted' as const,
     proof_note: payload.completionNote || null,
-    difficulty_note: payload.difficultyNote || null,
-    actual_mins: payload.actualMins || 0,
-    completion_links: payload.completionLinks || [],
     completed_at: new Date().toISOString(),
   }
 
@@ -33,7 +30,7 @@ export async function submitTaskCompletion(
       .from('tasks')
       .update(updateFields)
       .eq('id', cleanTaskId)
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
+      .select('*, workspace_members!assignee_member_id(id, role, profiles(full_name, avatar_url, email))')
       .maybeSingle()
 
     if (error) {
@@ -81,7 +78,7 @@ export async function approveTask(
     // the caller receives a fully mapped TaskItem.
     const { data: joined, error: joinError } = await supabase
       .from('tasks')
-      .select('*, workspace_members(id, role, profiles(full_name, avatar_url, email))')
+      .select('*, workspace_members!assignee_member_id(id, role, profiles(full_name, avatar_url, email))')
       .eq('id', cleanTaskId)
       .maybeSingle()
 

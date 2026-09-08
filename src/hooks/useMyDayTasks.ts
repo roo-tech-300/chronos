@@ -16,7 +16,7 @@ export function useMyDayTasks(memberId?: string) {
     refetch,
   } = useQuery({
     queryKey,
-    queryFn: () => fetchMemberTasks(cleanId, { onlyToday: true }),
+    queryFn: () => fetchMemberTasks(cleanId),
     enabled: Boolean(cleanId),
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 45, // Auto-refresh daily workspace every 45s
@@ -38,9 +38,6 @@ export function useMyDayTasks(memberId?: string) {
                   ...t,
                   status: 'submitted',
                   proofNote: payload.completionNote,
-                  difficultyNote: payload.difficultyNote,
-                  actualMins: payload.actualMins,
-                  completionLinks: payload.completionLinks || [],
                   completedAt: new Date().toISOString(),
                 }
               : t

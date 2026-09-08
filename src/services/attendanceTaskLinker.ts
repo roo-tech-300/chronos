@@ -4,19 +4,16 @@ import { isUuid } from '../utils/uuid'
 export interface MemberTaskBrief {
   totalTasks: number
   openTasks: number
-  highPriorityTasks: number
 }
 
 const EMPTY_BRIEF: MemberTaskBrief = {
   totalTasks: 0,
   openTasks: 0,
-  highPriorityTasks: 0,
 }
 
 interface TaskBriefRpcRow {
   total_tasks?: number | string | null
   open_tasks?: number | string | null
-  high_priority_tasks?: number | string | null
 }
 
 function toBrief(row: TaskBriefRpcRow | undefined): MemberTaskBrief {
@@ -24,7 +21,6 @@ function toBrief(row: TaskBriefRpcRow | undefined): MemberTaskBrief {
   return {
     totalTasks: Number(row.total_tasks) || 0,
     openTasks: Number(row.open_tasks) || 0,
-    highPriorityTasks: Number(row.high_priority_tasks) || 0,
   }
 }
 
@@ -36,7 +32,7 @@ function toBrief(row: TaskBriefRpcRow | undefined): MemberTaskBrief {
  * token is available, the SECURITY DEFINER RPC `get_member_task_brief` is
  * used instead: it validates the token against `kiosks` and returns aggregate
  * counts only. Authenticated dashboard contexts fall back to the direct
- * query, scoped to today's assignments (is_today) via RLS.
+ * RLS-scoped query.
  */
 export async function getMemberTodayTaskBrief(
   memberId: string,
@@ -63,12 +59,11 @@ export async function getMemberTodayTaskBrief(
       return toBrief((data ?? [])[0])
     }
 
-    // Authenticated path: direct query scoped to today's assignments.
+    // Authenticated path: direct RLS-scoped query.
     let query = supabase
       .from('tasks')
-      .select('id, priority, status')
+      .select('id, status')
       .eq('assignee_member_id', cleanMemberId)
-      .eq('is_today', true)
 
     if (cleanWorkspaceId) {
       query = query.eq('workspace_id', cleanWorkspaceId)
@@ -79,13 +74,10 @@ export async function getMemberTodayTaskBrief(
       return EMPTY_BRIEF
     }
 
-    const totalTasks = data.length
-    const openTasks = data.filter((t) => t.status !== 'approved').length
-    const highPriorityTasks = data.filter(
-      (t) => t.priority === 'high' && t.status !== 'approved'
-    ).length
-
-    return { totalTasks, openTasks, highPriorityTasks }
+    return {
+      totalTasks: data.length,
+      openTasks: data.filter((t) => t.status !== 'approved').length,
+    }
   } catch (err) {
     console.warn('[TaskLinker] Failed to query member task brief:', err)
     return EMPTY_BRIEF

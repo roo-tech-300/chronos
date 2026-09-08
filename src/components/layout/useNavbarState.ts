@@ -19,7 +19,7 @@ export function useNavbarState({
 }: UseNavbarStateProps) {
   const location = useLocation()
   const pathname = location.pathname
-  const { role, currentDepartment, currentStaff } = useDevPersona()
+  const { role } = useDevPersona()
   const { profile, user } = useAuth()
 
   const activeBrandName = brandName || currentWorkspace?.name || 'Natale'
@@ -38,13 +38,8 @@ export function useNavbarState({
   const isTasksActive = pathname.includes('/tasks')
   const homePath = workspaceId ? `${prefix}/dashboard` : homePathForRole(role)
 
-  const displayName =
-    profile?.fullName ||
-    (role === 'admin'
-      ? 'Alex Vance'
-      : role === 'hod'
-        ? currentDepartment.lead
-        : currentStaff.name)
+  const emailName = user?.email?.split('@')[0]
+  const displayName = profile?.fullName || emailName || 'Signed-in User'
 
   const initials =
     displayName
@@ -61,7 +56,6 @@ export function useNavbarState({
     profile,
     displayName,
     initials,
-    currentStaff,
     activeBrandName,
     activeBrandLogo,
     homePath,

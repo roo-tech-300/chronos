@@ -88,9 +88,6 @@ export function KioskSuccessCard({ staff, isError, errorMessage }: KioskSuccessC
           <CheckSquare size={14} className="text-[#7c007e] shrink-0" />
           <span>
             <strong>{staff.taskBrief.openTasks} open task{staff.taskBrief.openTasks > 1 ? 's' : ''}</strong> assigned for today
-            {staff.taskBrief.highPriorityTasks > 0 && (
-              <span className="text-rose-700 font-bold ml-1">({staff.taskBrief.highPriorityTasks} High Priority)</span>
-            )}
           </span>
         </div>
       )}

@@ -1,10 +1,20 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
-import type { TaskPriority, TaskType, CreateTaskInput } from '../../types/tasks'
+import { Plus, ClipboardList } from 'lucide-react'
+import type { TaskType, CreateTaskInput } from '../../types/tasks'
 import { Modal, Button, Input, Select } from '../ui'
 import { TaskStaffSelector } from './TaskStaffSelector'
 import { TaskUnitScopePicker } from './TaskUnitScopePicker'
+import { TaskDueDatePicker } from './TaskDueDatePicker'
 import { useTaskAssigneeScope } from '../../hooks/useTaskAssigneeScope'
+
+export type RecurrenceOption = 'one_off' | 'daily' | 'weekly' | 'monthly'
+
+const RECURRENCE_OPTIONS: { value: RecurrenceOption; label: string }[] = [
+  { value: 'one_off', label: 'One Off (Single Day)' },
+  { value: 'daily', label: 'Daily (Every Weekday)' },
+  { value: 'weekly', label: 'Weekly (Same Day Each Week)' },
+  { value: 'monthly', label: 'Monthly (Same Date Each Month)' },
+]
 
 interface TaskModalProps {
   open: boolean
@@ -17,6 +27,7 @@ interface TaskModalProps {
   allowedMemberIds?: string[]
   allowUnitChange?: boolean
 }
+
 
 export default function TaskModal({
   open,
@@ -31,9 +42,7 @@ export default function TaskModal({
 }: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [type, setType] = useState<TaskType>('special')
-  const [priority, setPriority] = useState<TaskPriority>('medium')
-  const [recurrence, setRecurrence] = useState('Every weekday at 09:00 AM')
+  const [recurrence, setRecurrence] = useState<RecurrenceOption>('one_off')
   const [dueDate, setDueDate] = useState('Today, 05:00 PM')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -58,6 +67,8 @@ export default function TaskModal({
     allowUnitChange,
   })
 
+  const taskType: TaskType = recurrence === 'one_off' ? 'special' : 'recurring'
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
@@ -76,17 +87,13 @@ export default function TaskModal({
       workspaceId,
       title,
       description,
-      type,
-      priority,
+      type: taskType,
       assigneeMemberId: staff.id,
       assigneeName: staff.name,
       assigneeRole: staff.role,
       department: effectiveUnitName,
-      subDepartment: staff.subDepartment,
-      recurrence: type === 'recurring' ? recurrence : undefined,
+      recurrence: recurrence === 'one_off' ? undefined : recurrence,
       dueDate,
-      isToday: true,
-      estimatedMins: 30,
     }))
 
     setIsSubmitting(true)
@@ -108,7 +115,14 @@ export default function TaskModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Assign Tasks — ${effectiveUnitName}`}
+      title={
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#7c007e]/10 text-[#7c007e] flex items-center justify-center shrink-0">
+            <ClipboardList size={18} />
+          </div>
+          <span className="text-base font-bold text-zinc-900">Assign Tasks</span>
+        </div>
+      }
       subtitle={`Create and assign tasks to ${effectiveUnitName} personnel`}
       maxWidth="lg"
     >
@@ -135,10 +149,9 @@ export default function TaskModal({
           <textarea
             rows={2}
             className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 transition-all placeholder:text-zinc-400 resize-none"
-            placeholder="Specify precise expectations, hygiene routines, or log criteria..."
+            placeholder="Specify precise expectations, hygiene routines, or log criteria... (optional)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            required
           />
         </div>
 
@@ -151,44 +164,18 @@ export default function TaskModal({
           unitName={effectiveUnitName}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Task Classification"
-            options={[
-              { value: 'special', label: 'Special Assignment (One-off)' },
-              { value: 'recurring', label: 'Recurring Routine (Daily/Weekly)' },
-            ]}
-            value={type}
-            onChange={(e) => setType(e.target.value as TaskType)}
-          />
+        <Select
+          label="Recurrence"
+          options={RECURRENCE_OPTIONS}
+          value={recurrence}
+          onChange={(e) => setRecurrence(e.target.value as RecurrenceOption)}
+        />
 
-          <Select
-            label="Priority Level"
-            options={[
-              { value: 'high', label: 'High Priority (Immediate)' },
-              { value: 'medium', label: 'Medium Priority' },
-              { value: 'low', label: 'Low / Routine' },
-            ]}
-            value={priority}
-            onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          />
-        </div>
+        <TaskDueDatePicker recurrence={recurrence} onDueDateChange={setDueDate} />
 
-        {type === 'recurring' ? (
-          <Input
-            label="Recurrence Cadence"
-            placeholder="e.g. Every weekday at 08:30 AM"
-            value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
-          />
-        ) : (
-          <Input
-            label="Due Date / Expected Completion"
-            placeholder="e.g. Today, 05:00 PM or Tomorrow"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-          />
-        )}
+        <p className="text-xs text-zinc-500">
+          Due rule: <strong className="text-zinc-700">{dueDate}</strong>
+        </p>
 
         {submitError && (
           <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">

@@ -1,6 +1,5 @@
-import { Clock3, Hourglass, ListTodo, ShieldCheck } from 'lucide-react'
+import { Hourglass, ListTodo, ShieldCheck } from 'lucide-react'
 import type { TaskItem } from '../../types/tasks'
-import { formatMinutes } from '../../utils/dayTasks'
 
 interface MyDaySummaryProps {
   tasks: TaskItem[]
@@ -10,7 +9,6 @@ export default function MyDaySummary({ tasks }: MyDaySummaryProps) {
   const openCount = tasks.filter((t) => t.status === 'not_done').length
   const submittedCount = tasks.filter((t) => t.status === 'submitted').length
   const verifiedCount = tasks.filter((t) => t.status === 'approved').length
-  const totalEstMins = tasks.reduce((sum, t) => sum + (t.estimatedMins ?? 0), 0)
 
   const stats = [
     {
@@ -28,15 +26,10 @@ export default function MyDaySummary({ tasks }: MyDaySummaryProps) {
       value: String(verifiedCount),
       icon: ShieldCheck,
     },
-    {
-      label: 'Est. Total Duration',
-      value: formatMinutes(totalEstMins),
-      icon: Clock3,
-    },
   ]
 
   return (
-    <section className="tasks-metrics tasks-metrics--four">
+    <section className="tasks-metrics">
       {stats.map((stat) => (
         <div key={stat.label} className="tasks-metric">
           <div className="tasks-metric-top">

@@ -59,10 +59,18 @@ export default function UnitDepartmentPage() {
   const handleCreateTasks = async (newTasks: CreateTaskInput[]) => {
     setCreateError(null)
     try {
-      await createBatch(newTasks)
+      const result = await createBatch(newTasks)
+      if (result.success === false) {
+        throw new Error(result.error || 'Failed to create tasks. Please try again.')
+      }
       setIsTaskModalOpen(false)
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create tasks. Please try again.')
+      const message = err instanceof Error ? err.message : 'Failed to create tasks. Please try again.'
+      console.error('[UnitDepartmentPage] Task create failed:', err)
+      setCreateError(message)
+      // Re-throw so the TaskModal's inline submitError also surfaces the failure
+      // and stays open for correction instead of closing silently.
+      throw err
     }
   }
 

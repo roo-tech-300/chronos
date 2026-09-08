@@ -1,8 +1,10 @@
 import { useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Building2, User as UserIcon, LogOut, Bell, Settings } from 'lucide-react'
+import { Building2, User as UserIcon, LogOut, Bell, Settings, LogIn } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { AuthProfile } from '../../context/authTypes'
+import { useCurrentWorkspaceMember } from '../../hooks/useCurrentWorkspaceMember'
+import { useMemberClockIn, formatClockInTime } from '../../hooks/useMemberClockIn'
 
 interface NavbarUserMenuProps {
   dropdownOpen: boolean
@@ -13,7 +15,7 @@ interface NavbarUserMenuProps {
   initials: string
   accentColor?: string
   role: string
-  currentStaffRole: string
+  workspaceId?: string
   homePath: string
   prefix: string
   onSignOut: () => Promise<void>
@@ -28,13 +30,20 @@ export function NavbarUserMenu({
   initials,
   accentColor,
   role,
-  currentStaffRole,
+  workspaceId,
   homePath,
   prefix,
   onSignOut,
 }: NavbarUserMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+
+  // Live clock-in status read from today's attendance logs (real DB record).
+  // Clocked in = the member's LATEST scan today is a check-in (not a check-out).
+  const { member } = useCurrentWorkspaceMember(workspaceId ?? '')
+  const { data: todayScan } = useMemberClockIn(member?.memberId)
+  const clockInTime = formatClockInTime(todayScan?.scanTimestamp)
+  const isClockedIn = todayScan?.direction === 'in'
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -61,8 +70,7 @@ export function NavbarUserMenu({
     navigate('/login')
   }
 
-  const roleLabel = role === 'admin' ? 'Administrator' : role === 'hod' ? 'Department Head' : currentStaffRole || 'Staff'
-  const userEmail = user?.email || profile?.email || `${role}@natale.corp`
+  const userEmail = user?.email || profile?.email || ''
   const settingsPath = role === 'admin' ? `${prefix}/settings/organization` : `${prefix}/settings/organization`
 
   return (
@@ -95,8 +103,13 @@ export function NavbarUserMenu({
           <span className="text-xs font-bold text-zinc-900 leading-tight truncate max-w-[130px]">
             {displayName}
           </span>
-          <span className="text-[11px] text-zinc-500 leading-tight">
-            {roleLabel}
+          <span
+            className={`text-[11px] leading-tight font-semibold inline-flex items-center gap-1 ${
+              isClockedIn ? 'text-emerald-600' : 'text-zinc-400'
+            }`}
+          >
+            <LogIn size={11} />
+            {isClockedIn ? `Clocked in ${clockInTime}` : 'Not clocked in'}
           </span>
         </div>
       </button>
@@ -124,8 +137,13 @@ export function NavbarUserMenu({
             <div className="min-w-0 flex-1">
               <p className="font-bold text-zinc-900 truncate leading-tight">{displayName}</p>
               <p className="text-xs text-zinc-500 truncate mt-0.5">{userEmail}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-purple-50 text-purple-700">
-                {roleLabel}
+              <span
+                className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md ${
+                  isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'
+                }`}
+              >
+                <LogIn size={11} />
+                {isClockedIn ? `Clocked in ${clockInTime}` : 'Not clocked in'}
               </span>
             </div>
           </div>

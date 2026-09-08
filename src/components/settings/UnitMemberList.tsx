@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Users, Trash2, ShieldCheck, UserPlus } from 'lucide-react'
+import { Users, Trash2, UserPlus } from 'lucide-react'
 import type { UnitMemberItem } from '../../services/unitMembersService'
-import type { BadgeVariant } from '../ui/Badge'
-import { Badge, Button } from '../ui'
+import { Button } from '../ui'
 
 interface UnitMemberListProps {
   members: UnitMemberItem[]
@@ -10,14 +9,6 @@ interface UnitMemberListProps {
   onRemove: (memberId: string) => Promise<void>
   isRemoving: boolean
   onAssignClick: () => void
-}
-
-const TYPE_BADGE_VARIANTS: Record<string, BadgeVariant> = {
-  primary: 'purple',
-  joint: 'info',
-  adjunct: 'success',
-  secondment: 'warning',
-  affiliate: 'neutral',
 }
 
 export function UnitMemberList({
@@ -63,11 +54,10 @@ export function UnitMemberList({
     }
   }
 
-  return (
+    return (
     <div className="divide-y divide-zinc-100 max-h-[380px] overflow-y-auto pr-1">
       {members.map((m) => {
         const initials = m.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || 'U'
-        const badgeVariant = TYPE_BADGE_VARIANTS[m.assignmentType] || 'gray'
 
         return (
           <div key={m.id} className="py-3 flex items-center justify-between gap-3 group">
@@ -80,17 +70,9 @@ export function UnitMemberList({
                 </div>
               )}
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-zinc-900 truncate">{m.name}</span>
-                  {m.isPrimary && (
-                    <span title="Primary Appointment" className="text-[#7c007e]">
-                      <ShieldCheck size={13} />
-                    </span>
-                  )}
-                  <Badge variant={badgeVariant} size="sm">
-                    {m.assignmentType.toUpperCase()}
-                  </Badge>
-                </div>
+                <span className="text-xs font-bold text-zinc-900 truncate block">
+                  {m.name}
+                </span>
                 <div className="text-[11px] text-zinc-400 truncate">
                   {m.jobTitle ? `${m.jobTitle} • ` : ''}{m.email || m.roleLabel}
                 </div>
