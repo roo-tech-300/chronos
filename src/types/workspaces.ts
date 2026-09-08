@@ -14,6 +14,7 @@ export interface Workspace {
   logo?: string
   status?: 'active' | 'pending' | 'suspended'
   createdAt?: string
+  joinCode?: string
 }
 
 export interface WorkspaceMember {

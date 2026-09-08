@@ -136,6 +136,7 @@ export interface WorkspaceWithCounts {
   accent_color?: string
   status?: 'active' | 'pending' | 'suspended'
   created_at?: string
+  join_code?: string
   workspace_members?: [{ count: number }] | { count: number }[]
   kiosks?: [{ count: number }] | { count: number }[]
 }

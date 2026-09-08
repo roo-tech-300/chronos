@@ -1,3 +1,102 @@
+import { getSupabase } from '../lib/supabase'
+import { isUuid } from '../utils/uuid'
+import type {
+  Workspace,
+  WorkspaceRole,
+  WorkspaceDraft,
+  WorkspaceJoinRequest,
+  JoinRequestStatus,
+} from '../types/workspaces'
+import { assertWorkspaceWithCounts, assertJoinRequestRow } from '../utils/supabaseTypeGuards'
+
+/**
+ * Fetch all workspaces that the currently signed-in user belongs to.
+ */
+export async function getUserWorkspaces(
+  userId?: string
+): Promise<{ data: Workspace[]; error: Error | null }> {
+  const supabase = getSupabase()
+
+  let targetUserId = userId
+  if (!targetUserId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    targetUserId = user?.id
+  }
+
+  if (!targetUserId) {
+    return { data: [], error: new Error('User is not authenticated') }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('workspace_members')
+      .select(`
+        role,
+        workspaces (
+          id,
+          name,
+          slug,
+          plan,
+          category,
+          avatar_url,
+          accent_color,
+          status,
+          created_at,
+          workspace_members(count),
+          kiosks(count)
+        )
+      `)
+      .eq('user_id', targetUserId)
+
+    if (error) {
+      return { data: [], error: new Error(error.message) }
+    }
+
+    if (!data || data.length === 0) {
+      return { data: [], error: null }
+    }
+
+    const workspaces: Workspace[] = data
+      .filter((row) => row.workspaces !== null)
+      .map((row) => {
+        const ws = assertWorkspaceWithCounts(row.workspaces)
+
+        const memberCount = Array.isArray(ws.workspace_members) && ws.workspace_members[0]
+          ? ws.workspace_members[0].count
+          : 1
+
+        const kioskCount = Array.isArray(ws.kiosks) && ws.kiosks[0]
+          ? ws.kiosks[0].count
+          : 0
+
+        return {
+          id: ws.id,
+          name: ws.name,
+          slug: ws.slug,
+          plan: ws.plan || 'starter',
+          category: ws.category || 'Technology',
+          role: (row.role as WorkspaceRole) || 'member',
+          memberCount,
+          kioskCount,
+          avatarUrl: ws.avatar_url,
+          accentColor: ws.accent_color || '#4f46e5',
+          status: ws.status || 'active',
+          createdAt: ws.created_at,
+        }
+      })
+
+    return { data: workspaces, error: null }
+  } catch (err) {
+    return {
+      data: [],
+      error: err instanceof Error ? err : new Error('Error fetching workspaces'),
+    }
+  }
+}
+
+/**
+ * Create a new workspace and insert the creator as its owner.
+ */
 export async function createWorkspace(
   draft: WorkspaceDraft
 ): Promise<{ data: Workspace | null; error: Error | null }> {
@@ -14,7 +113,7 @@ export async function createWorkspace(
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/, '') || 'workspace'
+      .replace(/^-+|-+$/g, '') || 'workspace'
     const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 7)}`
 
     const { data: ws, error } = await supabase
@@ -22,7 +121,7 @@ export async function createWorkspace(
       .insert({
         name: draft.name,
         slug: uniqueSlug,
-        plan: draft.plan || 'starter',
+        plan: 'starter',
         category: draft.category || 'Technology',
         avatar_url: draft.avatarUrl,
         accent_color: draft.accentColor || '#4f46e5',
@@ -94,126 +193,10 @@ export async function createWorkspace(
       error: err instanceof Error ? err : new Error('Unknown error creating workspace'),
     }
   }
-}export async function createWorkspace(
-  draft: WorkspaceDraft
-): Promise<{ data: Workspace | null; error: Error | null }> {
-  const supabase = getSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { data: null, error: new Error('User is not authenticated') }
-  }
-
-  try {
-    // Auto-generate slug from name + random unique suffix
-    const baseSlug = draft.name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'workspace'
-    const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 7)}`
-
-                const { data: ws, error: wsError } = await supabase
-      .from('workspaces')
-      .insert({
-        name: draft.name,
-        slug: uniqueSlug,
-        avatar_url: draft.avatarUrl,
-        accent_color: draft.accentColor,
-        category: draft.category,
-        plan: draft.plan || 'starter',
-        status: draft.status || 'active',
-      })
-      .select(`
-        id,
-        name,
-        slug,
-        plan,
-        category,
-        avatar_url,
-        accent_color,
-        status,
-        join_code,
-        created_at
-      `)
-      .single()
-      .from('workspaces')
-      .insert({om('workspaces')
-      .insert({
-        name: draft.name,
-        slug: uniqueSlug,
-        avatar_url: draft.avatarUrl,
-        accent_color: draft.accentColor,
-        category: draft.category,
-        plan: draft.plan || 'starter',
-        status: draft.status || 'active',
-      })
-      .select(`
-        id,
-        name,
-        slug,
-        plan,
-        category,
-        avatar_url,
-        accent_color,
-        status,
-        join_code,
-        created_at
-      `)
-      .single()workspaces')
-      .insert({
-        name: draft.name.trim(),
-        slug: uniqueSlug,
-        plan: 'starter',
-        category: draft.category || 'Technology',
-        accent_color: draft.accentColor || '#4f46e5',
-        avatar_url: draft.avatarUrl,
-        created_by: user.id,
-      })
-      .select()
-      .single()
-
-    if (wsError || !ws) {
-      return { data: null, error: new Error(wsError?.message || 'Failed to create workspace') }
-    }
-
-    const { error: memberError } = await supabase
-      .from('workspace_members')
-      .insert({
-        workspace_id: ws.id,
-        user_id: user.id,
-        role: 'admin',
-      })
-
-    if (memberError) {
-      return { data: null, error: new Error(memberError.message) }
-    }
-
-    return {
-      data: {
-        id: ws.id,
-        name: ws.name,
-        slug: ws.slug,
-        plan: ws.plan,
-        category: ws.category,
-        role: 'admin',
-        memberCount: 1,
-        kioskCount: 0,
-        avatarUrl: ws.avatar_url,
-        accentColor: ws.accent_color,
-      },
-      error: null,
-    }
-  } catch (err) {
-    return {
-      data: null,
-      error: err instanceof Error ? err : new Error('Failed to create workspace'),
-    }
-  }
 }
 
 /**
- * Fetch a single workspace by ID including aggregated member and kiosk counts.
+ * Fetch a single workspace by ID (or slug) including aggregated member and kiosk counts.
  */
 export async function getWorkspaceById(
   workspaceId: string
@@ -271,7 +254,7 @@ export async function getWorkspaceById(
         memberCount,
         kioskCount,
         avatarUrl: typedWs.avatar_url,
-        accentColor: typedWs.accent_color || '#7c007e',
+        accentColor: typedWs.accent_color || '#4f46e5',
         status: typedWs.status || 'active',
         createdAt: typedWs.created_at,
       },
@@ -284,7 +267,7 @@ export async function getWorkspaceById(
     }
   }
 }
-
+
 /**
  * Submit a join request to a workspace using its random join code.
  * Resolves the workspace by join_code, then inserts a pending record.
@@ -359,7 +342,7 @@ export async function joinWorkspaceByCode(
 }
 
 /**
- * Fetch join requests for a workspace (admin/owner only via RLS).
+ * Fetch join requests for a workspace (admin/owner visibility enforced via RLS).
  */
 export async function getJoinRequests(
   workspaceId: string,
@@ -422,6 +405,7 @@ export async function getJoinRequests(
 
 /**
  * Approve or reject a pending join request.
+ * On approval, the requesting user is added to workspace_members as a regular member.
  */
 export async function processJoinRequest(
   requestId: string,
@@ -435,10 +419,10 @@ export async function processJoinRequest(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { data: false, error: new Error('Authentication required.') }
 
-    // Check current status - only pending can be updated
+    // Fetch the request (including ids needed for the membership insert)
     const { data: existing, error: findErr } = await supabase
       .from('workspace_join_requests')
-      .select('status')
+      .select('status, workspace_id, user_id')
       .eq('id', requestId)
       .maybeSingle()
 
@@ -452,7 +436,7 @@ export async function processJoinRequest(
       return { data: false, error: new Error('This request has already been processed.') }
     }
 
-    // Update the request
+    // Update the request (guarded: only still-pending rows can transition)
     const { error } = await supabase
       .from('workspace_join_requests')
       .update({
@@ -467,27 +451,18 @@ export async function processJoinRequest(
       return { data: false, error: new Error(error.message || 'Failed to update request.') }
     }
 
-    // If approved, insert into workspace_members
-    if (status === 'approved') {
-      // Get the workspace_id and user_id from the request
-      const { data: reqRow } = await supabase
-        .from('workspace_join_requests')
-        .select('workspace_id, user_id')
-        .eq('id', requestId)
-        .maybeSingle()
+    // If approved, insert the requester into workspace_members
+    if (status === 'approved' && existing.workspace_id && existing.user_id) {
+      const { error: memberErr } = await supabase
+        .from('workspace_members')
+        .insert({
+          workspace_id: existing.workspace_id,
+          user_id: existing.user_id,
+          role: 'member',
+        })
 
-      if (reqRow) {
-        const { error: memberErr } = await supabase
-          .from('workspace_members')
-          .insert({
-            workspace_id: reqRow.workspace_id,
-            user_id: reqRow.user_id,
-            role: 'member',
-          })
-
-        if (memberErr) {
-          return { data: false, error: new Error('Request approved but failed to add member.') }
-        }
+      if (memberErr) {
+        return { data: false, error: new Error('Request approved but failed to add member.') }
       }
     }
 
