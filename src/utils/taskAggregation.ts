@@ -2,11 +2,10 @@ import type { StaffTaskGroup, TaskItem, WorkspaceMemberRecord } from '../types/t
 
 /** Exact filter surfaces provided by the review toolbar. */
 export const TASK_FILTER_TABS = [
-  "Today's Tasks",
-  'Submitted (Waiting Approval)',
+  "Today's tasks",
+  'Waiting Approval',
   'Approved',
   'Not Done',
-  'All Tasks',
 ] as const
 
 export type TasksFilterTab = (typeof TASK_FILTER_TABS)[number]
@@ -27,11 +26,13 @@ function matchesSearch(task: TaskItem, searchQuery: string): boolean {
   )
 }
 
-export function taskMatchesTab(task: TaskItem, tab: TasksFilterTab): boolean {
+export function taskMatchesTab(task: TaskItem, tab: TasksFilterTab | string): boolean {
   switch (tab) {
+    case "Today's tasks":
     case "Today's Tasks":
-      // is_today was removed from the schema - every task is in view.
+      // is_today was removed from the schema - every active task is in view.
       return true
+    case 'Waiting Approval':
     case 'Submitted (Waiting Approval)':
       return task.status === 'submitted'
     case 'Approved':

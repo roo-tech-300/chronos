@@ -13,7 +13,6 @@ import DepartmentUnitCard from './components/tasks/DepartmentUnitCard'
 import StaffDirectoryModal from './components/tasks/StaffDirectoryModal'
 import TaskModal from './components/tasks/TaskModal'
 import TasksFooter from './components/tasks/TasksFooter'
-import UnitScopeToggle from './components/tasks/UnitScopeToggle'
 import { Button, Toolbar } from './components/ui'
 import {
   TASK_FILTER_TABS,
@@ -21,19 +20,14 @@ import {
   summarizeStatuses,
   filterReviewTasks,
 } from './utils/taskAggregation'
-import {
-  resolveScopeAssigneeIds,
-  buildUnitOverviews,
-  type UnitScopeMode,
-} from './utils/taskUnitScoping'
-import { collectSubtreeIds } from './utils/orgUnitTree'
-import type { TaskItem, CreateTaskInput, TaskFilters } from './types/tasks'
-import type { OrgUnit } from './types/organization'
+import { buildUnitOverviews } from './utils/taskUnitScoping'
+import { useHodScope } from './hooks/useHodScope'
+import type { TaskItem, CreateTaskInput } from './types/tasks'
 import './styles/tasks-layout.css'
 import './styles/tasks-directory.css'
 
 export default function TasksPage() {
-  const { currentWorkspace, accentColor = '#7c007e' } = useWorkspace()
+  const { currentWorkspace } = useWorkspace()
   const { profile } = useAuth()
   const { role, currentDepartment } = useDevPersona()
   const activeWorkspaceId = currentWorkspace?.id || ''
@@ -44,54 +38,26 @@ export default function TasksPage() {
     ? `/workspace/${activeWorkspaceId}/tasks/my-tasks`
     : '/tasks/my-tasks'
 
-  const [filters, setFilters] = useState<TaskFilters>({ unit: 'all' })
   const {
     tasks,
     createBatch,
     approveTask: approveTaskMutation,
     approveError,
-  } = useWorkspaceTasks(activeWorkspaceId, filters)
+  } = useWorkspaceTasks(activeWorkspaceId)
   const { roster } = useWorkspaceRoster(activeWorkspaceId)
   const { units } = useWorkspaceUnits(activeWorkspaceId)
-  const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's Tasks")
+  const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's tasks")
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [activeUnitId, setActiveUnitId] = useState<string | null>(null)
-  const [scopeMode, setScopeMode] = useState<UnitScopeMode>('subtree')
 
-  // HODs are locked to their department subtree; admins see the whole workspace.
-  const hodUnits = useMemo<OrgUnit[] | null>(() => {
-    if (role !== 'hod') return null
-    const deptName = currentDepartment.name.toLowerCase()
-    const subNames = new Set(currentDepartment.subDepartments.map((s) => s.toLowerCase()))
-    const roots = units.filter(
-      (u) => u.name.toLowerCase() === deptName || subNames.has(u.name.toLowerCase())
-    )
-    if (roots.length === 0) return null
-    const ids = new Set<string>()
-    for (const root of roots) {
-      collectSubtreeIds(units, root.id).forEach((id) => ids.add(id))
-    }
-    return units.filter((u) => roots.some((r) => r.id === u.id) || ids.has(u.id))
-  }, [role, currentDepartment, units])
-  const isHodScoped = hodUnits !== null
-
-  // HOD-visible assignees: everyone inside their department subtree.
-  const hodAssigneeIds = useMemo(() => {
-    if (!hodUnits) return null
-    const hodUnitIds = new Set(hodUnits.map((u) => u.id))
-    const subtreeNames = new Set(hodUnits.map((u) => u.name.toLowerCase()))
-    return new Set(
-      roster
-        .filter(
-          (m) =>
-            (m.unitId && hodUnitIds.has(m.unitId)) ||
-            m.unitIds?.some((uid) => hodUnitIds.has(uid)) ||
-            (m.department && subtreeNames.has(m.department.toLowerCase()))
-        )
-        .map((m) => m.memberId)
-    )
-  }, [hodUnits, roster])
+  const { hodUnits, hodAssigneeIds, hodUnit } = useHodScope({
+    role,
+    departmentName: currentDepartment.name,
+    subDepartments: currentDepartment.subDepartments,
+    units,
+    roster,
+  })
 
   // HOD task lens: only tasks assigned inside their department ever surface.
   const visibleTasks = useMemo(() => {
@@ -104,29 +70,10 @@ export default function TasksPage() {
   // Lifecycle anchors follow the viewer's visible task set
   const overall = useMemo(() => summarizeStatuses(visibleTasks), [visibleTasks])
 
-  // Unit scope resolves to real organization_units subtree membership.
-  // HODs are pinned to their department: an out-of-scope or 'all' selection
-  // derives to their department unit during render (no state ping-pong).
-  const effectiveUnit = useMemo(() => {
-    if (!isHodScoped) return filters.unit || 'all'
-    const allowed = new Set(hodUnits.map((u) => u.id))
-    const current = filters.unit || 'all'
-    if (current === 'all' || !allowed.has(current)) {
-      return hodUnits[0]?.id ?? 'all'
-    }
-    return current
-  }, [isHodScoped, hodUnits, filters.unit])
-
-  const scopedUnitId = effectiveUnit !== 'all' ? effectiveUnit : null
-  const scopeAssigneeIds = useMemo(
-    () => resolveScopeAssigneeIds(units, roster, scopedUnitId, scopeMode),
-    [units, roster, scopedUnitId, scopeMode],
-  )
-
-  // Everything below honours the toolbar filter (status tab + search + unit scope)
+  // Filter tasks by status tab and search query
   const filteredTasks = useMemo(
-    () => filterReviewTasks(visibleTasks, activeTab, searchQuery, scopeAssigneeIds),
-    [visibleTasks, activeTab, searchQuery, scopeAssigneeIds],
+    () => filterReviewTasks(visibleTasks, activeTab, searchQuery),
+    [visibleTasks, activeTab, searchQuery],
   )
 
   const unitOverviews = useMemo(
@@ -134,31 +81,7 @@ export default function TasksPage() {
     [hodUnits, units, roster, filteredTasks],
   )
 
-  const unitScopeOptions = useMemo(() => {
-    const allowed = hodUnits ? new Set(hodUnits.map((u) => u.id)) : null
-    return units
-      .filter((unit) => !allowed || allowed.has(unit.id))
-      .map((unit) => ({
-        id: unit.id,
-        name: unit.name,
-        memberCount: roster.filter((m) => m.unitId === unit.id).length,
-      }))
-  }, [units, roster, hodUnits])
-
-  const displayedUnits = useMemo(() => {
-    if (!scopedUnitId) return unitOverviews
-    return unitOverviews.filter((u) => u.id === scopedUnitId)
-  }, [unitOverviews, scopedUnitId])
-
-  const scopedUnit = scopedUnitId
-    ? unitOverviews.find((u) => u.id === scopedUnitId) ?? null
-    : null
   const activeUnit = unitOverviews.find((u) => u.id === activeUnitId) ?? null
-
-  const hodUnit = useMemo(() => {
-    if (role !== 'hod') return null
-    return units.find((u) => u.name.toLowerCase() === currentDepartment.name.toLowerCase()) || null
-  }, [role, currentDepartment.name, units])
 
   async function handleCreateBatch(newTasks: CreateTaskInput[]) {
     const result = await createBatch(newTasks)
@@ -175,8 +98,7 @@ export default function TasksPage() {
         verifiedBy: profile?.fullName || '',
       })
     } catch {
-      // Approval failures roll back the optimistic cache via the mutation's
-      // onError handler; the rejection must not escape as unhandled.
+      // Approval failures roll back optimistic cache via mutation onError
     }
   }
 
@@ -214,7 +136,7 @@ export default function TasksPage() {
         <Toolbar
           className="mb-4"
           search={{
-            placeholder: 'Search tasks, staff, or units...',
+            placeholder: 'Search tasks',
             value: searchQuery,
             onChange: (e) => setSearchQuery(e.target.value),
             onClear: () => setSearchQuery(''),
@@ -224,8 +146,8 @@ export default function TasksPage() {
             tabs: TASK_FILTER_TABS.map((tab) => ({
               id: tab,
               label:
-                tab === 'Submitted (Waiting Approval)' && overall.submitted > 0
-                  ? `Submitted (${overall.submitted})`
+                tab === 'Waiting Approval' && overall.submitted > 0
+                  ? `Waiting Approval (${overall.submitted})`
                   : tab,
             })),
             activeTab,
@@ -245,20 +167,6 @@ export default function TasksPage() {
           }
         />
 
-        {/* Unit scope toggle wired to real organization_units */}
-        <UnitScopeToggle
-          activeUnit={effectiveUnit}
-          units={unitScopeOptions}
-          totalTaskCount={visibleTasks.length}
-          onSelectUnit={(selectedUnitId) =>
-            setFilters((prev) => ({ ...prev, unit: selectedUnitId }))
-          }
-          scopeMode={scopeMode}
-          onScopeModeChange={setScopeMode}
-          accentColor={accentColor}
-          hideAllUnits={isHodScoped}
-        />
-
         {/* Approval authority feedback (DB-enforced via approve_task_if_authorized) */}
         {approveError && (
           <div className="mb-4 flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
@@ -276,14 +184,13 @@ export default function TasksPage() {
             </p>
           </div>
           <span className="tasks-badge">
-            {scopedUnit ? `Scoped: ${scopedUnit.name} · ` : ''}
-            {displayedUnits.length} {displayedUnits.length === 1 ? 'Unit' : 'Units'} ·{' '}
+            {unitOverviews.length} {unitOverviews.length === 1 ? 'Unit' : 'Units'} ·{' '}
             {filteredTasks.length} in view
           </span>
         </div>
 
         <div className="unit-grid">
-          {displayedUnits.map((unit) => (
+          {unitOverviews.map((unit) => (
             <DepartmentUnitCard
               key={unit.id}
               unitName={unit.name}
@@ -303,11 +210,11 @@ export default function TasksPage() {
         onClose={() => setIsCreateOpen(false)}
         onCreateBatch={handleCreateBatch}
         workspaceId={activeWorkspaceId}
-        departmentName={scopedUnit?.name || hodUnit?.name || workspaceName}
-        unitId={scopedUnitId || hodUnit?.id || undefined}
-        unitName={scopedUnit?.name || hodUnit?.name || undefined}
-        allowedMemberIds={scopeAssigneeIds ? Array.from(scopeAssigneeIds) : undefined}
-        allowUnitChange={role !== 'hod' && !scopedUnitId}
+        departmentName={hodUnit?.name || workspaceName}
+        unitId={hodUnit?.id || undefined}
+        unitName={hodUnit?.name || undefined}
+        allowedMemberIds={hodAssigneeIds ? Array.from(hodAssigneeIds) : undefined}
+        allowUnitChange={role !== 'hod'}
       />
 
       {activeUnit && (

@@ -9,7 +9,13 @@ import { useMemberClockIn, formatClockInTime } from './hooks/useMemberClockIn'
 import { useUserEnrolledUnits, type UserEnrolledUnit } from './hooks/useUserEnrolledUnits'
 import { evaluatePunctuality } from './services/shiftPolicyService'
 import { orderDayTasks } from './utils/dayTasks'
-import { getInitials } from './utils/taskAggregation'
+import {
+  getInitials,
+  TASK_FILTER_TABS,
+  type TasksFilterTab,
+  summarizeStatuses,
+  filterReviewTasks,
+} from './utils/taskAggregation'
 import type { TaskItem, TaskSubmissionPayload } from './types/tasks'
 import ClockInStatusCard from './components/mytasks/ClockInStatusCard'
 import MyDaySummary from './components/mytasks/MyDaySummary'
@@ -17,6 +23,7 @@ import DayTaskCard from './components/mytasks/DayTaskCard'
 import TaskCompletionDrawer from './components/mytasks/TaskCompletionDrawer'
 import MyDepartmentGrid from './components/mytasks/MyDepartmentGrid'
 import MyUnitTasksModal from './components/mytasks/MyUnitTasksModal'
+import { Toolbar } from './components/ui'
 import './styles/tasks-layout.css'
 import './styles/tasks-widgets.css'
 import './styles/tasks-day.css'
@@ -42,12 +49,21 @@ export default function MyTasksPage() {
   const { tasks, submitCompletion } = useMyDayTasks(member?.memberId)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
   const [selectedUnit, setSelectedUnit] = useState<UserEnrolledUnit | null>(null)
+  const [activeTab, setActiveTab] = useState<TasksFilterTab>("Today's tasks")
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const overall = useMemo(() => summarizeStatuses(tasks), [tasks])
+
+  const filteredTasks = useMemo(
+    () => filterReviewTasks(tasks, activeTab, searchQuery),
+    [tasks, activeTab, searchQuery]
+  )
 
   // User department detection: resolves all enrolled units and tasks per unit
   const { userUnits, isMultiDepartment } = useUserEnrolledUnits(
     member,
     activeWorkspaceId,
-    tasks
+    filteredTasks
   )
 
   const activeUnit = useMemo(() => {
@@ -55,7 +71,7 @@ export default function MyTasksPage() {
     return userUnits.find((u) => u.id === selectedUnit.id) ?? selectedUnit
   }, [selectedUnit, userUnits])
 
-  const orderedTasks = useMemo(() => orderDayTasks(tasks), [tasks])
+  const orderedTasks = useMemo(() => orderDayTasks(filteredTasks), [filteredTasks])
 
   async function handleSubmit(task: TaskItem, payload: TaskSubmissionPayload) {
     await submitCompletion({
@@ -108,6 +124,29 @@ export default function MyTasksPage() {
           />
 
           <MyDaySummary tasks={tasks} />
+
+          <Toolbar
+            className="mb-2"
+            search={{
+              placeholder: 'Search tasks',
+              value: searchQuery,
+              onChange: (e) => setSearchQuery(e.target.value),
+              onClear: () => setSearchQuery(''),
+              width: 'w-full sm:w-72',
+            }}
+            tabs={{
+              tabs: TASK_FILTER_TABS.map((tab) => ({
+                id: tab,
+                label:
+                  tab === 'Waiting Approval' && overall.submitted > 0
+                    ? `Waiting Approval (${overall.submitted})`
+                    : tab,
+              })),
+              activeTab,
+              onChange: (id) => setActiveTab(id as TasksFilterTab),
+              variant: 'pill',
+            }}
+          />
 
           {isMultiDepartment ? (
             <MyDepartmentGrid
