@@ -60,12 +60,15 @@ export default function TasksPage() {
   })
 
   // HOD task lens: only tasks assigned inside their department ever surface.
+  // Admins/owners see everything. A HOD whose department matches no unit sees
+  // nothing (never fall back to the full workspace set — that would leak tasks).
   const visibleTasks = useMemo(() => {
-    if (!hodAssigneeIds) return tasks
+    if (role !== 'hod') return tasks
+    if (!hodAssigneeIds) return []
     return tasks.filter((t) =>
       t.assigneeMemberId ? hodAssigneeIds.has(t.assigneeMemberId) : false
     )
-  }, [tasks, hodAssigneeIds])
+  }, [tasks, hodAssigneeIds, role])
 
   // Lifecycle anchors follow the viewer's visible task set
   const overall = useMemo(() => summarizeStatuses(visibleTasks), [visibleTasks])

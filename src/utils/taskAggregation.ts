@@ -22,7 +22,7 @@ function matchesSearch(task: TaskItem, searchQuery: string): boolean {
   const query = searchQuery.toLowerCase()
   return (
     task.title.toLowerCase().includes(query) ||
-    task.assigneeName.toLowerCase().includes(query)
+    (task.assigneeName?.toLowerCase() ?? '').includes(query)
   )
 }
 

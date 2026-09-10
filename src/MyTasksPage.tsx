@@ -66,6 +66,16 @@ export default function MyTasksPage() {
     filteredTasks
   )
 
+  // Orphan tasks: assigned to this member but whose department matches none of
+  // their enrolled units. Without this, those tasks would vanish entirely in
+  // multi-department mode (the grid only renders per-unit buckets).
+  const orphanTasks = useMemo(() => {
+    if (!isMultiDepartment) return []
+    const bucketed = new Set<string>()
+    for (const u of userUnits) for (const t of u.tasks) bucketed.add(t.id)
+    return filteredTasks.filter((t) => !bucketed.has(t.id))
+  }, [isMultiDepartment, userUnits, filteredTasks])
+
   const activeUnit = useMemo(() => {
     if (!selectedUnit) return null
     return userUnits.find((u) => u.id === selectedUnit.id) ?? selectedUnit
@@ -151,10 +161,36 @@ export default function MyTasksPage() {
           />
 
           {isMultiDepartment ? (
-            <MyDepartmentGrid
-              units={userUnits}
-              onSelectUnit={setSelectedUnit}
-            />
+            <>
+              <MyDepartmentGrid
+                units={userUnits}
+                onSelectUnit={setSelectedUnit}
+              />
+              {orphanTasks.length > 0 && (
+                <section aria-label="Other tasks">
+                  <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight text-zinc-900">Other Tasks</h2>
+                      <p className="text-sm text-zinc-500 mt-0.5">
+                        Assigned to you but not part of your enrolled departments.
+                      </p>
+                    </div>
+                    <span className="tasks-badge">
+                      {orphanTasks.length} {orphanTasks.length === 1 ? 'Task' : 'Tasks'}
+                    </span>
+                  </div>
+                  <div className="tasks-day-grid">
+                    {orphanTasks.map((task) => (
+                      <DayTaskCard
+                        key={task.id}
+                        task={task}
+                        onOpenDrawer={setDrawerTask}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
           ) : orderedTasks.length === 0 ? (
             <div className="tasks-empty-card">
               No tasks are scheduled for today. You are all caught up.
