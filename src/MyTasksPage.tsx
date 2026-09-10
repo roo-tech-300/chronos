@@ -79,11 +79,9 @@ export default function MyTasksPage() {
         <div className="tasks-header">
           <div className="tasks-header-row">
             <div>
-              <h1>My Tasks — Daily Workspace</h1>
+              <h1>My Tasks</h1>
               <p>
-                Arrival &amp; daily focus for {member?.name || 'you'} ·{' '}
-                {currentWorkspace?.name || 'Workspace'}. Tasks are ordered by priority, then
-                estimated duration.
+                Daily focus for {member?.name || 'you'} · {currentWorkspace?.name || 'Workspace'}
               </p>
             </div>
             <a

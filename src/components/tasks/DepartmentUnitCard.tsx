@@ -11,10 +11,12 @@ const UNIT_ICONS: Record<string, ReactNode> = {
 
 interface DepartmentUnitCardProps {
   unitName: string
-  leadName: string | null
-  memberCount: number
+  leadName?: string | null
+  memberCount?: number
   summary: StatusSummary
   onSelect: () => void
+  showMemberCount?: boolean
+  customSubtitle?: string
 }
 
 export default function DepartmentUnitCard({
@@ -23,6 +25,8 @@ export default function DepartmentUnitCard({
   memberCount,
   summary,
   onSelect,
+  showMemberCount = true,
+  customSubtitle,
 }: DepartmentUnitCardProps) {
   return (
     <button type="button" className="unit-card group" onClick={onSelect}>
@@ -37,18 +41,20 @@ export default function DepartmentUnitCard({
       <h3 className="unit-card-name">{unitName}</h3>
       <p className="unit-card-lead">
         <UserRound size={13} />
-        {leadName ? `Lead · ${leadName}` : 'No unit lead assigned'}
+        {customSubtitle ?? (leadName ? `Lead · ${leadName}` : 'No unit lead assigned')}
       </p>
 
       <span className="unit-card-foot">
-        <span className="dot-chip dot-chip--ok">{summary.approved} approved</span>
+        <span className="dot-chip">{summary.notDone} open</span>
         <span className={`dot-chip ${summary.submitted > 0 ? 'dot-chip--warn' : ''}`}>
           {summary.submitted} waiting
         </span>
-        <span className="dot-chip">{summary.notDone} open</span>
-        <span className="ml-auto text-[11px] font-semibold text-zinc-400">
-          {memberCount} {memberCount === 1 ? 'member' : 'members'}
-        </span>
+        <span className="dot-chip dot-chip--ok">{summary.approved} approved</span>
+        {showMemberCount && memberCount !== undefined && (
+          <span className="ml-auto text-[11px] font-semibold text-zinc-400">
+            {memberCount} {memberCount === 1 ? 'member' : 'members'}
+          </span>
+        )}
       </span>
     </button>
   )

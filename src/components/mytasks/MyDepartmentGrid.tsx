@@ -27,8 +27,8 @@ export default function MyDepartmentGrid({ units, onSelectUnit }: MyDepartmentGr
             key={unit.id}
             unitName={unit.name}
             leadName={unit.leadName}
-            memberCount={unit.memberCount}
             summary={unit.summary}
+            showMemberCount={false}
             onSelect={() => onSelectUnit(unit)}
           />
         ))}
