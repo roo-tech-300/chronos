@@ -16,9 +16,9 @@ import {
   summarizeStatuses,
   filterReviewTasks,
 } from './utils/taskAggregation'
+import TasksMetrics from './components/tasks/TasksMetrics'
 import type { TaskItem, TaskSubmissionPayload } from './types/tasks'
 import ClockInStatusCard from './components/mytasks/ClockInStatusCard'
-import MyDaySummary from './components/mytasks/MyDaySummary'
 import DayTaskCard from './components/mytasks/DayTaskCard'
 import TaskCompletionDrawer from './components/mytasks/TaskCompletionDrawer'
 import MyDepartmentGrid from './components/mytasks/MyDepartmentGrid'
@@ -100,6 +100,7 @@ export default function MyTasksPage() {
                 Daily focus for {member?.name || 'you'} · {currentWorkspace?.name || 'Workspace'}
               </p>
             </div>
+            {['owner', 'admin', 'hod'].includes(member?.role || '') && (
             <a
               href={`/workspace/${activeWorkspaceId}/tasks`}
               className="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -107,6 +108,7 @@ export default function MyTasksPage() {
               <ListTodo size={12} />
               All Tasks
             </a>
+            )}
             <span className="tasks-badge">
               <CalendarDays size={13} /> {todayLabel}
             </span>
@@ -123,7 +125,7 @@ export default function MyTasksPage() {
             shiftName={punctuality?.shiftName}
           />
 
-          <MyDaySummary tasks={tasks} />
+          <TasksMetrics overall={overall} />
 
           <Toolbar
             className="mb-2"
