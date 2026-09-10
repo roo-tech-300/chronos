@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useWorkspaceUnits, useMemberAssignments } from './useOrganizationUnits'
+import { useWorkspaceUnits } from './useOrganizationUnits'
 import { useWorkspaceRoster } from './useWorkspaceRoster'
 import { collectSubtreeIds } from '../utils/orgUnitTree'
 import { summarizeStatuses, type StatusSummary } from '../utils/taskAggregation'
@@ -27,7 +27,6 @@ export function useUserEnrolledUnits(
   tasks: TaskItem[]
 ) {
   const { units, isLoading: isUnitsLoading } = useWorkspaceUnits(workspaceId)
-  const { data: memberAssignments, isLoading: isAssignmentsLoading } = useMemberAssignments(member?.memberId)
   const { roster } = useWorkspaceRoster(workspaceId)
 
   const enrolledUnitIds = useMemo(() => {
@@ -36,16 +35,13 @@ export function useUserEnrolledUnits(
     if (member?.unitIds) {
       for (const uid of member.unitIds) if (uid) ids.add(uid)
     }
-    if (memberAssignments) {
-      for (const a of memberAssignments) if (a.unitId) ids.add(a.unitId)
-    }
     if (member?.department && units.length > 0) {
       const deptLower = member.department.toLowerCase()
       const match = units.find((u) => u.name.toLowerCase() === deptLower)
       if (match) ids.add(match.id)
     }
     return ids
-  }, [member, memberAssignments, units])
+  }, [member, units])
 
   const userUnits = useMemo<UserEnrolledUnit[]>(() => {
     if (enrolledUnitIds.size === 0 || units.length === 0) return []
@@ -89,6 +85,6 @@ export function useUserEnrolledUnits(
   return {
     userUnits,
     isMultiDepartment: userUnits.length > 1,
-    isLoading: isUnitsLoading || isAssignmentsLoading,
+    isLoading: isUnitsLoading,
   }
 }
