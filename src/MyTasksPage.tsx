@@ -6,6 +6,7 @@ import { useWorkspace } from './context/useWorkspace'
 import { useCurrentWorkspaceMember } from './hooks/useCurrentWorkspaceMember'
 import { useMyDayTasks } from './hooks/useMyDayTasks'
 import { useMemberClockIn, formatClockInTime } from './hooks/useMemberClockIn'
+import { useUserEnrolledUnits, type UserEnrolledUnit } from './hooks/useUserEnrolledUnits'
 import { evaluatePunctuality } from './services/shiftPolicyService'
 import { orderDayTasks } from './utils/dayTasks'
 import { getInitials } from './utils/taskAggregation'
@@ -14,6 +15,8 @@ import ClockInStatusCard from './components/mytasks/ClockInStatusCard'
 import MyDaySummary from './components/mytasks/MyDaySummary'
 import DayTaskCard from './components/mytasks/DayTaskCard'
 import TaskCompletionDrawer from './components/mytasks/TaskCompletionDrawer'
+import MyDepartmentGrid from './components/mytasks/MyDepartmentGrid'
+import MyUnitTasksModal from './components/mytasks/MyUnitTasksModal'
 import './styles/tasks-layout.css'
 import './styles/tasks-widgets.css'
 import './styles/tasks-day.css'
@@ -38,6 +41,19 @@ export default function MyTasksPage() {
 
   const { tasks, submitCompletion } = useMyDayTasks(member?.memberId)
   const [drawerTask, setDrawerTask] = useState<TaskItem | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<UserEnrolledUnit | null>(null)
+
+  // User department detection: resolves all enrolled units and tasks per unit
+  const { userUnits, isMultiDepartment } = useUserEnrolledUnits(
+    member,
+    activeWorkspaceId,
+    tasks
+  )
+
+  const activeUnit = useMemo(() => {
+    if (!selectedUnit) return null
+    return userUnits.find((u) => u.id === selectedUnit.id) ?? selectedUnit
+  }, [selectedUnit, userUnits])
 
   const orderedTasks = useMemo(() => orderDayTasks(tasks), [tasks])
 
@@ -95,7 +111,12 @@ export default function MyTasksPage() {
 
           <MyDaySummary tasks={tasks} />
 
-          {orderedTasks.length === 0 ? (
+          {isMultiDepartment ? (
+            <MyDepartmentGrid
+              units={userUnits}
+              onSelectUnit={setSelectedUnit}
+            />
+          ) : orderedTasks.length === 0 ? (
             <div className="tasks-empty-card">
               No tasks are scheduled for today. You are all caught up.
             </div>
@@ -129,6 +150,13 @@ export default function MyTasksPage() {
           </div>
         </div>
       </footer>
+
+      <MyUnitTasksModal
+        open={Boolean(activeUnit)}
+        unit={activeUnit}
+        onClose={() => setSelectedUnit(null)}
+        onOpenDrawer={setDrawerTask}
+      />
 
       <TaskCompletionDrawer
         open={Boolean(drawerTask)}
